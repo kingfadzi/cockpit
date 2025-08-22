@@ -7,7 +7,7 @@ services:
       # Point this at your backend. If your backend is reachable on the same host:
       #   http://mars.butterflycluster.com:8080
       # If your backend is another compose service (e.g., "backend:8080"), set that instead.
-      BACKEND_BASE_URL: "http://mars.butterflycluster.com:8080"
+      BACKEND_BASE_URL: "http://192.168.1.218:8080"
     ports:
       - "80:80"
     healthcheck:
