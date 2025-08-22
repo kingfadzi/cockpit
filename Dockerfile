@@ -1,18 +1,29 @@
-# Dockerfile
-FROM node:22-alpine
-
-# Set working directory
+# ---------- Build stage ----------
+FROM node:20-alpine AS build
 WORKDIR /app
 
-# Copy and install dependencies
+# Install deps
 COPY package*.json ./
-RUN npm install
+RUN npm ci
 
-# Copy project files
+# Build app
 COPY . .
+# If you use env-based API URLs at build time, set VITE_* here via --build-arg or env
+RUN npm run build
 
-# Expose Vite dev server port
-EXPOSE 5173
+# ---------- Runtime stage ----------
+FROM nginx:1.27-alpine
 
-# Run Vite dev server on all interfaces
-CMD [ "npm", "run", "dev", "--", "--host", "0.0.0.0" ]
+# For envsubst
+RUN apk add --no-cache bash gettext
+
+# Copy built assets
+COPY --from=build /app/dist /usr/share/nginx/html
+
+# Nginx config template + entrypoint
+COPY deploy/nginx.conf.template /etc/nginx/templates/default.conf.template
+COPY deploy/entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+EXPOSE 80
+CMD ["/entrypoint.sh"]

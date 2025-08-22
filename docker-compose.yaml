@@ -1,10 +1,18 @@
 services:
-  vite:
-    build: .
-    container_name: vite-dev
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      # Point this at your backend. If your backend is reachable on the same host:
+      #   http://mars.butterflycluster.com:8080
+      # If your backend is another compose service (e.g., "backend:8080"), set that instead.
+      BACKEND_BASE_URL: "http://mars.butterflycluster.com:8080"
     ports:
-      - "5173:5173"
-    volumes:
-      - .:/app
-      - /app/node_modules
+      - "80:80"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
     restart: unless-stopped
