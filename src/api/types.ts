@@ -4,10 +4,9 @@ export interface AppSummary {
   businessServiceName?: string;
   criticality: 'A' | 'B' | 'C' | 'D';
   parentAppId?: string | null;
-  house_position?: string;
+  install_type?: string;
   architecture_type?: string;
 }
-
 
 export type EvidenceType = 'link' | 'file' | 'assertion';
 
@@ -19,7 +18,7 @@ export interface EvidenceItem {
   uri?: string | null;
   validFrom?: string;
   validUntil?: string | null;
-  status?: string; // submitted|approved|rejected|expired
+  status?: string; // submitted | approved | rejected | expired
   submittedBy?: string;
 }
 
