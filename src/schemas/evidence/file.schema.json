@@ -1,0 +1,13 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Evidence (File)",
+  "type": "object",
+  "properties": {
+    "fieldKey": { "type": "string" },
+    "type": { "type": "string", "const": "file" },
+    "uri": { "type": ["string", "null"], "title": "Uploaded File URI" },
+    "validFrom": { "type": "string", "format": "date-time" },
+    "validUntil": { "type": ["string", "null"], "format": "date-time" }
+  },
+  "required": ["fieldKey", "type", "validFrom"]
+}

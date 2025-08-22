@@ -1,0 +1,13 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Evidence (Assertion)",
+  "type": "object",
+  "properties": {
+    "fieldKey": { "type": "string" },
+    "type": { "type": "string", "const": "assertion" },
+    "text": { "type": "string", "title": "Statement" },
+    "validFrom": { "type": "string", "format": "date-time" },
+    "validUntil": { "type": ["string", "null"], "format": "date-time" }
+  },
+  "required": ["fieldKey", "type", "text", "validFrom"]
+}

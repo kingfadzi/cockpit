@@ -1,0 +1,13 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Evidence (Link)",
+  "type": "object",
+  "properties": {
+    "fieldKey": { "type": "string", "title": "Profile Field Key" },
+    "type": { "type": "string", "const": "link" },
+    "uri": { "type": "string", "format": "uri", "title": "URL" },
+    "validFrom": { "type": "string", "format": "date-time" },
+    "validUntil": { "type": ["string", "null"], "format": "date-time" }
+  },
+  "required": ["fieldKey", "type", "uri", "validFrom"]
+}
