@@ -1,50 +1,70 @@
-export interface AppSummary {
+// Keeps the UI-facing shape exactly what POHome expects
+export type StatusSeverity = 'success' | 'warning' | 'error' | 'info';
+
+export type AppSummary = {
   appId: string;
-  name?: string;
-  businessServiceName?: string;
-  criticality: 'A' | 'B' | 'C' | 'D';
+  name?: string | null;
+  criticality?: 'A' | 'B' | 'C' | 'D' | undefined;   // badge uses this
+  businessServiceName?: string | null;
+  install_type?: string | null;                       // snake_case for UI
+  architecture_type?: string | null;                  // snake_case for UI
+};
+
+// Server shape coming from Spring (camelCase + appCriticalityAssessment)
+export type ServerApp = {
+  appId: string;
+  scope?: string | null;
   parentAppId?: string | null;
-  install_type?: string;
-  architecture_type?: string;
-}
+  parentAppName?: string | null;
+  name?: string | null;
+  businessServiceName?: string | null;
+  appCriticalityAssessment?: string | null;
+  securityRating?: string | null;
+  integrityRating?: string | null;
+  availabilityRating?: string | null;
+  resilienceRating?: string | null;
+  businessApplicationSysId?: string | null;
+  architectureHosting?: string | null;
+  jiraBacklogId?: string | null;
+  leanControlServiceId?: string | null;
+  repoId?: string | null;
+  operationalStatus?: string | null;
+  transactionCycle?: string | null;
+  transactionCycleId?: string | null;
+  applicationType?: string | null;
+  applicationTier?: string | null;
+  architectureType?: string | null;
+  installType?: string | null;
+  housePosition?: string | null;
+  productOwner?: string | null;
+  productOwnerBrid?: string | null;
+  systemArchitect?: string | null;
+  systemArchitectBrid?: string | null;
+  onboardingStatus?: string | null;
+  ownerId?: string | null;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+};
 
-export type EvidenceType = 'link' | 'file' | 'assertion';
-
-export interface EvidenceItem {
-  evidenceId: string;
-  appId?: string;
-  profileFieldKey?: string;
-  type: EvidenceType;
-  uri?: string | null;
-  validFrom?: string;
-  validUntil?: string | null;
-  status?: string; // submitted | approved | rejected | expired
-  submittedBy?: string;
-}
-
-export interface RequirementItem {
-  fieldKey: string;
-  label: string;
-  status: 'missing' | 'met' | 'expiring' | 'rejected';
-  reuseCandidate?: any;
-}
-
-export interface RequirementsResponse {
-  requirements: RequirementItem[];
-}
-
-export interface ReleaseItem {
-  releaseId: string;
-  windowStart: string;
-  windowEnd?: string | null;
-  gateStatus: 'pass' | 'fail' | 'pending';
-  missingCount: number;
-  expiringCount: number;
-}
-
-export interface PortfolioKpis {
+export type PortfolioKpis = {
   compliant: number;
   missingEvidence: number;
   pendingReview: number;
   riskBlocked: number;
-}
+};
+
+export type EvidenceItem = {
+  evidenceId: string;
+  profileFieldId?: string;
+  profileFieldKey?: string;
+  uri: string;
+  type?: string;
+  sha256?: string;
+  sourceSystem?: string;
+  validFrom?: string | null;
+  validUntil?: string | null;
+  status?: 'approved' | 'pending' | 'submitted' | 'rejected' | 'revoked' | 'active';
+};
+
+export type RequirementsResponse = any; // unchanged for now
+export type ReleaseItem = any;          // unchanged for now
