@@ -2,9 +2,12 @@ export interface AppSummary {
   appId: string;
   name?: string;
   businessServiceName?: string;
-  criticality?: string;
+  criticality: 'A' | 'B' | 'C' | 'D';
   parentAppId?: string | null;
+  house_position?: string;
+  architecture_type?: string;
 }
+
 
 export type EvidenceType = 'link' | 'file' | 'assertion';
 

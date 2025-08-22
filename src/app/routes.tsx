@@ -6,6 +6,11 @@ import SMEHome from '../features/sme/SMEHome';
 import AppDetail from '../features/po/AppDetail';
 import PortfolioEvidence from '../features/evidence/PortfolioEvidence';
 
+/**
+ * Main router configuration.
+ * - Root path wraps pages in AppShell.
+ * - Added /po/evidence route for viewing portfolio evidence filtered by status.
+ */
 export const router = createBrowserRouter([
   {
     path: '/',

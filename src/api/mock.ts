@@ -3,9 +3,26 @@ import { AppSummary, EvidenceItem, RequirementsResponse, ReleaseItem, PortfolioK
 const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 export const apps: AppSummary[] = [
-  { appId: 'CORR-12356', name: 'Correspondence', businessServiceName: 'Billing', criticality: 'B', parentAppId: null },
-  { appId: 'DEVTOOLS', name: 'Dev Tools', businessServiceName: 'Engineering', criticality: 'C', parentAppId: null },
+  {
+    appId: 'CORR-12356',
+    name: 'Correspondence',
+    businessServiceName: 'Billing',
+    criticality: 'A',
+    house_position: 'Front',
+    architecture_type: 'Microservices',
+    parentAppId: null,
+  },
+  {
+    appId: 'DEVTOOLS',
+    name: 'Dev Tools',
+    businessServiceName: 'Engineering',
+    criticality: 'C',
+    house_position: 'Back',
+    architecture_type: 'Monolith',
+    parentAppId: null,
+  },
 ];
+
 
 export const evidence: Record<string, EvidenceItem[]> = {
   'CORR-12356': [

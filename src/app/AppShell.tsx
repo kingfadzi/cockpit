@@ -1,50 +1,59 @@
 import React, { useState } from 'react';
-import { Outlet, Link, useLocation } from 'react-router-dom';
-import { AppBar, Toolbar, Typography, Drawer, List, ListItemButton, ListItemText, Box, IconButton } from '@mui/material';
-import MenuIcon from '@mui/icons-material/Menu';
-import { useAuth } from './auth';
+import { Outlet } from 'react-router-dom';
+import {
+    AppBar,
+    Toolbar,
+    Typography,
+    Box,
+    TextField,
+    Select,
+    MenuItem,
+} from '@mui/material';
+import SearchIcon from '@mui/icons-material/Search';
 
-const drawerWidth = 240;
-
+/**
+ * Top-level shell with a single AppBar.
+ * Contains app title, search bar, and persona selector (PO/SME/Both).
+ * Removes the old side drawer entirely.
+ */
 export const AppShell: React.FC = () => {
-  const [open, setOpen] = useState(true);
-  const { has } = useAuth();
-  const loc = useLocation();
+    const [search, setSearch] = useState('');
+    const [persona, setPersona] = useState<'PO' | 'SME' | 'Both'>('PO');
 
-  const items = [
-    { label: 'PO Home', to: '/po', show: has('product_owner') },
-    { label: 'SME Home', to: '/sme', show: has('control_sme') },
-    { label: 'Search', to: '/search', show: true },
-  ].filter((i) => i.show);
-
-  return (
-    <Box sx={{ display: 'flex' }}>
-      <AppBar position="fixed" sx={{ zIndex: (t) => t.zIndex.drawer + 1 }}>
-        <Toolbar>
-          <IconButton color="inherit" edge="start" onClick={() => setOpen((v) => !v)} sx={{ mr: 2 }}>
-            <MenuIcon />
-          </IconButton>
-          <Typography variant="h6" sx={{ flexGrow: 1 }}>
-            Governance Cockpit
-          </Typography>
-        </Toolbar>
-      </AppBar>
-
-      <Drawer variant="persistent" open={open} sx={{ width: drawerWidth, [`& .MuiDrawer-paper`]: { width: drawerWidth } }}>
-        <Toolbar />
-        <List>
-          {items.map((it) => (
-            <ListItemButton key={it.to} component={Link} to={it.to} selected={loc.pathname.startsWith(it.to)}>
-              <ListItemText primary={it.label} />
-            </ListItemButton>
-          ))}
-        </List>
-      </Drawer>
-
-      <Box component="main" sx={{ flexGrow: 1, p: 3 }}>
-        <Toolbar />
-        <Outlet />
-      </Box>
-    </Box>
-  );
+    return (
+        <Box sx={{ flexGrow: 1 }}>
+            <AppBar position="fixed">
+                <Toolbar>
+                    <Typography variant="h6" sx={{ flexGrow: 1 }}>
+                        Governance Cockpit
+                    </Typography>
+                    {/* Search bar (hidden on very small screens) */}
+                    <TextField
+                        variant="outlined"
+                        size="small"
+                        placeholder="Search..."
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                        sx={{ mr: 2, display: { xs: 'none', sm: 'flex' }, maxWidth: 200 }}
+                        InputProps={{ endAdornment: <SearchIcon /> }}
+                    />
+                    {/* Persona selector */}
+                    <Select
+                        size="small"
+                        value={persona}
+                        onChange={(e) => setPersona(e.target.value as any)}
+                        sx={{ minWidth: 120 }}
+                    >
+                        <MenuItem value="PO">PO View</MenuItem>
+                        <MenuItem value="SME">SME View</MenuItem>
+                        <MenuItem value="Both">Both</MenuItem>
+                    </Select>
+                </Toolbar>
+            </AppBar>
+            {/* Offset main content by AppBar height */}
+            <Box component="main" sx={{ p: 3, mt: 8 }}>
+                <Outlet />
+            </Box>
+        </Box>
+    );
 };
