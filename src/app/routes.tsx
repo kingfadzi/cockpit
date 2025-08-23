@@ -9,6 +9,8 @@ import PortfolioEvidence from '../features/evidence/PortfolioEvidence';
 // ✅ import the single page that owns tabs and fetches /api/apps/:appId/profile
 import AppProfilePage from '../features/profile/AppProfilePage';
 
+import POProfilePageMock from '../features/profile/POProfilePage';
+
 export const router = createBrowserRouter([
   {
     path: '/',
@@ -20,6 +22,9 @@ export const router = createBrowserRouter([
 
       // ⬇️ simplified: one page, no nested routes
       { path: 'po/apps/:appId', element: <AppProfilePage /> },
+
+
+      { path: '/po/mock', element: <POProfilePageMock /> },
 
       { path: 'sme', element: <SMEHome /> },
       { path: 'search', element: <div>Search (placeholder)</div> },

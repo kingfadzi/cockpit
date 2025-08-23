@@ -1,5 +1,5 @@
 // src/features/profile/AppProfilePage.tsx
-import React, { useMemo } from 'react';
+import React, { useMemo, useCallback } from 'react';
 import {
     Alert,
     Box,
@@ -17,18 +17,21 @@ import {
     TableRow,
     Tooltip,
     Typography,
+    Button,
 } from '@mui/material';
 import {
     AccessTime as AccessTimeIcon,
     Security as SecurityIcon,
-    Storage as StorageIcon,
-    Insights as InsightsIcon,
     ErrorOutline as ErrorOutlineIcon,
     FactCheck as FactCheckIcon,
     Map as MapIcon,
     Info as InfoIcon,
+    Insights as InsightsIcon,
+    Edit as EditIcon,
+    AddCircleOutline as AddIcon,
+    TaskAlt as TaskAltIcon,
 } from '@mui/icons-material';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { useProfile } from '../../api/hooks';
 
 /**
@@ -43,6 +46,7 @@ type ProfileField = {
     evidenceCount?: number;
     lastUpdated?: string | null; // ISO
 };
+
 type ServiceInstance = {
     it_service_instance_sysid: string;
     app_id: string;
@@ -53,6 +57,7 @@ type ServiceInstance = {
     it_business_service_sysid?: string;
     updated_at?: string;
 };
+
 type ApplicationMeta = {
     app_id: string;
     name?: string | null;
@@ -63,6 +68,7 @@ type ApplicationMeta = {
     operational_status?: string | null;
     house_position?: string | null;
 };
+
 type AppProfileResponse = {
     appId: string;
     profileId: string;
@@ -73,10 +79,9 @@ type AppProfileResponse = {
 };
 
 /**
- * RAG evaluation rules (kept small & explicit for maintainability)
+ * RAG evaluation helpers
  */
-type Rag = 'green' | 'amber' | 'red' | 'neutral';
-
+export type Rag = 'green' | 'amber' | 'red' | 'neutral';
 const ragColor = (rag: Rag) =>
     rag === 'green' ? '#22c55e' : rag === 'amber' ? '#f59e0b' : rag === 'red' ? '#ef4444' : '#9ca3af';
 
@@ -84,6 +89,42 @@ const RagDot: React.FC<{ rag: Rag }> = ({ rag }) => (
     <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: ragColor(rag) }} />
 );
 
+/** Desired policy expression per key (used to display Desired vs Current) */
+const desiredHint: Record<string, string> = {
+    // Security
+    encryption_at_rest: 'Required for all persisted data',
+    encryption_in_transit: 'TLS for all network traffic',
+    key_rotation_max: 'Rotate keys ≤ 90 days',
+    secrets_management: 'Use centralized secrets manager',
+    security_testing: 'Automated SAST/DAST in CI/CD',
+
+    // Reliability & DR
+    rpo_minutes: '≤ 15 minutes',
+    rto_hours: '≤ 4 hours',
+    ha_topology: 'Active-Active preferred',
+    failover_automation: 'Automated cutover',
+    dr_test_frequency: 'Quarterly DR exercises',
+
+    // Operations
+    audit_logging: 'Full logs + periodic review',
+    monitoring_slos: 'Defined SLOs (≥ 99.9%)',
+    oncall_coverage: '24×7 with paging',
+    runbook_maturity: 'Production-ready runbooks',
+
+    // Data Governance
+    backup_policy: 'Documented, tested backups',
+    data_validation: 'Automated data checks',
+    reconciliation_frequency: 'Regular reconciliations',
+    review_depth: 'Full review for material changes',
+    materiality: 'Defined materiality thresholds',
+    change_control: 'CRs required for prod changes',
+    chaos_testing: 'Controlled experiments optional',
+    immutability_required: 'Immutable storage when mandated',
+};
+
+/**
+ * RAG evaluation rules (small & explicit for maintainability)
+ */
 const SPEC: Record<
     string,
     { label: string; section: 'Security' | 'Reliability & DR' | 'Operations' | 'Data Governance'; eval: (v: any) => Rag }
@@ -178,11 +219,44 @@ const envSort = (a: string, b: string) => {
     return ia - ib;
 };
 
+/** Field-state classification for "current / expiring / expired / missing" */
+export type FieldState = 'current' | 'expiring' | 'expired' | "doesn't exist" | 'declared_no_evidence';
+
+const classifyFieldState = (f?: ProfileField | undefined, freshnessDays = 180, expireDays = 365): FieldState => {
+    if (!f || f.value === undefined || f.value === null || f.value === '') return "doesn't exist";
+    const hasEvidence = (f.evidenceCount ?? 0) > 0;
+    if (!hasEvidence) return 'declared_no_evidence';
+    // Use lastUpdated as a proxy for evidence freshness (server can refine later)
+    const updated = f.lastUpdated ? new Date(f.lastUpdated).getTime() : undefined;
+    if (!updated) return 'declared_no_evidence';
+    const now = Date.now();
+    const ageDays = Math.floor((now - updated) / (1000 * 60 * 60 * 24));
+    if (ageDays > expireDays) return 'expired';
+    if (ageDays > freshnessDays) return 'expiring';
+    return 'current';
+};
+
+const stateChipProps = (s: FieldState) => {
+    switch (s) {
+        case 'current':
+            return { color: 'success' as const, variant: 'outlined' as const };
+        case 'expiring':
+            return { color: 'warning' as const, variant: 'outlined' as const };
+        case 'expired':
+            return { color: 'error' as const, variant: 'outlined' as const };
+        case "doesn't exist":
+            return { color: 'default' as const, variant: 'outlined' as const };
+        case 'declared_no_evidence':
+            return { color: 'warning' as const, variant: 'outlined' as const };
+    }
+};
+
 /**
  * Page: One-page snapshot (no tabs)
  */
 export default function AppProfilePage() {
     const { appId = '' } = useParams();
+    const navigate = useNavigate();
     const { data, isLoading, error } = useProfile(appId);
 
     // Safe fallbacks so all hooks/memos run every render
@@ -193,19 +267,25 @@ export default function AppProfilePage() {
     const updatedAt = profile.updatedAt;
     const profileId = profile.profileId;
 
-    const byKey = useMemo(
-        () => Object.fromEntries(fields.map((f) => [f.fieldKey, f])),
-        [fields]
-    );
+    const byKey = useMemo(() => Object.fromEntries(fields.map((f) => [f.fieldKey, f])), [fields]);
 
     // Compute Application Shape (RAGs for core expectations)
     const shape = useMemo(() => {
         const rows = CORE_KEYS.map((k) => {
-            const f = byKey[k as string];
+            const f = byKey[k as string] as ProfileField | undefined;
             const v = f?.value;
             const spec = SPEC[k as string];
             const rag = spec ? spec.eval(v) : 'neutral';
-            return { key: k as string, label: spec?.label ?? k, value: v, rag, evidenceCount: f?.evidenceCount ?? 0 };
+            const state = classifyFieldState(f);
+            return {
+                key: k as string,
+                label: spec?.label ?? k,
+                desired: desiredHint[k as string] || '—',
+                value: v,
+                rag,
+                evidenceCount: f?.evidenceCount ?? 0,
+                state,
+            };
         });
         const greens = rows.filter((r) => r.rag === 'green').length;
         const ambers = rows.filter((r) => r.rag === 'amber').length;
@@ -238,8 +318,31 @@ export default function AppProfilePage() {
         const total = fields.length;
         const withEvidence = fields.filter((f) => (f.evidenceCount ?? 0) > 0).length;
         const pct = total ? Math.round((withEvidence / total) * 100) : 0;
-        return { total, withEvidence, pct, missing: total - withEvidence };
+        const expired = fields
+            .map((f) => classifyFieldState(f))
+            .filter((s) => s === 'expired').length;
+        const expiring = fields
+            .map((f) => classifyFieldState(f))
+            .filter((s) => s === 'expiring').length;
+        return { total, withEvidence, pct, missing: total - withEvidence, expired, expiring };
     }, [fields]);
+
+    /** Actions (stubs until wired to routes/api) */
+    const onAddEvidence = useCallback(
+        (key: string) => () => {
+            // Route suggestion: /apps/:appId/evidence/new?fieldKey=...
+            navigate(`/apps/${appId}/evidence/new?fieldKey=${encodeURIComponent(key)}`);
+        },
+        [navigate, appId]
+    );
+
+    const onUpdateValue = useCallback(
+        (key: string) => () => {
+            // Route suggestion: /apps/:appId/profile/edit?fieldKey=...
+            navigate(`/apps/${appId}/profile/edit?fieldKey=${encodeURIComponent(key)}`);
+        },
+        [navigate, appId]
+    );
 
     return (
         <Stack spacing={2}>
@@ -287,11 +390,7 @@ export default function AppProfilePage() {
                             <Stack direction="row" spacing={2} alignItems="center">
                                 <Typography variant="body2" color="text.secondary">Readiness</Typography>
                                 <Box sx={{ flex: 1 }}>
-                                    <LinearProgress
-                                        variant="determinate"
-                                        value={shape.readinessPct}
-                                        sx={{ height: 8, borderRadius: 4 }}
-                                    />
+                                    <LinearProgress variant="determinate" value={shape.readinessPct} sx={{ height: 8, borderRadius: 4 }} />
                                 </Box>
                                 <Typography variant="body2" fontWeight={600}>{shape.readinessPct}%</Typography>
                             </Stack>
@@ -300,21 +399,36 @@ export default function AppProfilePage() {
                                 {shape.rows.map((r) => (
                                     <Grid item xs={12} sm={6} key={r.key}>
                                         <Stack
-                                            direction="row"
-                                            spacing={1}
-                                            alignItems="center"
-                                            sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 2, p: 1 }}
+                                            spacing={0.75}
+                                            sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 2, p: 1.25 }}
                                         >
-                                            <RagDot rag={r.rag} />
-                                            <Box sx={{ flex: 1 }}>
+                                            <Stack direction="row" spacing={1} alignItems="center">
+                                                <RagDot rag={r.rag} />
                                                 <Typography variant="body2" fontWeight={600}>{r.label}</Typography>
-                                                <Typography variant="caption" color="text.secondary">
-                                                    {String(r.value ?? '—')}
-                                                </Typography>
-                                            </Box>
-                                            <Tooltip title={`${r.evidenceCount ?? 0} evidence`}>
-                                                <Chip size="small" variant="outlined" label={`${r.evidenceCount ?? 0}`} />
-                                            </Tooltip>
+                                            </Stack>
+
+                                            {/* Desired vs Current */}
+                                            <Stack spacing={0.25}>
+                                                <Typography variant="caption" color="text.secondary">Desired: {r.desired}</Typography>
+                                                <Stack direction="row" spacing={1} alignItems="center">
+                                                    <Typography variant="caption">Current:</Typography>
+                                                    <Chip size="small" variant="outlined" label={String(r.value ?? '—')} />
+                                                    <Chip size="small" {...stateChipProps(r.state)} label={r.state} />
+                                                    <Tooltip title={`${r.evidenceCount ?? 0} evidence`}>
+                                                        <Chip size="small" variant="outlined" label={`${r.evidenceCount ?? 0}`} />
+                                                    </Tooltip>
+                                                </Stack>
+                                            </Stack>
+
+                                            {/* Quick actions */}
+                                            <Stack direction="row" spacing={1}>
+                                                <Button size="small" startIcon={<AddIcon />} onClick={onAddEvidence(r.key)}>
+                                                    Add evidence
+                                                </Button>
+                                                <Button size="small" variant="outlined" startIcon={<EditIcon />} onClick={onUpdateValue(r.key)}>
+                                                    Update value
+                                                </Button>
+                                            </Stack>
                                         </Stack>
                                     </Grid>
                                 ))}
@@ -353,12 +467,7 @@ export default function AppProfilePage() {
                                             <Typography variant="body2" fontWeight={600}>{d.label}</Typography>
                                             <Typography variant="caption" color="text.secondary">{d.reason}</Typography>
                                         </Box>
-                                        <Chip
-                                            size="small"
-                                            color={d.severity === 'High' ? 'error' : 'warning'}
-                                            label={d.severity}
-                                            variant="outlined"
-                                        />
+                                        <Chip size="small" color={d.severity === 'High' ? 'error' : 'warning'} label={d.severity} variant="outlined" />
                                     </Stack>
                                 ))}
                             </Stack>
@@ -380,33 +489,31 @@ export default function AppProfilePage() {
                             <Stack direction="row" spacing={2} alignItems="center">
                                 <Typography variant="body2" color="text.secondary">Evidence Coverage</Typography>
                                 <Box sx={{ flex: 1 }}>
-                                    <LinearProgress
-                                        variant="determinate"
-                                        value={assurance.pct}
-                                        sx={{ height: 8, borderRadius: 4 }}
-                                    />
+                                    <LinearProgress variant="determinate" value={assurance.pct} sx={{ height: 8, borderRadius: 4 }} />
                                 </Box>
                                 <Typography variant="body2" fontWeight={600}>{assurance.pct}%</Typography>
                             </Stack>
                             <Stack direction="row" spacing={1} flexWrap="wrap">
-                                <Chip size="small" label={`With evidence: ${assurance.withEvidence}`} />
+                                <Chip size="small" icon={<TaskAltIcon fontSize="small" />} label={`With evidence: ${assurance.withEvidence}`} />
                                 <Chip size="small" label={`Missing: ${assurance.missing}`} />
+                                <Chip size="small" variant="outlined" color="warning" label={`Expiring: ${assurance.expiring}`} />
+                                <Chip size="small" variant="outlined" color="error" label={`Expired: ${assurance.expired}`} />
                                 {/* Stubs until wired */}
                                 <Chip size="small" variant="outlined" label="Pending review: —" />
                                 <Chip size="small" variant="outlined" label="Approved: —" />
-                                <Chip size="small" variant="outlined" label="Expired: —" />
                             </Stack>
 
                             {/* Quick next-actions (derive from non-green core + zero evidence fields) */}
                             <Box sx={{ mt: 1 }}>
-                                <Typography variant="caption" color="text.secondary">
-                                    Suggested actions:
-                                </Typography>
+                                <Typography variant="caption" color="text.secondary">Suggested actions:</Typography>
                                 <Stack direction="row" spacing={1} flexWrap="wrap" mt={0.5}>
-                                    {deviations.slice(0, 4).map((d) => (
-                                        <Chip key={d.key} size="small" variant="outlined" color="warning" label={`Provide evidence: ${d.label}`} />
-                                    ))}
-                                    {!deviations.length && <Chip size="small" variant="outlined" label="No immediate gaps detected" />}
+                                    {shape.rows
+                                        .filter((r) => r.rag !== 'green' || r.evidenceCount === 0)
+                                        .slice(0, 6)
+                                        .map((r) => (
+                                            <Chip key={r.key} size="small" variant="outlined" color={r.evidenceCount === 0 ? 'warning' : 'default'} label={`${r.evidenceCount === 0 ? 'Provide evidence' : 'Improve'}: ${r.label}`} onClick={onAddEvidence(r.key)} />
+                                        ))}
+                                    {(!deviations.length && assurance.missing === 0) && <Chip size="small" variant="outlined" label="No immediate gaps detected" />}
                                 </Stack>
                             </Box>
                         </Stack>
