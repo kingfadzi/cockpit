@@ -286,15 +286,17 @@ export default function POHome() {
                   </Typography>
 
                   {/* OPEN -> go straight to Profile tab */}
+                  // POHome.tsx (unchanged except this 'to')
                   <Button
-                    size="small"
-                    variant="contained"
-                    component={RouterLink}
-                    to={`/po/apps/${app.appId}/profile`}
-                    sx={{ mt: 1 }}
+                      size="small"
+                      variant="contained"
+                      component={RouterLink}
+                      to={`/po/apps/${app.appId}`}   // ← lands on AppProfilePage
+                      sx={{ mt: 1 }}
                   >
                     Open
                   </Button>
+
                 </Stack>
               </Section>
             </Grid>
