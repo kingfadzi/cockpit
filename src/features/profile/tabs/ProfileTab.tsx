@@ -24,6 +24,7 @@ import {
     Summarize as SummaryIcon,
     FactCheck as FactCheckIcon,
     ReportProblem as RiskIcon,
+    Description as DefaultIcon,
 } from '@mui/icons-material';
 import type { ProfileDomain, ProfileField, ProfileResponse } from '../../../api/types';
 
@@ -33,6 +34,7 @@ const ICON_MAP: Record<string, React.ReactElement> = {
     AvailabilityIcon: <AvailabilityIcon fontSize="small" />,
     ResilienceIcon: <ResilienceIcon fontSize="small" />,
     SummaryIcon: <SummaryIcon fontSize="small" />,
+    DefaultIcon: <DefaultIcon fontSize="small" />,
 };
 
 const fmtDate = (iso?: string | null) => (iso ? new Date(iso).toLocaleDateString() : '—');
@@ -63,7 +65,7 @@ function DomainTable({ domain }: DomainTableProps) {
                 {/* Header */}
                 <Stack direction="row" spacing={1} alignItems="center" justifyContent="space-between">
                     <Stack direction="row" spacing={1} alignItems="center">
-                        {ICON_MAP[icon] || <SummaryIcon fontSize="small" />}
+                        {ICON_MAP[icon] || <DefaultIcon fontSize="small" />}
                         <Typography variant="subtitle1" fontWeight={700}>{title}</Typography>
                         {driverValue && <Chip size="small" label={`${driverLabel}: ${driverValue}`} />}
                     </Stack>
@@ -181,9 +183,15 @@ interface ProfileTabProps {
 export default function ProfileTab({ profile }: ProfileTabProps) {
     return (
         <Stack spacing={2}>
-            {profile.domains.map((domain: ProfileDomain) => (
-                <DomainTable key={domain.domainKey} domain={domain} />
-            ))}
+            {profile.domains.map((domain: ProfileDomain) => {
+                // Skip the Summary card (app_criticality domain)
+                if (domain.domainKey === 'app_criticality' || domain.title.toLowerCase() === 'summary') {
+                    return null;
+                }
+                
+                // Use regular DomainTable for all domains (including artifact)
+                return <DomainTable key={domain.domainKey} domain={domain} />;
+            })}
 
             {(!profile.domains || profile.domains.length === 0) && (
                 <Alert severity="warning">No domains found in profile.</Alert>

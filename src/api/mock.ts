@@ -126,6 +126,62 @@ export const mockApi = {
       updatedAt: '2025-08-22T18:14:59.530115Z',
       domains: [
         {
+          domainKey: 'artifact',
+          title: 'Artefacts',
+          icon: 'DefaultIcon',
+          driverLabel: 'artifact',
+          fields: [
+            {
+              fieldKey: 'architecture_vision',
+              label: 'Architecture Vision',
+              policyRequirement: 'required',
+              evidence: [],
+              assurance: 'Missing',
+              risks: []
+            },
+            {
+              fieldKey: 'product_roadmap',
+              label: 'Product Roadmap',
+              policyRequirement: 'required',
+              evidence: [],
+              assurance: 'Missing',
+              risks: []
+            },
+            {
+              fieldKey: 'product_vision',
+              label: 'Product Vision',
+              policyRequirement: 'required',
+              evidence: [],
+              assurance: 'Missing',
+              risks: []
+            },
+            {
+              fieldKey: 'security_vision',
+              label: 'Security Vision',
+              policyRequirement: 'required',
+              evidence: [],
+              assurance: 'Missing',
+              risks: []
+            },
+            {
+              fieldKey: 'service_vision',
+              label: 'Service Vision',
+              policyRequirement: 'required',
+              evidence: [],
+              assurance: 'Missing',
+              risks: []
+            },
+            {
+              fieldKey: 'test_vision',
+              label: 'Test Vision',
+              policyRequirement: 'required',
+              evidence: [],
+              assurance: 'Missing',
+              risks: []
+            }
+          ]
+        },
+        {
           domainKey: 'app_criticality',
           title: 'Summary',
           icon: 'SummaryIcon',
