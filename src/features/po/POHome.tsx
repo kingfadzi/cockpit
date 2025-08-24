@@ -167,12 +167,6 @@ export default function POHome() {
 
   return (
     <Stack spacing={2}>
-      {/* Main page header */}
-      <SectionHeader
-        title="Product Owner – Portfolio"
-        subtitle="Overview of your governed applications"
-      />
-
       {/* Section heading + KPI cards tightly grouped */}
       <Stack spacing={0.5}>
         <Typography variant="h6" sx={{ m: 0 }}>

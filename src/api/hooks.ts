@@ -7,6 +7,7 @@ import type {
     ReleaseItem,
     PortfolioKpis,
     ProfileResponse,
+    AppKpis,
 } from './types';
 
 const commonQuery = { staleTime: 60_000, refetchOnWindowFocus: false as const };
@@ -39,6 +40,9 @@ export const useReleases = (appId: string) =>
 
 export const usePortfolioKpis = () =>
     useQuery<PortfolioKpis>({ queryKey: ['kpis', 'portfolio'], queryFn: () => endpoints.getPortfolioKpis(), ...commonQuery });
+
+export const useAppKpis = (appId: string) =>
+    useQuery<AppKpis>({ queryKey: ['kpis', 'app', appId], queryFn: () => endpoints.getAppKpis(appId), enabled: !!appId, ...commonQuery });
 
 export const useCreateEvidence = (appId: string) => {
     const qc = useQueryClient();

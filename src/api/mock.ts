@@ -5,6 +5,7 @@ import {
   ReleaseItem,
   PortfolioKpis,
   ProfileResponse,
+  AppKpis,
 } from './types';
 
 const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -260,6 +261,22 @@ export const mockApi = {
     const riskBlocked = reqs.filter((r) => r.status === 'rejected').length;
     const pendingReview = Object.values(evidence).flat().filter((e) => e.status === 'submitted').length;
     return { compliant, missingEvidence, pendingReview, riskBlocked };
+  },
+  getAppKpis: async (appId: string): Promise<AppKpis> => {
+    await delay(120);
+    // Calculate KPIs based on app ID for demo purposes
+    const baseKpis = appId === 'CORR-12356' ? {
+      compliant: 12,
+      missing: 8,
+      pending: 3,
+      riskBlocked: 2
+    } : {
+      compliant: 5,
+      missing: 15,
+      pending: 1,
+      riskBlocked: 4
+    };
+    return baseKpis;
   },
   // Mock createApp: adds a new AppSummary with default values.
   createApp: async (appId: string) => {

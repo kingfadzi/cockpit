@@ -8,6 +8,7 @@ import type {
     PortfolioKpis,
     ServerApp,
     ProfileResponse,
+    AppKpis,
 } from './types';
 
 export const API_BASE = '';
@@ -163,6 +164,10 @@ export const endpoints = {
     /** Portfolio‑level KPIs (your backend path is /api/apps/kpis) */
     getPortfolioKpis: async (): Promise<PortfolioKpis> =>
         USE_MOCK ? mockApi.getPortfolioKpis() : (await api.get<PortfolioKpis>(`/api/apps/kpis`)).data,
+
+    /** App-specific KPIs */
+    getAppKpis: async (appId: string): Promise<AppKpis> =>
+        USE_MOCK ? mockApi.getAppKpis(appId) : (await api.get<AppKpis>(`/api/apps/${appId}/kpis`)).data,
 
     /** Create app (minimal) */
     createApp: async (appId: string): Promise<AppSummary> =>

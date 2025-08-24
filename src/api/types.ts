@@ -109,5 +109,12 @@ export type ProfileResponse = {
   domains: ProfileDomain[];
 };
 
+export type AppKpis = {
+  compliant: number;
+  missing: number;
+  pending: number;
+  riskBlocked: number;
+};
+
 export type RequirementsResponse = any; // unchanged for now
 export type ReleaseItem = any;          // unchanged for now
