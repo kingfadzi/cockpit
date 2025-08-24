@@ -22,6 +22,7 @@ import {
 import CriticalityBadge from '../../components/CriticalityBadge';
 import { usePortfolioKpis, useApps } from '../../api/hooks';
 import { useNavigate, Link as RouterLink } from 'react-router-dom';
+import AddApplicationDialog from './AddApplicationDialog';
 
 // Type for KPI tiles
 type Tile = {
@@ -82,6 +83,7 @@ function KpiTile({
 }
 
 export default function POHome() {
+  const navigate = useNavigate();
   const { data: kpis } = usePortfolioKpis();
   const { data: apps, isLoading } = useApps();
 
@@ -90,6 +92,9 @@ export default function POHome() {
   const [criticalityFilter, setCriticalityFilter] = useState<'A' | 'B' | 'C' | 'D' | ''>('');
   const [serviceFilter, setServiceFilter] = useState('');
   const [installTypeFilter, setInstallTypeFilter] = useState('');
+  
+  // Add application modal state
+  const [addAppOpen, setAddAppOpen] = useState(false);
 
   // Get options for business services & install types
   const services = useMemo(() => {
@@ -255,7 +260,11 @@ export default function POHome() {
         </Stack>
 
         {/* Right side: Add button */}
-        <Button variant="contained" sx={{ whiteSpace: 'nowrap' }}>
+        <Button 
+          variant="contained" 
+          sx={{ whiteSpace: 'nowrap' }}
+          onClick={() => setAddAppOpen(true)}
+        >
           Add Application
         </Button>
       </Stack>
@@ -270,7 +279,7 @@ export default function POHome() {
               <Section>
                 <Stack spacing={1}>
                   <Stack direction="row" spacing={1} alignItems="center">
-                    <CriticalityBadge criticality={app.criticality} />
+                    <CriticalityBadge criticality={app.criticality || 'D'} />
                     <Typography variant="h6">
                       {app.name || app.appId}
                     </Typography>
@@ -286,7 +295,6 @@ export default function POHome() {
                   </Typography>
 
                   {/* OPEN -> go straight to Profile tab */}
-                  // POHome.tsx (unchanged except this 'to')
                   <Button
                       size="small"
                       variant="contained"
@@ -309,6 +317,13 @@ export default function POHome() {
           )}
         </Grid>
       )}
+
+      {/* Add Application Dialog */}
+      <AddApplicationDialog
+        open={addAppOpen}
+        onClose={() => setAddAppOpen(false)}
+        onSuccess={(appId) => navigate(`/po/apps/${appId}`)}
+      />
     </Stack>
   );
 }
