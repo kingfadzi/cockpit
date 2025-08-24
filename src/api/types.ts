@@ -66,5 +66,48 @@ export type EvidenceItem = {
   status?: 'approved' | 'pending' | 'submitted' | 'rejected' | 'revoked' | 'active';
 };
 
+export type Evidence = {
+  evidenceId: string;
+  profileFieldId?: string;
+  uri: string;
+  status: 'active' | 'superseded' | 'revoked';
+  validFrom?: string | null;
+  validUntil?: string | null;
+  reviewedBy?: string | null;
+  reviewedAt?: string | null;
+};
+
+export type Risk = {
+  riskId: string;
+  title: string;
+  severity: 'High' | 'Medium' | 'Low';
+  status: 'Open' | 'Mitigated' | 'Closed';
+};
+
+export type ProfileField = {
+  fieldKey: string;
+  label: string;
+  policyRequirement: string | number | boolean;
+  evidence: Evidence[];
+  assurance: 'Current' | 'Expiring' | 'Expired' | 'Missing';
+  risks: Risk[];
+};
+
+export type ProfileDomain = {
+  domainKey: string;
+  title: string;
+  icon: string;
+  driverLabel: string;
+  driverValue?: string;
+  fields: ProfileField[];
+};
+
+export type ProfileResponse = {
+  appId: string;
+  name: string;
+  updatedAt: string;
+  domains: ProfileDomain[];
+};
+
 export type RequirementsResponse = any; // unchanged for now
 export type ReleaseItem = any;          // unchanged for now

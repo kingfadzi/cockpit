@@ -6,6 +6,7 @@ import type {
     RequirementsResponse,
     ReleaseItem,
     PortfolioKpis,
+    ProfileResponse,
 } from './types';
 
 const commonQuery = { staleTime: 60_000, refetchOnWindowFocus: false as const };
@@ -17,7 +18,7 @@ export const useApp = (appId: string) =>
     useQuery<AppSummary>({ queryKey: ['apps', appId], queryFn: () => endpoints.getApp(appId), enabled: !!appId, ...commonQuery });
 
 export const useProfile = (appId: string) =>
-    useQuery<any>({ queryKey: ['profile', appId], queryFn: () => endpoints.getProfile(appId), enabled: !!appId, ...commonQuery });
+    useQuery<ProfileResponse>({ queryKey: ['profile', appId], queryFn: () => endpoints.getProfile(appId), enabled: !!appId, ...commonQuery });
 
 export const useEvidence = (appId: string) =>
     useQuery<EvidenceItem[]>({ queryKey: ['evidence', appId], queryFn: () => endpoints.getEvidence(appId), enabled: !!appId, ...commonQuery });

@@ -4,6 +4,7 @@ import {
   RequirementsResponse,
   ReleaseItem,
   PortfolioKpis,
+  ProfileResponse,
 } from './types';
 
 const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -116,17 +117,115 @@ export const mockApi = {
     await delay(100);
     return apps.find((a) => a.appId === appId)!;
   },
-  getProfile: async (appId: string) => {
+  getProfile: async (appId: string): Promise<ProfileResponse> => {
     await delay(120);
     return {
       appId,
-      businessServiceName: 'Billing',
-      parentAppId: null,
-      childApps: [],
-      serviceInstances: [{ env: 'prod', name: 'corr-prod-01' }],
-      repos: [{ name: 'corr-service', url: 'https://gitlab/corr' }],
-      externalRefs: [{ system: 'Jira', key: 'CORR' }],
-      stakeholders: [{ id: 'u1', role: 'Product Owner', name: 'Alice' }],
+      name: appId === 'CORR-12356' ? 'Database Cluster' : 'Dev Tools',
+      updatedAt: '2025-08-22T18:14:59.530115Z',
+      domains: [
+        {
+          domainKey: 'app_criticality',
+          title: 'Summary',
+          icon: 'SummaryIcon',
+          driverLabel: 'app_criticality',
+          driverValue: 'A',
+          fields: [
+            {
+              fieldKey: 'materiality',
+              label: 'Materiality',
+              policyRequirement: 'crown_jewel',
+              evidence: [],
+              assurance: 'Missing',
+              risks: []
+            },
+            {
+              fieldKey: 'review_depth',
+              label: 'Review Depth',
+              policyRequirement: 'full_review',
+              evidence: [],
+              assurance: 'Missing',
+              risks: []
+            }
+          ]
+        },
+        {
+          domainKey: 'security_rating',
+          title: 'Confidentiality / Security',
+          icon: 'SecurityIcon',
+          driverLabel: 'security_rating',
+          driverValue: 'A2',
+          fields: [
+            {
+              fieldKey: 'confidentiality_level',
+              label: 'Confidentiality Level',
+              policyRequirement: 'restricted',
+              evidence: [],
+              assurance: 'Missing',
+              risks: []
+            },
+            {
+              fieldKey: 'encryption_at_rest',
+              label: 'Encryption at Rest',
+              policyRequirement: 'required',
+              evidence: [],
+              assurance: 'Missing',
+              risks: []
+            }
+          ]
+        },
+        {
+          domainKey: 'integrity_rating',
+          title: 'Integrity',
+          icon: 'IntegrityIcon',
+          driverLabel: 'integrity_rating',
+          driverValue: 'B',
+          fields: [
+            {
+              fieldKey: 'audit_logging',
+              label: 'Audit Logging',
+              policyRequirement: 'full_with_periodic_review',
+              evidence: [],
+              assurance: 'Missing',
+              risks: []
+            }
+          ]
+        },
+        {
+          domainKey: 'availability_rating',
+          title: 'Availability',
+          icon: 'AvailabilityIcon',
+          driverLabel: 'availability_rating',
+          driverValue: 'A',
+          fields: [
+            {
+              fieldKey: 'rto_hours',
+              label: 'RTO (hours)',
+              policyRequirement: 1,
+              evidence: [],
+              assurance: 'Missing',
+              risks: []
+            }
+          ]
+        },
+        {
+          domainKey: 'resilience_rating',
+          title: 'Resilience',
+          icon: 'ResilienceIcon',
+          driverLabel: 'resilience_rating',
+          driverValue: '5',
+          fields: [
+            {
+              fieldKey: 'backup_policy',
+              label: 'Backup Policy',
+              policyRequirement: 'standard_backups+periodic_restore_test',
+              evidence: [],
+              assurance: 'Missing',
+              risks: []
+            }
+          ]
+        }
+      ]
     };
   },
   getEvidence: async (appId: string) => {

@@ -7,6 +7,7 @@ import type {
     ReleaseItem,
     PortfolioKpis,
     ServerApp,
+    ProfileResponse,
 } from './types';
 
 export const API_BASE = '';
@@ -135,9 +136,9 @@ export const endpoints = {
         return toClient(raw);
     },
 
-    /** Profile snapshot (unchanged) */
-    getProfile: async (appId: string): Promise<any> =>
-        USE_MOCK ? mockApi.getProfile(appId) : (await api.get(`/api/apps/${appId}/profile`)).data,
+    /** Profile snapshot */
+    getProfile: async (appId: string): Promise<ProfileResponse> =>
+        USE_MOCK ? mockApi.getProfile(appId) : (await api.get<ProfileResponse>(`/api/apps/${appId}/profile`)).data,
 
     /** Evidence (per app) */
     getEvidence: async (appId: string): Promise<EvidenceItem[]> =>
