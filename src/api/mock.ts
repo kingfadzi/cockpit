@@ -14,21 +14,53 @@ const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
 export const apps: AppSummary[] = [
   {
     appId: 'CORR-12356',
-    name: 'Correspondence',
-    businessServiceName: 'Billing',
-    criticality: 'A',
-    install_type: '',
+    name: 'Payment Processing',
+    businessServiceName: 'Payment Processing',
+    criticality: 'B',
+    install_type: 'Cloud',
     architecture_type: 'Microservices',
-    parentAppId: null,
+    // Business fields matching API response
+    scope: 'application',
+    transactionCycle: 'Sales',
+    applicationType: 'Web',
+    applicationTier: 'Business Application',
+    housePosition: 'Primary',
+    operationalStatus: 'Active',
+    onboardingStatus: 'pending',
+    businessApplicationSysId: 'SYS-0001',
+    transactionCycleId: 'TC-001',
+    // Ratings
+    integrityRating: 'A',
+    availabilityRating: 'A',
+    resilienceRating: '3',
+    // Timestamps
+    createdAt: '2025-08-24T01:10:56.367794Z',
+    updatedAt: '2025-08-24T01:10:56.391521Z',
   },
   {
     appId: 'DEVTOOLS',
     name: 'Dev Tools',
     businessServiceName: 'Engineering',
     criticality: 'C',
-    install_type: '',
+    install_type: 'On-Premise',
     architecture_type: 'Monolith',
-    parentAppId: null,
+    // Business fields
+    scope: 'application',
+    transactionCycle: 'Development',
+    applicationType: 'Desktop',
+    applicationTier: 'Support Application',
+    housePosition: 'Secondary',
+    operationalStatus: 'Active',
+    onboardingStatus: 'completed',
+    businessApplicationSysId: 'SYS-0002',
+    transactionCycleId: 'TC-002',
+    // Ratings
+    integrityRating: 'B',
+    availabilityRating: 'B',
+    resilienceRating: '2',
+    // Timestamps
+    createdAt: '2025-08-20T01:10:56.367794Z',
+    updatedAt: '2025-08-22T01:10:56.391521Z',
   },
 ];
 

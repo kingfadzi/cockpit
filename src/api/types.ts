@@ -8,6 +8,23 @@ export type AppSummary = {
   businessServiceName?: string | null;
   install_type?: string | null;                       // snake_case for UI
   architecture_type?: string | null;                  // snake_case for UI
+  // Business fields from API
+  scope?: string | null;
+  transactionCycle?: string | null;
+  applicationType?: string | null;
+  applicationTier?: string | null;
+  housePosition?: string | null;
+  operationalStatus?: string | null;
+  onboardingStatus?: string | null;
+  businessApplicationSysId?: string | null;
+  transactionCycleId?: string | null;
+  // Ratings
+  integrityRating?: string | null;
+  availabilityRating?: string | null;
+  resilienceRating?: string | null;
+  // Timestamps
+  createdAt?: string | null;
+  updatedAt?: string | null;
 };
 
 // Server shape coming from Spring (camelCase + appCriticalityAssessment)

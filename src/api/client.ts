@@ -106,6 +106,23 @@ const toClient = (a: ServerApp): AppSummary => ({
     // POHome reads snake_case keys here (so convert camel→snake)
     install_type: a.installType ?? null,
     architecture_type: a.architectureType ?? null,
+    // Business fields from API
+    scope: a.scope ?? null,
+    transactionCycle: a.transactionCycle ?? null,
+    applicationType: a.applicationType ?? null,
+    applicationTier: a.applicationTier ?? null,
+    housePosition: a.housePosition ?? null,
+    operationalStatus: a.operationalStatus ?? null,
+    onboardingStatus: a.onboardingStatus ?? null,
+    businessApplicationSysId: a.businessApplicationSysId ?? null,
+    transactionCycleId: a.transactionCycleId ?? null,
+    // Ratings
+    integrityRating: a.integrityRating ?? null,
+    availabilityRating: a.availabilityRating ?? null,
+    resilienceRating: a.resilienceRating ?? null,
+    // Timestamps
+    createdAt: a.createdAt ?? null,
+    updatedAt: a.updatedAt ?? null,
 });
 
 /** Extract an array from either [] or {items:[...]} or [[]] */

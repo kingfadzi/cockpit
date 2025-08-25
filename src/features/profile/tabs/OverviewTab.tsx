@@ -116,14 +116,14 @@ export default function OverviewTab({ appId, onTabChange }: OverviewTabProps) {
             {/* Enhanced Business Information Card */}
             <EnhancedBusinessInfoCard 
                 app={app}
-                // Mock additional data until API is enhanced
-                transactionCycle={appId === 'CORR-12356' ? 'T+1' : appId === 'DEVTOOLS' ? 'Real-time' : 'T+2'}
-                appType={appId === 'CORR-12356' ? 'Core Banking' : appId === 'DEVTOOLS' ? 'Developer Tools' : 'Support System'}
-                appTier={appId === 'CORR-12356' ? 'Tier 1' : 'Tier 2'}
-                housePosition={appId === 'CORR-12356' ? 'Front Office' : 'Back Office'}
-                parentAppId={appId !== 'PLATFORM-CORE' ? 'PLATFORM-CORE' : undefined}
-                parentAppName={appId !== 'PLATFORM-CORE' ? 'Banking Platform Core' : undefined}
-                hasChildren={appId === 'CORR-12356'}
+                // Use real data from API instead of hardcoded values
+                transactionCycle={app?.transactionCycle}
+                appType={app?.applicationType}
+                appTier={app?.applicationTier}
+                housePosition={app?.housePosition}
+                parentAppId={undefined} // TODO: Add parent/child relationship data to API
+                parentAppName={undefined}
+                hasChildren={false} // TODO: Add parent/child relationship data to API
             />
 
             {/* Combined Compliance Status and KPIs */}

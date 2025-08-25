@@ -87,16 +87,7 @@ const MOCK_CHILD_APPS = [
     { appId: 'CORR-BATCH', name: 'Correspondence Batch Processor', criticality: 'C' },
 ];
 
-// Mock CIA+SR ratings
-const MOCK_RATINGS: Record<string, { confidentiality: string; integrity: string; availability: string; security: string; resilience: string }> = {
-    'CORR-12356': { confidentiality: 'High', integrity: 'High', availability: 'Medium', security: 'High', resilience: 'Medium' },
-    'DEVTOOLS': { confidentiality: 'Medium', integrity: 'Medium', availability: 'Low', security: 'Medium', resilience: 'Low' },
-    'default': { confidentiality: 'Medium', integrity: 'Medium', availability: 'Medium', security: 'Medium', resilience: 'Medium' }
-};
-
-const getMockRatings = (appId?: string) => {
-    return MOCK_RATINGS[appId || 'default'] || MOCK_RATINGS.default;
-};
+// Mock ratings constants removed - now using real API data
 
 export default function EnhancedBusinessInfoCard({ 
     app, 
@@ -110,7 +101,15 @@ export default function EnhancedBusinessInfoCard({
     childApps = MOCK_CHILD_APPS
 }: EnhancedBusinessInfoCardProps) {
     const [childAppsOpen, setChildAppsOpen] = useState(false);
-    const ratings = getMockRatings(app.appId);
+    
+    // Use real ratings from API instead of mock data
+    const ratings = {
+        confidentiality: 'Medium', // TODO: Add to API response
+        integrity: app.integrityRating || 'Medium',
+        availability: app.availabilityRating || 'Medium', 
+        security: 'Medium', // TODO: Add securityRating to API response
+        resilience: app.resilienceRating || 'Medium'
+    };
 
     const handleParentAppClick = () => {
         // Navigate to parent app profile
