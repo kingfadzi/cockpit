@@ -120,6 +120,8 @@ const toClient = (a: ServerApp): AppSummary => ({
     integrityRating: a.integrityRating ?? null,
     availabilityRating: a.availabilityRating ?? null,
     resilienceRating: a.resilienceRating ?? null,
+    securityRating: a.securityRating ?? null,
+    confidentialityRating: a.confidentialityRating ?? null,
     // Timestamps
     createdAt: a.createdAt ?? null,
     updatedAt: a.updatedAt ?? null,

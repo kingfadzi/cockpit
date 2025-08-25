@@ -52,6 +52,8 @@ interface InfoItemProps {
 }
 
 function InfoItem({ icon, label, value, isClickable, onClick }: InfoItemProps) {
+    const isNotAvailable = value === 'Not Available' || value === '—' || !value;
+    
     return (
         <Box 
             sx={{ 
@@ -70,8 +72,19 @@ function InfoItem({ icon, label, value, isClickable, onClick }: InfoItemProps) {
                     <Typography variant="caption" color="text.secondary" display="block">
                         {label}
                     </Typography>
-                    <Typography variant="body2" fontWeight={500} color={isClickable ? 'primary.main' : 'inherit'}>
-                        {value}
+                    <Typography 
+                        variant="body2" 
+                        fontWeight={500} 
+                        color={
+                            isClickable ? 'primary.main' : 
+                            isNotAvailable ? 'text.disabled' :
+                            'inherit'
+                        }
+                        sx={{
+                            fontStyle: isNotAvailable ? 'italic' : 'normal'
+                        }}
+                    >
+                        {value || '—'}
                         {isClickable && <ExternalIcon sx={{ ml: 0.5 }} fontSize="inherit" />}
                     </Typography>
                 </Box>
@@ -87,7 +100,7 @@ const MOCK_CHILD_APPS = [
     { appId: 'CORR-BATCH', name: 'Correspondence Batch Processor', criticality: 'C' },
 ];
 
-// Mock ratings constants removed - now using real API data
+// RAG colors removed - back to simple text display
 
 export default function EnhancedBusinessInfoCard({ 
     app, 
@@ -102,13 +115,13 @@ export default function EnhancedBusinessInfoCard({
 }: EnhancedBusinessInfoCardProps) {
     const [childAppsOpen, setChildAppsOpen] = useState(false);
     
-    // Use real ratings from API instead of mock data
+    // Use real ratings from API with clear fallbacks for missing data
     const ratings = {
-        confidentiality: 'Medium', // TODO: Add to API response
-        integrity: app.integrityRating || 'Medium',
-        availability: app.availabilityRating || 'Medium', 
-        security: 'Medium', // TODO: Add securityRating to API response
-        resilience: app.resilienceRating || 'Medium'
+        confidentiality: app.confidentialityRating || 'Not Available', // Now available in API
+        integrity: app.integrityRating || 'Not Available',
+        availability: app.availabilityRating || 'Not Available', 
+        security: app.securityRating || 'Not Available',
+        resilience: app.resilienceRating || 'Not Available'
     };
 
     const handleParentAppClick = () => {

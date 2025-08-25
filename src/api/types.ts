@@ -22,6 +22,8 @@ export type AppSummary = {
   integrityRating?: string | null;
   availabilityRating?: string | null;
   resilienceRating?: string | null;
+  securityRating?: string | null;
+  confidentialityRating?: string | null;
   // Timestamps
   createdAt?: string | null;
   updatedAt?: string | null;
@@ -40,6 +42,7 @@ export type ServerApp = {
   integrityRating?: string | null;
   availabilityRating?: string | null;
   resilienceRating?: string | null;
+  confidentialityRating?: string | null;
   businessApplicationSysId?: string | null;
   architectureHosting?: string | null;
   jiraBacklogId?: string | null;

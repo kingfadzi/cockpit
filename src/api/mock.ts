@@ -29,10 +29,12 @@ export const apps: AppSummary[] = [
     onboardingStatus: 'pending',
     businessApplicationSysId: 'SYS-0001',
     transactionCycleId: 'TC-001',
-    // Ratings
+    // Ratings (some missing to test fallback behavior)
     integrityRating: 'A',
     availabilityRating: 'A',
-    resilienceRating: '3',
+    resilienceRating: null, // Test missing rating
+    securityRating: 'B', // Now mapped from API
+    confidentialityRating: 'A', // Now available in API
     // Timestamps
     createdAt: '2025-08-24T01:10:56.367794Z',
     updatedAt: '2025-08-24T01:10:56.391521Z',
@@ -58,6 +60,8 @@ export const apps: AppSummary[] = [
     integrityRating: 'B',
     availabilityRating: 'B',
     resilienceRating: '2',
+    securityRating: 'C',
+    confidentialityRating: 'B',
     // Timestamps
     createdAt: '2025-08-20T01:10:56.367794Z',
     updatedAt: '2025-08-22T01:10:56.391521Z',
@@ -280,11 +284,11 @@ export const mockApi = {
           ]
         },
         {
-          domainKey: 'security_rating',
-          title: 'Confidentiality / Security',
+          domainKey: 'confidentiality_rating',
+          title: 'Confidentiality',
           icon: 'SecurityIcon',
-          driverLabel: 'security_rating',
-          driverValue: 'A2',
+          driverLabel: 'confidentiality_rating',
+          driverValue: 'A',
           fields: [
             {
               fieldKey: 'confidentiality_level',
@@ -298,7 +302,16 @@ export const mockApi = {
               evidence: [],
               assurance: 'Missing',
               risks: []
-            },
+            }
+          ]
+        },
+        {
+          domainKey: 'security_rating',
+          title: 'Security',
+          icon: 'SecurityIcon',
+          driverLabel: 'security_rating',
+          driverValue: 'A2',
+          fields: [
             {
               fieldKey: 'encryption_at_rest',
               label: 'Encryption at Rest',
@@ -306,6 +319,58 @@ export const mockApi = {
                 ttl: '0d',
                 label: 'Required',
                 value: 'required',
+                refresh: 'per_release'
+              },
+              evidence: [],
+              assurance: 'Missing',
+              risks: []
+            },
+            {
+              fieldKey: 'encryption_in_transit',
+              label: 'Encryption in Transit',
+              policyRequirement: {
+                ttl: '0d',
+                label: 'Required',
+                value: 'required',
+                refresh: 'per_release'
+              },
+              evidence: [],
+              assurance: 'Missing',
+              risks: []
+            },
+            {
+              fieldKey: 'key_rotation_max',
+              label: 'Key Rotation Max',
+              policyRequirement: {
+                ttl: '0d',
+                label: '180 days',
+                value: '180d',
+                refresh: 'per_release'
+              },
+              evidence: [],
+              assurance: 'Missing',
+              risks: []
+            },
+            {
+              fieldKey: 'secrets_management',
+              label: 'Secrets Management',
+              policyRequirement: {
+                ttl: '0d',
+                label: 'Centralized required',
+                value: 'centralized_required',
+                refresh: 'per_release'
+              },
+              evidence: [],
+              assurance: 'Missing',
+              risks: []
+            },
+            {
+              fieldKey: 'security_testing',
+              label: 'Security Testing',
+              policyRequirement: {
+                ttl: '0d',
+                label: 'Internal pentest annual + continuous scans',
+                value: 'internal_pentest_annual+continuous_scans',
                 refresh: 'per_release'
               },
               evidence: [],

@@ -67,8 +67,17 @@ function DomainTable({ domain }: DomainTableProps) {
                 <Stack direction="row" spacing={1} alignItems="center" justifyContent="space-between">
                     <Stack direction="row" spacing={1} alignItems="center">
                         {ICON_MAP[icon] || <DefaultIcon fontSize="small" />}
-                        <Typography variant="subtitle1" fontWeight={700}>{title}</Typography>
-                        {driverValue && <Chip size="small" label={`${driverLabel}: ${driverValue}`} />}
+                        <Typography variant="subtitle1" fontWeight={700}>
+                            {title}
+                        </Typography>
+                        {driverValue && (
+                            <Chip 
+                                size="small" 
+                                label={driverValue} 
+                                variant="outlined"
+                                sx={{ ml: 1 }}
+                            />
+                        )}
                     </Stack>
                     <Stack direction="row" spacing={1} alignItems="center">
                         <Tooltip title="Current coverage across this domain">
