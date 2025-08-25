@@ -1,4 +1,5 @@
 import React from 'react';
+import type { AppKpis } from '../../../api/types';
 import {
     Paper,
     Stack,
@@ -21,15 +22,8 @@ import {
 } from '../../../components/shared/status';
 import CriticalityBadge from '../../../components/CriticalityBadge';
 
-interface AppKpiData {
-    compliant: number;
-    missing: number;
-    pending: number;
-    riskBlocked: number;
-}
-
 interface ComplianceOverviewProps {
-    kpis?: AppKpiData;
+    kpis?: AppKpis;
     onKpiClick?: (kpiType: string) => void;
     appId?: string;
     useMockData?: boolean;
@@ -39,13 +33,13 @@ interface ComplianceOverviewProps {
 }
 
 // Mock data variations
-const MOCK_KPI_SCENARIOS: Record<string, AppKpiData> = {
-    'CORR-12356': { compliant: 18, missing: 2, pending: 1, riskBlocked: 0 },
-    'DEVTOOLS': { compliant: 5, missing: 15, pending: 6, riskBlocked: 4 },
-    'default': { compliant: 12, missing: 8, pending: 3, riskBlocked: 2 }
+const MOCK_KPI_SCENARIOS: Record<string, AppKpis> = {
+    'CORR-12356': { compliant: 18, missingEvidence: 2, pendingReview: 1, riskBlocked: 0 },
+    'DEVTOOLS': { compliant: 5, missingEvidence: 15, pendingReview: 6, riskBlocked: 4 },
+    'default': { compliant: 12, missingEvidence: 8, pendingReview: 3, riskBlocked: 2 }
 };
 
-const getMockKpiData = (appId?: string): AppKpiData => {
+const getMockKpiData = (appId?: string): AppKpis => {
     return MOCK_KPI_SCENARIOS[appId || 'default'] || MOCK_KPI_SCENARIOS.default;
 };
 
@@ -108,7 +102,7 @@ export default function ComplianceOverview({
     const mockData = getMockKpiData(appId);
     const activeKpis = useMockData ? mockData : (kpis || mockData);
     
-    const total = activeKpis.compliant + activeKpis.missing + activeKpis.pending + activeKpis.riskBlocked;
+    const total = activeKpis.compliant + activeKpis.missingEvidence + activeKpis.pendingReview + activeKpis.riskBlocked;
     
     const kpiCards = [
         {
@@ -121,19 +115,19 @@ export default function ComplianceOverview({
         },
         {
             label: 'Missing',
-            count: activeKpis.missing,
+            count: activeKpis.missingEvidence,
             severity: 'error' as StatusSeverity,
             tooltip: 'Requirements missing required evidence',
             icon: <MissingIcon />,
-            kpiType: 'missing'
+            kpiType: 'missingEvidence'
         },
         {
             label: 'Pending',
-            count: activeKpis.pending,
+            count: activeKpis.pendingReview,
             severity: 'warning' as StatusSeverity,
             tooltip: 'Evidence submitted and awaiting SME review',
             icon: <PendingIcon />,
-            kpiType: 'pending'
+            kpiType: 'pendingReview'
         },
         {
             label: 'Blocked',
@@ -175,30 +169,30 @@ export default function ComplianceOverview({
                 </Grid>
 
                 {/* Quick Actions */}
-                {(activeKpis.missing > 0 || activeKpis.pending > 0) && (
+                {(activeKpis.missingEvidence > 0 || activeKpis.pendingReview > 0) && (
                     <Box sx={{ pt: 2, borderTop: 1, borderColor: 'grey.200' }}>
                         <Stack direction="row" alignItems="center" justifyContent="space-between">
                             <Typography variant="subtitle2" fontWeight={600}>
                                 Quick Actions
                             </Typography>
                             <Stack direction="row" spacing={1}>
-                                {activeKpis.missing > 0 && (
+                                {activeKpis.missingEvidence > 0 && (
                                     <Button 
                                         variant="contained" 
                                         color="error" 
                                         size="small"
-                                        onClick={() => onKpiClick?.('missing')}
+                                        onClick={() => onKpiClick?.('missingEvidence')}
                                     >
-                                        Upload Evidence ({activeKpis.missing})
+                                        Upload Evidence ({activeKpis.missingEvidence})
                                     </Button>
                                 )}
-                                {activeKpis.pending > 0 && (
+                                {activeKpis.pendingReview > 0 && (
                                     <Button 
                                         variant="outlined" 
                                         size="small"
-                                        onClick={() => onKpiClick?.('pending')}
+                                        onClick={() => onKpiClick?.('pendingReview')}
                                     >
-                                        Review Status ({activeKpis.pending})
+                                        Review Status ({activeKpis.pendingReview})
                                     </Button>
                                 )}
                             </Stack>

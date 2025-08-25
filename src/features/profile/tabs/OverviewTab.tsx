@@ -81,8 +81,8 @@ export default function OverviewTab({ appId, onTabChange }: OverviewTabProps) {
     }
 
     // Determine alert severity based on KPIs
-    const shouldShowAlert = (kpis?.missing || 0) > 5 || (kpis?.riskBlocked || 0) > 0;
-    const isCritical = (kpis?.missing || 0) > 10 || (kpis?.riskBlocked || 0) > 2;
+    const shouldShowAlert = (kpis?.missingEvidence || 0) > 5 || (kpis?.riskBlocked || 0) > 0;
+    const isCritical = (kpis?.missingEvidence || 0) > 10 || (kpis?.riskBlocked || 0) > 2;
 
     return (
         <Stack spacing={3}>
@@ -94,7 +94,7 @@ export default function OverviewTab({ appId, onTabChange }: OverviewTabProps) {
                         <Button 
                             color="inherit" 
                             size="small" 
-                            onClick={() => handleKpiClick('missing')}
+                            onClick={() => handleKpiClick('missingEvidence')}
                             variant="outlined"
                         >
                             Take Action
@@ -106,7 +106,7 @@ export default function OverviewTab({ appId, onTabChange }: OverviewTabProps) {
                             {isCritical ? 'Critical compliance gaps detected!' : 'Attention needed for compliance.'}
                         </strong>
                         {' '}
-                        {(kpis?.missing || 0) > 0 && `${kpis?.missing} requirements missing evidence. `}
+                        {(kpis?.missingEvidence || 0) > 0 && `${kpis?.missingEvidence} requirements missing evidence. `}
                         {(kpis?.riskBlocked || 0) > 0 && `${kpis?.riskBlocked} requirements are risk blocked. `}
                         Review the Profile tab for detailed information and upload missing evidence.
                     </Typography>

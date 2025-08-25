@@ -15,6 +15,7 @@ import {
     TableCell,
     TableHead,
     TableRow,
+    TableContainer,
 } from '@mui/material';
 import {
     Security as SecurityIcon,
@@ -26,7 +27,7 @@ import {
     ReportProblem as RiskIcon,
     Description as DefaultIcon,
 } from '@mui/icons-material';
-import type { ProfileDomain, ProfileField, ProfileResponse } from '../../../api/types';
+import type { ProfileDomain, ProfileField, ProfileResponse, PolicyRequirement } from '../../../api/types';
 
 const ICON_MAP: Record<string, React.ReactElement> = {
     SecurityIcon: <SecurityIcon fontSize="small" />,
@@ -89,24 +90,26 @@ function DomainTable({ domain }: DomainTableProps) {
                 <Divider />
 
                 {/* Table */}
-                <Table size="small">
-                    <TableHead>
-                        <TableRow>
-                            <TableCell>Property</TableCell>
-                            <TableCell>Requirement</TableCell>
-                            <TableCell>Status</TableCell>
-                            <TableCell>Valid until</TableCell>
-                            <TableCell>Assurance</TableCell>
-                            <TableCell>Risks</TableCell>
-                            <TableCell align="right">Actions</TableCell>
-                        </TableRow>
-                    </TableHead>
-                    <TableBody>
-                        {fields.map((field) => (
-                            <FieldRow key={field.fieldKey} field={field} />
-                        ))}
-                    </TableBody>
-                </Table>
+                <TableContainer sx={{ overflowX: 'auto' }}>
+                    <Table size="small" sx={{ minWidth: 650 }}>
+                        <TableHead>
+                            <TableRow>
+                                <TableCell sx={{ minWidth: 140 }}>Property</TableCell>
+                                <TableCell sx={{ minWidth: 120 }}>Requirement</TableCell>
+                                <TableCell sx={{ minWidth: 100 }}>Status</TableCell>
+                                <TableCell sx={{ minWidth: 100 }}>Valid until</TableCell>
+                                <TableCell sx={{ minWidth: 100 }}>Assurance</TableCell>
+                                <TableCell sx={{ minWidth: 80 }}>Risks</TableCell>
+                                <TableCell align="right" sx={{ minWidth: 140 }}>Actions</TableCell>
+                            </TableRow>
+                        </TableHead>
+                        <TableBody>
+                            {fields.map((field) => (
+                                <FieldRow key={field.fieldKey} field={field} />
+                            ))}
+                        </TableBody>
+                    </Table>
+                </TableContainer>
             </Stack>
         </Paper>
     );
@@ -120,12 +123,48 @@ function FieldRow({ field }: FieldRowProps) {
     const { label, policyRequirement, evidence, assurance, risks } = field;
     const activeEvidence = evidence.find((e) => e.status === 'active');
 
+    const formatPolicyRequirementTooltip = (req: PolicyRequirement) => {
+        const { ttl, refresh } = req;
+        
+        if (ttl === '0d') {
+            return 'New evidence is required for every release';
+        }
+        
+        const validityText = `Evidence valid for ${ttl}`;
+        const refreshText = refresh === 'on_expiry' 
+            ? 'Can be refreshed when expired' 
+            : 'New evidence required each release';
+            
+        return `${validityText} • ${refreshText}`;
+    };
+
     return (
         <TableRow hover>
             <TableCell>
                 <Typography variant="body2" fontWeight={600}>{label}</Typography>
             </TableCell>
-            <TableCell>{String(policyRequirement)}</TableCell>
+            <TableCell>
+                <Tooltip 
+                    title={formatPolicyRequirementTooltip(policyRequirement)}
+                    placement="top"
+                    arrow
+                >
+                    <Typography 
+                        variant="body2" 
+                        sx={{ 
+                            cursor: 'help',
+                            textDecoration: 'underline',
+                            textDecorationStyle: 'dotted',
+                            textDecorationColor: 'rgba(0, 0, 0, 0.3)',
+                            '&:hover': {
+                                textDecorationColor: 'rgba(0, 0, 0, 0.6)'
+                            }
+                        }}
+                    >
+                        {policyRequirement.label}
+                    </Typography>
+                </Tooltip>
+            </TableCell>
             <TableCell>
                 {activeEvidence ? (
                     <Chip size="small" color="success" variant="outlined" label="Approved" />

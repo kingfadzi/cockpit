@@ -77,6 +77,13 @@ export type Evidence = {
   reviewedAt?: string | null;
 };
 
+export type PolicyRequirement = {
+  ttl: string;
+  label: string;
+  value: string | number | boolean;
+  refresh: string;
+};
+
 export type Risk = {
   riskId: string;
   title: string;
@@ -87,7 +94,7 @@ export type Risk = {
 export type ProfileField = {
   fieldKey: string;
   label: string;
-  policyRequirement: string | number | boolean;
+  policyRequirement: PolicyRequirement;
   evidence: Evidence[];
   assurance: 'Current' | 'Expiring' | 'Expired' | 'Missing';
   risks: Risk[];
@@ -105,14 +112,15 @@ export type ProfileDomain = {
 export type ProfileResponse = {
   appId: string;
   name: string;
+  version: number;
   updatedAt: string;
   domains: ProfileDomain[];
 };
 
 export type AppKpis = {
   compliant: number;
-  missing: number;
-  pending: number;
+  missingEvidence: number;
+  pendingReview: number;
   riskBlocked: number;
 };
 

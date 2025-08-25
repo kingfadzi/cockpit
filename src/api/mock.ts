@@ -123,7 +123,8 @@ export const mockApi = {
     return {
       appId,
       name: appId === 'CORR-12356' ? 'Database Cluster' : 'Dev Tools',
-      updatedAt: '2025-08-22T18:14:59.530115Z',
+      version: 6,
+      updatedAt: '2025-08-25T15:01:09.153089Z',
       domains: [
         {
           domainKey: 'artifact',
@@ -134,7 +135,12 @@ export const mockApi = {
             {
               fieldKey: 'architecture_vision',
               label: 'Architecture Vision',
-              policyRequirement: 'required',
+              policyRequirement: {
+                ttl: '0d',
+                label: 'Required',
+                value: 'required',
+                refresh: 'per_release'
+              },
               evidence: [],
               assurance: 'Missing',
               risks: []
@@ -142,7 +148,12 @@ export const mockApi = {
             {
               fieldKey: 'product_roadmap',
               label: 'Product Roadmap',
-              policyRequirement: 'required',
+              policyRequirement: {
+                ttl: '0d',
+                label: 'Required',
+                value: 'required',
+                refresh: 'per_release'
+              },
               evidence: [],
               assurance: 'Missing',
               risks: []
@@ -150,7 +161,12 @@ export const mockApi = {
             {
               fieldKey: 'product_vision',
               label: 'Product Vision',
-              policyRequirement: 'required',
+              policyRequirement: {
+                ttl: '0d',
+                label: 'Required',
+                value: 'required',
+                refresh: 'per_release'
+              },
               evidence: [],
               assurance: 'Missing',
               risks: []
@@ -158,7 +174,12 @@ export const mockApi = {
             {
               fieldKey: 'security_vision',
               label: 'Security Vision',
-              policyRequirement: 'required',
+              policyRequirement: {
+                ttl: '0d',
+                label: 'Required',
+                value: 'required',
+                refresh: 'per_release'
+              },
               evidence: [],
               assurance: 'Missing',
               risks: []
@@ -166,7 +187,12 @@ export const mockApi = {
             {
               fieldKey: 'service_vision',
               label: 'Service Vision',
-              policyRequirement: 'required',
+              policyRequirement: {
+                ttl: '0d',
+                label: 'Required',
+                value: 'required',
+                refresh: 'per_release'
+              },
               evidence: [],
               assurance: 'Missing',
               risks: []
@@ -174,7 +200,12 @@ export const mockApi = {
             {
               fieldKey: 'test_vision',
               label: 'Test Vision',
-              policyRequirement: 'required',
+              policyRequirement: {
+                ttl: '0d',
+                label: 'Required',
+                value: 'required',
+                refresh: 'per_release'
+              },
               evidence: [],
               assurance: 'Missing',
               risks: []
@@ -191,7 +222,12 @@ export const mockApi = {
             {
               fieldKey: 'materiality',
               label: 'Materiality',
-              policyRequirement: 'crown_jewel',
+              policyRequirement: {
+                ttl: '365d',
+                label: 'High',
+                value: 'high',
+                refresh: 'on_expiry'
+              },
               evidence: [],
               assurance: 'Missing',
               risks: []
@@ -199,7 +235,12 @@ export const mockApi = {
             {
               fieldKey: 'review_depth',
               label: 'Review Depth',
-              policyRequirement: 'full_review',
+              policyRequirement: {
+                ttl: '365d',
+                label: 'Scoped review',
+                value: 'scoped_review',
+                refresh: 'on_expiry'
+              },
               evidence: [],
               assurance: 'Missing',
               risks: []
@@ -216,7 +257,12 @@ export const mockApi = {
             {
               fieldKey: 'confidentiality_level',
               label: 'Confidentiality Level',
-              policyRequirement: 'restricted',
+              policyRequirement: {
+                ttl: '0d',
+                label: 'Restricted',
+                value: 'restricted',
+                refresh: 'per_release'
+              },
               evidence: [],
               assurance: 'Missing',
               risks: []
@@ -224,7 +270,12 @@ export const mockApi = {
             {
               fieldKey: 'encryption_at_rest',
               label: 'Encryption at Rest',
-              policyRequirement: 'required',
+              policyRequirement: {
+                ttl: '0d',
+                label: 'Required',
+                value: 'required',
+                refresh: 'per_release'
+              },
               evidence: [],
               assurance: 'Missing',
               risks: []
@@ -241,7 +292,12 @@ export const mockApi = {
             {
               fieldKey: 'audit_logging',
               label: 'Audit Logging',
-              policyRequirement: 'full_with_periodic_review',
+              policyRequirement: {
+                ttl: '90d',
+                label: 'Full with periodic review',
+                value: 'full_with_periodic_review',
+                refresh: 'on_expiry'
+              },
               evidence: [],
               assurance: 'Missing',
               risks: []
@@ -258,7 +314,12 @@ export const mockApi = {
             {
               fieldKey: 'rto_hours',
               label: 'RTO (hours)',
-              policyRequirement: 1,
+              policyRequirement: {
+                ttl: '0d',
+                label: '1 hour',
+                value: 1,
+                refresh: 'per_release'
+              },
               evidence: [],
               assurance: 'Missing',
               risks: []
@@ -275,7 +336,12 @@ export const mockApi = {
             {
               fieldKey: 'backup_policy',
               label: 'Backup Policy',
-              policyRequirement: 'standard_backups+periodic_restore_test',
+              policyRequirement: {
+                ttl: '90d',
+                label: 'Encrypted + tested restores',
+                value: 'encrypted+tested_restores',
+                refresh: 'on_expiry'
+              },
               evidence: [],
               assurance: 'Missing',
               risks: []
@@ -311,25 +377,26 @@ export const mockApi = {
   },
   getPortfolioKpis: async (): Promise<PortfolioKpis> => {
     await delay(120);
-    const reqs = Object.values(requirements).flatMap((r) => r.requirements);
-    const compliant = reqs.filter((r) => r.status === 'met').length;
-    const missingEvidence = reqs.filter((r) => r.status === 'missing').length;
-    const riskBlocked = reqs.filter((r) => r.status === 'rejected').length;
-    const pendingReview = Object.values(evidence).flat().filter((e) => e.status === 'submitted').length;
-    return { compliant, missingEvidence, pendingReview, riskBlocked };
+    // Return fixed numbers for demo - ensures UI displays work correctly
+    return { 
+      compliant: 25, 
+      missingEvidence: 8, 
+      pendingReview: 3, 
+      riskBlocked: 2 
+    };
   },
   getAppKpis: async (appId: string): Promise<AppKpis> => {
     await delay(120);
     // Calculate KPIs based on app ID for demo purposes
     const baseKpis = appId === 'CORR-12356' ? {
-      compliant: 12,
-      missing: 8,
-      pending: 3,
-      riskBlocked: 2
+      compliant: 0,
+      missingEvidence: 23,
+      pendingReview: 0,
+      riskBlocked: 0
     } : {
       compliant: 5,
-      missing: 15,
-      pending: 1,
+      missingEvidence: 15,
+      pendingReview: 1,
       riskBlocked: 4
     };
     return baseKpis;
