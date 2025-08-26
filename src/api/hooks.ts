@@ -44,6 +44,9 @@ export const usePortfolioKpis = () =>
 export const useAppKpis = (appId: string) =>
     useQuery<AppKpis>({ queryKey: ['kpis', 'app', appId], queryFn: () => endpoints.getAppKpis(appId), enabled: !!appId, ...commonQuery });
 
+export const useChildApps = (appId: string) =>
+    useQuery<AppSummary[]>({ queryKey: ['childApps', appId], queryFn: () => endpoints.getChildApps(appId), enabled: !!appId, ...commonQuery });
+
 export const useCreateEvidence = (appId: string) => {
     const qc = useQueryClient();
     return useMutation({

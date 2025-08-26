@@ -274,8 +274,23 @@ export default function POHome() {
                 <Stack spacing={1}>
                   <Stack direction="row" spacing={1} alignItems="center">
                     <CriticalityBadge criticality={app.criticality || 'D'} />
-                    <Typography variant="h6">
-                      {app.name || app.appId}
+                    <Typography 
+                      variant="subtitle1"
+                      sx={{ 
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                        flex: 1
+                      }}
+                    >
+                      {app.name || app.appId} 
+                      <Typography 
+                        component="span" 
+                        variant="body2"
+                        color="text.secondary"
+                      >
+                        ({app.appId})
+                      </Typography>
                     </Typography>
                   </Stack>
                   <Typography variant="body2" color="text.secondary">

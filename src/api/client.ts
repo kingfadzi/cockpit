@@ -197,4 +197,10 @@ export const endpoints = {
         USE_MOCK
             ? mockApi.createApp(appId)
             : toClient((await api.post<ServerApp>('/api/apps', { appId })).data),
+
+    /** Get child apps */
+    getChildApps: async (appId: string): Promise<AppSummary[]> =>
+        USE_MOCK 
+            ? mockApi.getChildApps(appId)
+            : (await api.get<ServerApp[]>(`/api/apps/${appId}/children`)).data.map(toClient),
 };

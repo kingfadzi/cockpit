@@ -29,6 +29,7 @@ import {
 } from '@mui/icons-material';
 import CriticalityBadge from '../../../components/CriticalityBadge';
 import type { AppSummary } from '../../../api/types';
+import { useChildApps, useApp } from '../../../api/hooks';
 
 interface EnhancedBusinessInfoCardProps {
     app: AppSummary;
@@ -40,7 +41,6 @@ interface EnhancedBusinessInfoCardProps {
     parentAppId?: string;
     parentAppName?: string;
     hasChildren?: boolean;
-    childApps?: Array<{ appId: string; name: string; criticality?: string }>;
 }
 
 interface InfoItemProps {
@@ -93,15 +93,6 @@ function InfoItem({ icon, label, value, isClickable, onClick }: InfoItemProps) {
     );
 }
 
-// Mock child apps data
-const MOCK_CHILD_APPS = [
-    { appId: 'CORR-WEB', name: 'Correspondence Web UI', criticality: 'B' },
-    { appId: 'CORR-API', name: 'Correspondence API Gateway', criticality: 'A' },
-    { appId: 'CORR-BATCH', name: 'Correspondence Batch Processor', criticality: 'C' },
-];
-
-// RAG colors removed - back to simple text display
-
 export default function EnhancedBusinessInfoCard({ 
     app, 
     transactionCycle = 'T+1',
@@ -110,10 +101,16 @@ export default function EnhancedBusinessInfoCard({
     housePosition = 'Front Office',
     parentAppId = 'PLATFORM-CORE',
     parentAppName = 'Banking Platform Core',
-    hasChildren = true,
-    childApps = MOCK_CHILD_APPS
+    hasChildren = true
 }: EnhancedBusinessInfoCardProps) {
     const [childAppsOpen, setChildAppsOpen] = useState(false);
+    const [parentAppOpen, setParentAppOpen] = useState(false);
+    
+    // Fetch child apps when needed
+    const { data: childApps, isLoading: childAppsLoading } = useChildApps(childAppsOpen ? app.appId : '');
+    
+    // Fetch parent app when needed
+    const { data: parentApp, isLoading: parentAppLoading } = useApp(parentAppOpen && parentAppId ? parentAppId : '');
     
     // Use real ratings from API with clear fallbacks for missing data
     const ratings = {
@@ -125,8 +122,14 @@ export default function EnhancedBusinessInfoCard({
     };
 
     const handleParentAppClick = () => {
-        // Navigate to parent app profile
-        window.location.href = `/po/apps/${parentAppId}`;
+        setParentAppOpen(true);
+    };
+
+    const handleNavigateToParent = () => {
+        if (parentAppId) {
+            window.location.href = `/po/apps/${parentAppId}`;
+            setParentAppOpen(false);
+        }
     };
 
     const handleChildAppClick = (childAppId: string) => {
@@ -154,7 +157,7 @@ export default function EnhancedBusinessInfoCard({
                             
                             {/* Hierarchy Navigation */}
                             <Stack direction="row" spacing={1}>
-                                {parentAppName && (
+                                {parentAppId && (
                                     <Button
                                         variant="outlined"
                                         size="small"
@@ -173,7 +176,7 @@ export default function EnhancedBusinessInfoCard({
                                         onClick={() => setChildAppsOpen(true)}
                                         sx={{ whiteSpace: 'nowrap', fontSize: '0.75rem' }}
                                     >
-                                        {childApps?.length || 0} Child{(childApps?.length || 0) !== 1 ? 'ren' : ''}
+                                        Children
                                     </Button>
                                 )}
                             </Stack>
@@ -249,34 +252,116 @@ export default function EnhancedBusinessInfoCard({
                     </Stack>
                 </DialogTitle>
                 <DialogContent>
-                    <Table>
-                        <TableHead>
-                            <TableRow>
-                                <TableCell>Criticality</TableCell>
-                                <TableCell>Application</TableCell>
-                                <TableCell>App ID</TableCell>
-                                <TableCell align="right">Actions</TableCell>
-                            </TableRow>
-                        </TableHead>
-                        <TableBody>
-                            {childApps?.map((child) => (
+                    {childAppsLoading ? (
+                        <Typography>Loading child applications...</Typography>
+                    ) : !childApps || childApps.length === 0 ? (
+                        <Typography color="text.secondary">No child applications found.</Typography>
+                    ) : (
+                        <Table>
+                            <TableHead>
+                                <TableRow>
+                                    <TableCell>Criticality</TableCell>
+                                    <TableCell>Application</TableCell>
+                                    <TableCell>App ID</TableCell>
+                                    <TableCell align="right">Actions</TableCell>
+                                </TableRow>
+                            </TableHead>
+                            <TableBody>
+                                {childApps.map((child) => (
+                                    <TableRow 
+                                        key={child.appId}
+                                        hover
+                                        sx={{ cursor: 'pointer' }}
+                                        onClick={() => handleChildAppClick(child.appId)}
+                                    >
+                                        <TableCell>
+                                            <CriticalityBadge criticality={child.criticality || 'D'} />
+                                        </TableCell>
+                                        <TableCell>
+                                            <Typography variant="body2" fontWeight={600}>
+                                                {child.name || child.appId}
+                                            </Typography>
+                                        </TableCell>
+                                        <TableCell>
+                                            <Typography variant="body2" color="text.secondary">
+                                                {child.appId}
+                                            </Typography>
+                                        </TableCell>
+                                        <TableCell align="right">
+                                            <Button 
+                                                size="small" 
+                                                variant="outlined"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    handleChildAppClick(child.appId);
+                                                }}
+                                            >
+                                                View Profile
+                                            </Button>
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    )}
+                </DialogContent>
+            </Dialog>
+
+            {/* Parent App Modal */}
+            <Dialog 
+                open={parentAppOpen} 
+                onClose={() => setParentAppOpen(false)}
+                maxWidth="md"
+                fullWidth
+            >
+                <DialogTitle>
+                    <Stack direction="row" alignItems="center" justifyContent="space-between">
+                        <Typography variant="h6">
+                            Parent Application of {app.name || app.appId}
+                        </Typography>
+                        <IconButton onClick={() => setParentAppOpen(false)} size="small">
+                            <CloseIcon />
+                        </IconButton>
+                    </Stack>
+                </DialogTitle>
+                <DialogContent>
+                    {parentAppLoading ? (
+                        <Typography>Loading parent application...</Typography>
+                    ) : !parentApp ? (
+                        <Typography color="text.secondary">Parent application not found.</Typography>
+                    ) : (
+                        <Table>
+                            <TableHead>
+                                <TableRow>
+                                    <TableCell>Criticality</TableCell>
+                                    <TableCell>Application</TableCell>
+                                    <TableCell>App ID</TableCell>
+                                    <TableCell>Business Service</TableCell>
+                                    <TableCell align="right">Actions</TableCell>
+                                </TableRow>
+                            </TableHead>
+                            <TableBody>
                                 <TableRow 
-                                    key={child.appId}
                                     hover
                                     sx={{ cursor: 'pointer' }}
-                                    onClick={() => handleChildAppClick(child.appId)}
+                                    onClick={handleNavigateToParent}
                                 >
                                     <TableCell>
-                                        <CriticalityBadge criticality={child.criticality as any || 'D'} />
+                                        <CriticalityBadge criticality={parentApp.criticality || 'D'} />
                                     </TableCell>
                                     <TableCell>
                                         <Typography variant="body2" fontWeight={600}>
-                                            {child.name}
+                                            {parentApp.name || parentApp.appId}
                                         </Typography>
                                     </TableCell>
                                     <TableCell>
                                         <Typography variant="body2" color="text.secondary">
-                                            {child.appId}
+                                            {parentApp.appId}
+                                        </Typography>
+                                    </TableCell>
+                                    <TableCell>
+                                        <Typography variant="body2" color="text.secondary">
+                                            {parentApp.businessServiceName || '—'}
                                         </Typography>
                                     </TableCell>
                                     <TableCell align="right">
@@ -285,16 +370,16 @@ export default function EnhancedBusinessInfoCard({
                                             variant="outlined"
                                             onClick={(e) => {
                                                 e.stopPropagation();
-                                                handleChildAppClick(child.appId);
+                                                handleNavigateToParent();
                                             }}
                                         >
                                             View Profile
                                         </Button>
                                     </TableCell>
                                 </TableRow>
-                            ))}
-                        </TableBody>
-                    </Table>
+                            </TableBody>
+                        </Table>
+                    )}
                 </DialogContent>
             </Dialog>
         </>

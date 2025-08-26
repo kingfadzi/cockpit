@@ -521,4 +521,70 @@ export const mockApi = {
     apps.push(newApp);
     return newApp;
   },
+
+  // Mock getChildApps: returns child apps for a given parent
+  getChildApps: async (parentAppId: string): Promise<AppSummary[]> => {
+    await delay(120);
+    // Mock child apps data
+    const childAppsData: Record<string, AppSummary[]> = {
+      'CORR-12356': [
+        {
+          appId: 'CORR-WEB',
+          name: 'Correspondence Web UI',
+          criticality: 'B',
+          businessServiceName: 'Payment Processing',
+          install_type: 'Cloud',
+          architecture_type: 'React SPA',
+          parentAppId: 'CORR-12356',
+          parentAppName: 'Payment Processing',
+          hasChildren: false,
+          securityRating: 'A',
+          integrityRating: 'B',
+          availabilityRating: 'A',
+          confidentialityRating: 'A',
+          resilienceRating: '3',
+          createdAt: '2025-08-20T01:10:56.367794Z',
+          updatedAt: '2025-08-24T01:10:56.391521Z',
+        },
+        {
+          appId: 'CORR-API',
+          name: 'Correspondence API Gateway',
+          criticality: 'A',
+          businessServiceName: 'Payment Processing',
+          install_type: 'Cloud',
+          architecture_type: 'REST API',
+          parentAppId: 'CORR-12356',
+          parentAppName: 'Payment Processing',
+          hasChildren: false,
+          securityRating: 'A',
+          integrityRating: 'A',
+          availabilityRating: 'A',
+          confidentialityRating: 'A',
+          resilienceRating: '5',
+          createdAt: '2025-08-18T01:10:56.367794Z',
+          updatedAt: '2025-08-25T01:10:56.391521Z',
+        },
+        {
+          appId: 'CORR-BATCH',
+          name: 'Correspondence Batch Processor',
+          criticality: 'C',
+          businessServiceName: 'Payment Processing',
+          install_type: 'On-Premise',
+          architecture_type: 'Batch Processing',
+          parentAppId: 'CORR-12356',
+          parentAppName: 'Payment Processing',
+          hasChildren: false,
+          securityRating: 'B',
+          integrityRating: 'B',
+          availabilityRating: 'B',
+          confidentialityRating: 'B',
+          resilienceRating: '3',
+          createdAt: '2025-08-15T01:10:56.367794Z',
+          updatedAt: '2025-08-23T01:10:56.391521Z',
+        },
+      ],
+    };
+    
+    return childAppsData[parentAppId] || [];
+  },
 };
