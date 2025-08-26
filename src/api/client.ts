@@ -125,6 +125,10 @@ const toClient = (a: ServerApp): AppSummary => ({
     // Timestamps
     createdAt: a.createdAt ?? null,
     updatedAt: a.updatedAt ?? null,
+    // Hierarchy
+    hasChildren: a.hasChildren ?? null,
+    parentAppId: a.parentAppId ?? null,
+    parentAppName: a.parentAppName ?? null,
 });
 
 /** Extract an array from either [] or {items:[...]} or [[]] */

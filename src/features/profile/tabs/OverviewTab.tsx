@@ -121,9 +121,9 @@ export default function OverviewTab({ appId, onTabChange }: OverviewTabProps) {
                 appType={app?.applicationType}
                 appTier={app?.applicationTier}
                 housePosition={app?.housePosition}
-                parentAppId={undefined} // TODO: Add parent/child relationship data to API
-                parentAppName={undefined}
-                hasChildren={false} // TODO: Add parent/child relationship data to API
+                parentAppId={app?.parentAppId}
+                parentAppName={app?.parentAppName}
+                hasChildren={app?.hasChildren || false}
             />
 
             {/* Combined Compliance Status and KPIs */}

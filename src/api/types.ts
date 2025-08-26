@@ -27,6 +27,10 @@ export type AppSummary = {
   // Timestamps
   createdAt?: string | null;
   updatedAt?: string | null;
+  // Hierarchy
+  hasChildren?: boolean | null;
+  parentAppId?: string | null;
+  parentAppName?: string | null;
 };
 
 // Server shape coming from Spring (camelCase + appCriticalityAssessment)
@@ -64,6 +68,7 @@ export type ServerApp = {
   ownerId?: string | null;
   createdAt?: string | null;
   updatedAt?: string | null;
+  hasChildren?: boolean | null;
 };
 
 export type PortfolioKpis = {

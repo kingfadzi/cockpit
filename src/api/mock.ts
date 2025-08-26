@@ -38,6 +38,10 @@ export const apps: AppSummary[] = [
     // Timestamps
     createdAt: '2025-08-24T01:10:56.367794Z',
     updatedAt: '2025-08-24T01:10:56.391521Z',
+    // Hierarchy
+    hasChildren: true,
+    parentAppId: 'PLATFORM-CORE',
+    parentAppName: 'Banking Platform Core',
   },
   {
     appId: 'DEVTOOLS',
@@ -65,6 +69,10 @@ export const apps: AppSummary[] = [
     // Timestamps
     createdAt: '2025-08-20T01:10:56.367794Z',
     updatedAt: '2025-08-22T01:10:56.391521Z',
+    // Hierarchy
+    hasChildren: false,
+    parentAppId: null,
+    parentAppName: null,
   },
 ];
 
