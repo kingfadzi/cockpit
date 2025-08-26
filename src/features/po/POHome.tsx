@@ -90,17 +90,26 @@ export default function POHome() {
   // Search/filter state
   const [search, setSearch] = useState('');
   const [criticalityFilter, setCriticalityFilter] = useState<'A' | 'B' | 'C' | 'D' | ''>('');
-  const [serviceFilter, setServiceFilter] = useState('');
+  const [applicationTypeFilter, setApplicationTypeFilter] = useState('');
+  const [architectureTypeFilter, setArchitectureTypeFilter] = useState('');
   const [installTypeFilter, setInstallTypeFilter] = useState('');
   
   // Add application modal state
   const [addAppOpen, setAddAppOpen] = useState(false);
 
-  // Get options for business services & install types
-  const services = useMemo(() => {
+  // Get options for application types, architecture types & install types
+  const applicationTypes = useMemo(() => {
     const set = new Set<string>();
     (apps || []).forEach((app) => {
-      if (app.businessServiceName) set.add(app.businessServiceName);
+      if (app.applicationType) set.add(app.applicationType);
+    });
+    return Array.from(set);
+  }, [apps]);
+
+  const architectureTypes = useMemo(() => {
+    const set = new Set<string>();
+    (apps || []).forEach((app) => {
+      if (app.architecture_type) set.add(app.architecture_type);
     });
     return Array.from(set);
   }, [apps]);
@@ -122,12 +131,13 @@ export default function POHome() {
         (app.name || '').toLowerCase().includes(search.toLowerCase()) ||
         app.appId.toLowerCase().includes(search.toLowerCase());
       const matchCrit = !criticalityFilter || app.criticality === criticalityFilter;
-      const matchService = !serviceFilter || app.businessServiceName === serviceFilter;
+      const matchApplicationType = !applicationTypeFilter || app.applicationType === applicationTypeFilter;
+      const matchArchitectureType = !architectureTypeFilter || app.architecture_type === architectureTypeFilter;
       const matchInstall =
         !installTypeFilter || (app as any).install_type === installTypeFilter;
-      return matchSearch && matchCrit && matchService && matchInstall;
+      return matchSearch && matchCrit && matchApplicationType && matchArchitectureType && matchInstall;
     });
-  }, [apps, search, criticalityFilter, serviceFilter, installTypeFilter]);
+  }, [apps, search, criticalityFilter, applicationTypeFilter, architectureTypeFilter, installTypeFilter]);
 
   // KPI tile definitions
   const tiles: Tile[] = [
@@ -222,16 +232,31 @@ export default function POHome() {
             </Select>
           </FormControl>
           <FormControl size="small" sx={{ minWidth: 180 }}>
-            <InputLabel>Business Service</InputLabel>
+            <InputLabel>Application Type</InputLabel>
             <Select
-              value={serviceFilter}
-              label="Business Service"
-              onChange={(e) => setServiceFilter(e.target.value as string)}
+              value={applicationTypeFilter}
+              label="Application Type"
+              onChange={(e) => setApplicationTypeFilter(e.target.value as string)}
             >
               <MenuItem value="">All</MenuItem>
-              {services.map((s) => (
-                <MenuItem key={s} value={s}>
-                  {s}
+              {applicationTypes.map((type) => (
+                <MenuItem key={type} value={type}>
+                  {type}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+          <FormControl size="small" sx={{ minWidth: 180 }}>
+            <InputLabel>Architecture Type</InputLabel>
+            <Select
+              value={architectureTypeFilter}
+              label="Architecture Type"
+              onChange={(e) => setArchitectureTypeFilter(e.target.value as string)}
+            >
+              <MenuItem value="">All</MenuItem>
+              {architectureTypes.map((type) => (
+                <MenuItem key={type} value={type}>
+                  {type}
                 </MenuItem>
               ))}
             </Select>
@@ -294,7 +319,7 @@ export default function POHome() {
                     </Typography>
                   </Stack>
                   <Typography variant="body2" color="text.secondary">
-                    Business Service: {app.businessServiceName || '—'}
+                    Application Type: {app.applicationType || '—'}
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
                     Install Type: {(app as any).install_type || '—'}
