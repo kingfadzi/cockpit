@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useDocs, useCreateDoc } from '../../../api/hooks';
 import {
     Stack,
     Typography,
@@ -111,64 +112,32 @@ const FIELD_TYPES = [
 ];
 
 export default function EvidenceTab({ appId }: EvidenceTabProps) {
-    const [documents, setDocuments] = useState<EvidenceDocument[]>([]);
-    const [loading, setLoading] = useState(true);
     const [addDialogOpen, setAddDialogOpen] = useState(false);
-    const [error, setError] = useState<string | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedTag, setSelectedTag] = useState<string>('');
     const [page, setPage] = useState(0);
     const [pageSize, setPageSize] = useState(10);
-    const [total, setTotal] = useState(0);
     const [newDocument, setNewDocument] = useState<NewDocumentForm>({
         title: '',
         url: '',
         fieldTypes: []
     });
 
-    // Fetch documents with pagination
-    const fetchDocuments = async (currentPage = page, currentPageSize = pageSize) => {
-        try {
-            setLoading(true);
-            const searchParams = new URLSearchParams({
-                page: (currentPage + 1).toString(), // API uses 1-based indexing
-                pageSize: currentPageSize.toString()
-            });
-            
-            if (searchTerm) {
-                searchParams.append('search', searchTerm);
-            }
-            
-            if (selectedTag) {
-                searchParams.append('tag', selectedTag);
-            }
-
-            const response = await fetch(`http://localhost:8080/api/apps/${appId}/docs?${searchParams}`, {
-                method: 'GET',
-                headers: {
-                    'Content-Type': 'application/json'
-                }
-            });
-
-            if (!response.ok) {
-                throw new Error(`Failed to fetch documents: ${response.statusText}`);
-            }
-
-            const paginatedResponse: PaginatedResponse = await response.json();
-            setDocuments(paginatedResponse.items);
-            setTotal(paginatedResponse.total);
-            setError(null);
-        } catch (err) {
-            setError(err instanceof Error ? err.message : 'Failed to load documents');
-        } finally {
-            setLoading(false);
-        }
+    // Build API params
+    const apiParams: Record<string, string> = {
+        page: (page + 1).toString(), // API uses 1-based indexing
+        pageSize: pageSize.toString()
     };
+    if (searchTerm) apiParams.search = searchTerm;
+    if (selectedTag) apiParams.tag = selectedTag;
 
-    // Fetch documents when component mounts or pagination/filters change
-    useEffect(() => {
-        fetchDocuments();
-    }, [appId, page, pageSize, searchTerm, selectedTag]);
+    // Use hooks for API calls
+    const { data: docsResponse, isLoading: loading, error } = useDocs(appId, apiParams);
+    const createDocMutation = useCreateDoc(appId);
+
+    const documents = docsResponse?.items || [];
+    const total = docsResponse?.total || 0;
+
 
     // Reset to first page when search/filter changes
     const handleSearchChange = (newSearchTerm: string) => {
@@ -186,33 +155,17 @@ export default function EvidenceTab({ appId }: EvidenceTabProps) {
             return;
         }
 
-        setError(null);
-
         try {
-            const response = await fetch(`http://localhost:8080/api/apps/${appId}/docs`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json'
-                },
-                body: JSON.stringify({
-                    title: newDocument.title,
-                    url: newDocument.url,
-                    fieldTypes: newDocument.fieldTypes
-                })
+            await createDocMutation.mutateAsync({
+                title: newDocument.title,
+                url: newDocument.url,
+                fieldTypes: newDocument.fieldTypes
             });
-
-            if (!response.ok) {
-                throw new Error(`Failed to create document: ${response.statusText}`);
-            }
-
-            const createdDocument: EvidenceDocument = await response.json();
+            
             setNewDocument({ title: '', url: '', fieldTypes: [] });
             setAddDialogOpen(false);
-            // Refresh the documents list
-            fetchDocuments();
         } catch (err) {
-            setError(err instanceof Error ? err.message : 'Failed to create document');
+            console.error('Failed to create document:', err);
         }
     };
 
@@ -296,9 +249,9 @@ export default function EvidenceTab({ appId }: EvidenceTabProps) {
             </Stack>
 
             {/* Error Alert */}
-            {error && (
-                <Alert severity="error" onClose={() => setError(null)}>
-                    {error}
+            {(error || createDocMutation.error) && (
+                <Alert severity="error">
+                    {error ? String(error.message || error) : String(createDocMutation.error)}
                 </Alert>
             )}
 
@@ -541,16 +494,15 @@ export default function EvidenceTab({ appId }: EvidenceTabProps) {
                     <Button onClick={() => {
                         setAddDialogOpen(false);
                         setNewDocument({ title: '', url: '', fieldTypes: [] });
-                        setError(null);
                     }}>
                         Cancel
                     </Button>
                     <Button 
                         variant="contained" 
                         onClick={handleAddDocument}
-                        disabled={!newDocument.title || !newDocument.url || newDocument.fieldTypes.length === 0 || loading}
+                        disabled={!newDocument.title || !newDocument.url || newDocument.fieldTypes.length === 0 || createDocMutation.isPending}
                     >
-                        {loading ? <CircularProgress size={20} /> : 'Add Document'}
+                        {createDocMutation.isPending ? <CircularProgress size={20} /> : 'Add Document'}
                     </Button>
                 </DialogActions>
             </Dialog>

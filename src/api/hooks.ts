@@ -69,3 +69,21 @@ export const useCreateApp = () => {
         },
     });
 };
+
+export const useDocs = (appId: string, params?: Record<string, string>) =>
+    useQuery({
+        queryKey: ['docs', appId, params],
+        queryFn: () => endpoints.getDocs(appId, params),
+        enabled: !!appId,
+        ...commonQuery,
+    });
+
+export const useCreateDoc = (appId: string) => {
+    const qc = useQueryClient();
+    return useMutation({
+        mutationFn: (payload: any) => endpoints.createDoc(appId, payload),
+        onSuccess: () => {
+            qc.invalidateQueries({ queryKey: ['docs', appId] });
+        },
+    });
+};

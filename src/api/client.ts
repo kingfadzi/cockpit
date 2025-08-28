@@ -203,4 +203,16 @@ export const endpoints = {
         USE_MOCK 
             ? mockApi.getChildApps(appId)
             : (await api.get<ServerApp[]>(`/api/apps/${appId}/children`)).data.map(toClient),
+
+    /** Documents (paginated) */
+    getDocs: async (appId: string, params?: Record<string, string>): Promise<any> =>
+        USE_MOCK 
+            ? { page: 1, pageSize: 10, total: 0, items: [] }
+            : (await api.get<any>(`/api/apps/${appId}/documents`, { params })).data,
+
+    /** Create document */
+    createDoc: async (appId: string, payload: any): Promise<any> =>
+        USE_MOCK 
+            ? { documentId: 'mock-doc-id', ...payload }
+            : (await api.post<any>(`/api/apps/${appId}/documents`, payload)).data,
 };
