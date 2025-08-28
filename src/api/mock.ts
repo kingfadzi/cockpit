@@ -178,6 +178,7 @@ export const mockApi = {
           fields: [
             {
               fieldKey: 'architecture_vision',
+              profileFieldId: 'pf_architecture_vision_001',
               label: 'Architecture Vision',
               policyRequirement: {
                 ttl: '0d',
@@ -191,6 +192,7 @@ export const mockApi = {
             },
             {
               fieldKey: 'product_roadmap',
+              profileFieldId: 'pf_product_roadmap_001',
               label: 'Product Roadmap',
               policyRequirement: {
                 ttl: '0d',
@@ -204,6 +206,7 @@ export const mockApi = {
             },
             {
               fieldKey: 'product_vision',
+              profileFieldId: 'pf_product_vision_001',
               label: 'Product Vision',
               policyRequirement: {
                 ttl: '0d',
@@ -217,6 +220,7 @@ export const mockApi = {
             },
             {
               fieldKey: 'security_vision',
+              profileFieldId: 'pf_security_vision_001',
               label: 'Security Vision',
               policyRequirement: {
                 ttl: '0d',
@@ -230,6 +234,7 @@ export const mockApi = {
             },
             {
               fieldKey: 'service_vision',
+              profileFieldId: 'pf_service_vision_001',
               label: 'Service Vision',
               policyRequirement: {
                 ttl: '0d',
@@ -243,6 +248,7 @@ export const mockApi = {
             },
             {
               fieldKey: 'test_vision',
+              profileFieldId: 'pf_test_vision_001',
               label: 'Test Vision',
               policyRequirement: {
                 ttl: '0d',
@@ -265,6 +271,7 @@ export const mockApi = {
           fields: [
             {
               fieldKey: 'materiality',
+              profileFieldId: 'pf_materiality_001',
               label: 'Materiality',
               policyRequirement: {
                 ttl: '365d',
@@ -278,6 +285,7 @@ export const mockApi = {
             },
             {
               fieldKey: 'review_depth',
+              profileFieldId: 'pf_review_depth_001',
               label: 'Review Depth',
               policyRequirement: {
                 ttl: '365d',
@@ -300,6 +308,7 @@ export const mockApi = {
           fields: [
             {
               fieldKey: 'confidentiality_level',
+              profileFieldId: 'pf_confidentiality_level_001',
               label: 'Confidentiality Level',
               policyRequirement: {
                 ttl: '0d',
@@ -322,6 +331,7 @@ export const mockApi = {
           fields: [
             {
               fieldKey: 'encryption_at_rest',
+              profileFieldId: 'pf_encryption_at_rest_001',
               label: 'Encryption at Rest',
               policyRequirement: {
                 ttl: '0d',
@@ -335,6 +345,7 @@ export const mockApi = {
             },
             {
               fieldKey: 'encryption_in_transit',
+              profileFieldId: 'pf_encryption_in_transit_001',
               label: 'Encryption in Transit',
               policyRequirement: {
                 ttl: '0d',
@@ -348,6 +359,7 @@ export const mockApi = {
             },
             {
               fieldKey: 'key_rotation_max',
+              profileFieldId: 'pf_key_rotation_max_001',
               label: 'Key Rotation Max',
               policyRequirement: {
                 ttl: '0d',
@@ -361,6 +373,7 @@ export const mockApi = {
             },
             {
               fieldKey: 'secrets_management',
+              profileFieldId: 'pf_secrets_management_001',
               label: 'Secrets Management',
               policyRequirement: {
                 ttl: '0d',
@@ -374,6 +387,7 @@ export const mockApi = {
             },
             {
               fieldKey: 'security_testing',
+              profileFieldId: 'pf_security_testing_001',
               label: 'Security Testing',
               policyRequirement: {
                 ttl: '0d',
@@ -396,6 +410,7 @@ export const mockApi = {
           fields: [
             {
               fieldKey: 'audit_logging',
+              profileFieldId: 'pf_audit_logging_001',
               label: 'Audit Logging',
               policyRequirement: {
                 ttl: '90d',
@@ -418,6 +433,7 @@ export const mockApi = {
           fields: [
             {
               fieldKey: 'rto_hours',
+              profileFieldId: 'pf_rto_hours_001',
               label: 'RTO (hours)',
               policyRequirement: {
                 ttl: '0d',
@@ -440,6 +456,7 @@ export const mockApi = {
           fields: [
             {
               fieldKey: 'backup_policy',
+              profileFieldId: 'pf_backup_policy_001',
               label: 'Backup Policy',
               policyRequirement: {
                 ttl: '90d',

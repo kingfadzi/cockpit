@@ -423,7 +423,7 @@ export default function AppProfilePage() {
                                             {/* Quick actions */}
                                             <Stack direction="row" spacing={1}>
                                                 <Button size="small" startIcon={<AddIcon />} onClick={onAddEvidence(r.key)}>
-                                                    Add evidence
+                                                    Attach evidence
                                                 </Button>
                                                 <Button size="small" variant="outlined" startIcon={<EditIcon />} onClick={onUpdateValue(r.key)}>
                                                     Update value
@@ -511,7 +511,7 @@ export default function AppProfilePage() {
                                         .filter((r) => r.rag !== 'green' || r.evidenceCount === 0)
                                         .slice(0, 6)
                                         .map((r) => (
-                                            <Chip key={r.key} size="small" variant="outlined" color={r.evidenceCount === 0 ? 'warning' : 'default'} label={`${r.evidenceCount === 0 ? 'Provide evidence' : 'Improve'}: ${r.label}`} onClick={onAddEvidence(r.key)} />
+                                            <Chip key={r.key} size="small" variant="outlined" color={r.evidenceCount === 0 ? 'warning' : 'default'} label={`${r.evidenceCount === 0 ? 'Attach evidence' : 'Improve'}: ${r.label}`} onClick={onAddEvidence(r.key)} />
                                         ))}
                                     {(!deviations.length && assurance.missing === 0) && <Chip size="small" variant="outlined" label="No immediate gaps detected" />}
                                 </Stack>

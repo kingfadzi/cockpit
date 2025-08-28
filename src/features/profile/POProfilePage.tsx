@@ -17,9 +17,7 @@ import {
 import {
     Dashboard as OverviewIcon,
     Security as ProfileIcon,
-    Rocket as DeploymentsIcon,
     Contacts as ContactsIcon,
-    Link as ExternalLinksIcon,
     Description as EvidenceIcon,
     ArrowBack as BackIcon,
     Home as HomeIcon,
@@ -27,20 +25,16 @@ import {
 import { useProfile } from '../../api/hooks';
 import OverviewTab from './tabs/OverviewTab';
 import ProfileTab from './tabs/ProfileTab';
-import DeploymentsTab from './tabs/DeploymentsTab';
 import ContactsTab from './tabs/ContactsTab';
-import ExternalLinksTab from './tabs/ExternalLinksTab';
 import EvidenceTab from './tabs/EvidenceTab';
 
 const fmtDate = (iso?: string | null) => (iso ? new Date(iso).toLocaleDateString() : '—');
 
-type TabValue = 'overview' | 'profile' | 'deployments' | 'external-links' | 'contacts' | 'evidence';
+type TabValue = 'overview' | 'profile' | 'contacts' | 'evidence';
 
 const TAB_CONFIG = [
     { value: 'overview', label: 'Overview', icon: <OverviewIcon fontSize="small" /> },
     { value: 'profile', label: 'Profile', icon: <ProfileIcon fontSize="small" /> },
-    { value: 'deployments', label: 'Deployments', icon: <DeploymentsIcon fontSize="small" /> },
-    { value: 'external-links', label: 'External Links', icon: <ExternalLinksIcon fontSize="small" /> },
     { value: 'evidence', label: 'Evidence', icon: <EvidenceIcon fontSize="small" /> },
     { value: 'contacts', label: 'Contacts', icon: <ContactsIcon fontSize="small" /> },
 ] as const;
@@ -108,11 +102,7 @@ export default function POProfilePage() {
             case 'overview':
                 return <OverviewTab appId={appId!} onTabChange={handleTabChangeFromChild} />;
             case 'profile':
-                return <ProfileTab profile={profile} />;
-            case 'deployments':
-                return <DeploymentsTab appId={appId!} />;
-            case 'external-links':
-                return <ExternalLinksTab appId={appId!} />;
+                return <ProfileTab profile={profile} appId={appId!} />;
             case 'evidence':
                 return <EvidenceTab appId={appId!} />;
             case 'contacts':

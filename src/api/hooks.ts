@@ -87,3 +87,40 @@ export const useCreateDoc = (appId: string) => {
         },
     });
 };
+
+export const useSuggestedEvidence = (appId: string, fieldKey: string) =>
+    useQuery({
+        queryKey: ['suggestedEvidence', appId, fieldKey],
+        queryFn: () => endpoints.getSuggestedEvidence(appId, fieldKey),
+        enabled: !!appId && !!fieldKey,
+        ...commonQuery,
+    });
+
+export const useCreateEvidenceWithDocument = (appId: string) => {
+    const qc = useQueryClient();
+    return useMutation({
+        mutationFn: (payload: any) => endpoints.createEvidenceWithDocument(appId, payload),
+        onSuccess: () => {
+            qc.invalidateQueries({ queryKey: ['evidence', appId] });
+            qc.invalidateQueries({ queryKey: ['profile', appId] });
+        },
+    });
+};
+
+export const useAttachEvidence = () => {
+    const qc = useQueryClient();
+    return useMutation({
+        mutationFn: ({ claimId, evidenceId, payload }: { claimId: string; evidenceId: string; payload: any }) => 
+            endpoints.attachEvidence(claimId, evidenceId, payload),
+        onSuccess: () => {
+            qc.invalidateQueries({ queryKey: ['evidence'] });
+            qc.invalidateQueries({ queryKey: ['profile'] });
+        },
+    });
+};
+
+export const useCreateTrack = (appId: string) => {
+    return useMutation({
+        mutationFn: (payload: any) => endpoints.createTrack(appId, payload),
+    });
+};

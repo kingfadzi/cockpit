@@ -59,7 +59,7 @@ interface EvidenceDocument {
     sourceType: string;
     owners?: string;
     linkHealth: number;
-    tags: string[];
+    relatedEvidenceFields: string[];
     latestVersion?: {
         docVersionId: string;
         versionId: string;
@@ -114,7 +114,7 @@ const FIELD_TYPES = [
 export default function EvidenceTab({ appId }: EvidenceTabProps) {
     const [addDialogOpen, setAddDialogOpen] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
-    const [selectedTag, setSelectedTag] = useState<string>('');
+    const [selectedField, setSelectedField] = useState<string>('');
     const [page, setPage] = useState(0);
     const [pageSize, setPageSize] = useState(10);
     const [newDocument, setNewDocument] = useState<NewDocumentForm>({
@@ -129,7 +129,7 @@ export default function EvidenceTab({ appId }: EvidenceTabProps) {
         pageSize: pageSize.toString()
     };
     if (searchTerm) apiParams.search = searchTerm;
-    if (selectedTag) apiParams.tag = selectedTag;
+    if (selectedField) apiParams.field = selectedField;
 
     // Use hooks for API calls
     const { data: docsResponse, isLoading: loading, error } = useDocs(appId, apiParams);
@@ -145,8 +145,8 @@ export default function EvidenceTab({ appId }: EvidenceTabProps) {
         setPage(0);
     };
 
-    const handleTagFilterChange = (newTag: string) => {
-        setSelectedTag(newTag);
+    const handleFieldFilterChange = (newField: string) => {
+        setSelectedField(newField);
         setPage(0);
     };
 
@@ -214,8 +214,8 @@ export default function EvidenceTab({ appId }: EvidenceTabProps) {
         });
     };
 
-    // Get all unique tags for filter dropdown - this would need a separate API call in real implementation
-    const allTags = Array.from(new Set(documents.flatMap(doc => doc.tags))).sort();
+    // Get all unique related evidence fields for filter dropdown - this would need a separate API call in real implementation
+    const allRelatedFields = Array.from(new Set(documents.flatMap(doc => doc.relatedEvidenceFields))).sort();
 
     // Format date helper
     const formatDate = (dateString: string) => {
@@ -273,16 +273,16 @@ export default function EvidenceTab({ appId }: EvidenceTabProps) {
                         sx={{ flex: 1, minWidth: 200 }}
                     />
                     <FormControl size="small" sx={{ minWidth: 180 }}>
-                        <InputLabel>Filter by Tag</InputLabel>
+                        <InputLabel>Filter by Field</InputLabel>
                         <Select
-                            value={selectedTag}
-                            onChange={(e) => handleTagFilterChange(e.target.value)}
-                            label="Filter by Tag"
+                            value={selectedField}
+                            onChange={(e) => handleFieldFilterChange(e.target.value)}
+                            label="Filter by Field"
                         >
-                            <MenuItem value="">All Tags</MenuItem>
-                            {allTags.map((tag) => (
-                                <MenuItem key={tag} value={tag}>
-                                    {tag}
+                            <MenuItem value="">All Fields</MenuItem>
+                            {allRelatedFields.map((field) => (
+                                <MenuItem key={field} value={field}>
+                                    {field}
                                 </MenuItem>
                             ))}
                         </Select>
@@ -294,7 +294,7 @@ export default function EvidenceTab({ appId }: EvidenceTabProps) {
             </Paper>
 
             {/* Documents Table */}
-            {!loading && total === 0 && !searchTerm && !selectedTag ? (
+            {!loading && total === 0 && !searchTerm && !selectedField ? (
                 <Paper variant="outlined" sx={{ p: 6, textAlign: 'center', borderRadius: 3 }}>
                     <DocumentIcon sx={{ fontSize: 64, color: 'text.disabled', mb: 3 }} />
                     <Typography variant="h6" color="text.secondary" gutterBottom>
@@ -321,7 +321,7 @@ export default function EvidenceTab({ appId }: EvidenceTabProps) {
                                     <TableCell>Document</TableCell>
                                     <TableCell>Source</TableCell>
                                     <TableCell>Status</TableCell>
-                                    <TableCell>Tags</TableCell>
+                                    <TableCell>Related Fields</TableCell>
                                     <TableCell>Last Updated</TableCell>
                                     <TableCell align="right">Actions</TableCell>
                                 </TableRow>
@@ -349,7 +349,7 @@ export default function EvidenceTab({ appId }: EvidenceTabProps) {
                                                 </Typography>
                                                 <Button 
                                                     variant="outlined" 
-                                                    onClick={() => { handleSearchChange(''); handleTagFilterChange(''); }}
+                                                    onClick={() => { handleSearchChange(''); handleFieldFilterChange(''); }}
                                                 >
                                                     Clear Filters
                                                 </Button>
@@ -386,19 +386,19 @@ export default function EvidenceTab({ appId }: EvidenceTabProps) {
                                             </TableCell>
                                             <TableCell>
                                                 <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                                                    {doc.tags.slice(0, 2).map((tag) => (
+                                                    {doc.relatedEvidenceFields.slice(0, 2).map((field) => (
                                                         <Chip 
-                                                            key={tag} 
+                                                            key={field} 
                                                             size="small" 
-                                                            label={tag} 
+                                                            label={field} 
                                                             sx={{ bgcolor: 'primary.50', color: 'primary.main' }}
                                                         />
                                                     ))}
-                                                    {doc.tags.length > 2 && (
-                                                        <Tooltip title={doc.tags.slice(2).join(', ')}>
+                                                    {doc.relatedEvidenceFields.length > 2 && (
+                                                        <Tooltip title={doc.relatedEvidenceFields.slice(2).join(', ')}>
                                                             <Chip 
                                                                 size="small" 
-                                                                label={`+${doc.tags.length - 2}`}
+                                                                label={`+${doc.relatedEvidenceFields.length - 2}`}
                                                                 variant="outlined"
                                                             />
                                                         </Tooltip>

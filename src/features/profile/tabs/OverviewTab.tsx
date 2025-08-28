@@ -145,20 +145,6 @@ export default function OverviewTab({ appId, onTabChange }: OverviewTabProps) {
                 >
                     View Full Compliance Profile
                 </Button>
-                <Button
-                    variant="text"
-                    endIcon={<LaunchIcon fontSize="small" />}
-                    onClick={() => onTabChange?.('deployments')}
-                >
-                    View Deployments
-                </Button>
-                <Button
-                    variant="text"
-                    endIcon={<LaunchIcon fontSize="small" />}
-                    onClick={() => onTabChange?.('external-links')}
-                >
-                    External Systems
-                </Button>
             </Box>
         </Stack>
     );

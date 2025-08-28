@@ -215,4 +215,28 @@ export const endpoints = {
         USE_MOCK 
             ? { documentId: 'mock-doc-id', ...payload }
             : (await api.post<any>(`/api/apps/${appId}/documents`, payload)).data,
+
+    /** Get suggested evidence for a field */
+    getSuggestedEvidence: async (appId: string, fieldKey: string): Promise<any> =>
+        USE_MOCK
+            ? { fieldKey, fieldLabel: fieldKey, profileFieldId: 'mock-field-id', suggestedDocuments: [] }
+            : (await api.get<any>(`/api/apps/${appId}/profile/field/${fieldKey}/suggested-evidence`)).data,
+
+    /** Create evidence with document */
+    createEvidenceWithDocument: async (appId: string, payload: any): Promise<any> =>
+        USE_MOCK
+            ? { claimId: 'mock-claim-id', evidenceId: 'mock-evidence-id', ...payload }
+            : (await api.post<any>(`/api/apps/${appId}/evidence/with-document`, payload)).data,
+
+    /** Attach evidence */
+    attachEvidence: async (claimId: string, evidenceId: string, payload: any): Promise<any> =>
+        USE_MOCK
+            ? { success: true }
+            : (await api.post<any>(`/api/claims/${claimId}/evidence/${evidenceId}/attach`, payload)).data,
+
+    /** Create track */
+    createTrack: async (appId: string, payload: any): Promise<any> =>
+        USE_MOCK
+            ? { trackId: 'track_mock_id_' + Date.now() }
+            : (await api.post<any>(`/api/apps/${appId}/tracks`, payload)).data,
 };

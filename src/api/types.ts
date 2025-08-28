@@ -118,6 +118,7 @@ export type Risk = {
 
 export type ProfileField = {
   fieldKey: string;
+  profileFieldId: string;
   label: string;
   policyRequirement: PolicyRequirement;
   evidence: Evidence[];
