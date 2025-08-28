@@ -143,7 +143,7 @@ export default function EvidenceTab({ appId }: EvidenceTabProps) {
                 searchParams.append('tag', selectedTag);
             }
 
-            const response = await fetch(`http://localhost:8080/api/apps/${appId}/documents?${searchParams}`, {
+            const response = await fetch(`http://localhost:8080/api/apps/${appId}/docs?${searchParams}`, {
                 method: 'GET',
                 headers: {
                     'Content-Type': 'application/json'
@@ -189,7 +189,7 @@ export default function EvidenceTab({ appId }: EvidenceTabProps) {
         setError(null);
 
         try {
-            const response = await fetch(`http://localhost:8080/api/apps/${appId}/documents`, {
+            const response = await fetch(`http://localhost:8080/api/apps/${appId}/docs`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
