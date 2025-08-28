@@ -20,6 +20,7 @@ import {
     Rocket as DeploymentsIcon,
     Contacts as ContactsIcon,
     Link as ExternalLinksIcon,
+    Description as EvidenceIcon,
     ArrowBack as BackIcon,
     Home as HomeIcon,
 } from '@mui/icons-material';
@@ -29,16 +30,18 @@ import ProfileTab from './tabs/ProfileTab';
 import DeploymentsTab from './tabs/DeploymentsTab';
 import ContactsTab from './tabs/ContactsTab';
 import ExternalLinksTab from './tabs/ExternalLinksTab';
+import EvidenceTab from './tabs/EvidenceTab';
 
 const fmtDate = (iso?: string | null) => (iso ? new Date(iso).toLocaleDateString() : '—');
 
-type TabValue = 'overview' | 'profile' | 'deployments' | 'external-links' | 'contacts';
+type TabValue = 'overview' | 'profile' | 'deployments' | 'external-links' | 'contacts' | 'evidence';
 
 const TAB_CONFIG = [
     { value: 'overview', label: 'Overview', icon: <OverviewIcon fontSize="small" /> },
     { value: 'profile', label: 'Profile', icon: <ProfileIcon fontSize="small" /> },
     { value: 'deployments', label: 'Deployments', icon: <DeploymentsIcon fontSize="small" /> },
     { value: 'external-links', label: 'External Links', icon: <ExternalLinksIcon fontSize="small" /> },
+    { value: 'evidence', label: 'Evidence', icon: <EvidenceIcon fontSize="small" /> },
     { value: 'contacts', label: 'Contacts', icon: <ContactsIcon fontSize="small" /> },
 ] as const;
 
@@ -110,6 +113,8 @@ export default function POProfilePage() {
                 return <DeploymentsTab appId={appId!} />;
             case 'external-links':
                 return <ExternalLinksTab appId={appId!} />;
+            case 'evidence':
+                return <EvidenceTab appId={appId!} />;
             case 'contacts':
                 return <ContactsTab appId={appId!} />;
             default:
