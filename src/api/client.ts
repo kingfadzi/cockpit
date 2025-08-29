@@ -12,6 +12,7 @@ import type {
 } from './types';
 
 export const API_BASE = '';
+export const AUDIT_API_BASE = 'http://localhost:8081';
 const USE_MOCK = (import.meta.env.VITE_USE_MOCK || '1') === '1';
 
 /** ------- Debug toggle (can flip at runtime from DevTools) ------- */
@@ -27,6 +28,15 @@ export const api: AxiosInstance = axios.create({
     baseURL: API_BASE,
     withCredentials: false,
     // By default, axios treats only 2xx as success. We keep that.
+});
+
+/** ------- Audit API instance ------- */
+export const auditApi: AxiosInstance = axios.create({
+    baseURL: AUDIT_API_BASE,
+    withCredentials: false,
+    headers: {
+        'X-Api-Key': 'dev-key'
+    }
 });
 
 /** Per-request timing + id */
@@ -239,4 +249,19 @@ export const endpoints = {
         USE_MOCK
             ? { trackId: 'track_mock_id_' + Date.now() }
             : (await api.post<any>(`/api/apps/${appId}/tracks`, payload)).data,
+
+    /** Get audit events for profile field */
+    getAuditEvents: async (appId: string, subjectId: string, page: number = 0, size: number = 10): Promise<any> =>
+        USE_MOCK
+            ? { content: [], totalElements: 0, totalPages: 0 }
+            : (await auditApi.get<any>('/audit/events/search', {
+                params: {
+                    appId,
+                    subjectId,
+                    page,
+                    size,
+                    sortBy: 'occurred_at_utc',
+                    sortOrder: 'desc'
+                }
+            })).data,
 };

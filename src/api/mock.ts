@@ -184,7 +184,6 @@ export const mockApi = {
                 ttl: '0d',
                 label: 'Required',
                 value: 'required',
-                refresh: 'per_release'
               },
               evidence: [],
               assurance: 'Missing',
@@ -198,7 +197,6 @@ export const mockApi = {
                 ttl: '0d',
                 label: 'Required',
                 value: 'required',
-                refresh: 'per_release'
               },
               evidence: [],
               assurance: 'Missing',
@@ -212,7 +210,6 @@ export const mockApi = {
                 ttl: '0d',
                 label: 'Required',
                 value: 'required',
-                refresh: 'per_release'
               },
               evidence: [],
               assurance: 'Missing',
@@ -226,7 +223,6 @@ export const mockApi = {
                 ttl: '0d',
                 label: 'Required',
                 value: 'required',
-                refresh: 'per_release'
               },
               evidence: [],
               assurance: 'Missing',
@@ -240,7 +236,6 @@ export const mockApi = {
                 ttl: '0d',
                 label: 'Required',
                 value: 'required',
-                refresh: 'per_release'
               },
               evidence: [],
               assurance: 'Missing',
@@ -254,7 +249,6 @@ export const mockApi = {
                 ttl: '0d',
                 label: 'Required',
                 value: 'required',
-                refresh: 'per_release'
               },
               evidence: [],
               assurance: 'Missing',
@@ -277,7 +271,6 @@ export const mockApi = {
                 ttl: '365d',
                 label: 'High',
                 value: 'high',
-                refresh: 'on_expiry'
               },
               evidence: [],
               assurance: 'Missing',
@@ -291,7 +284,6 @@ export const mockApi = {
                 ttl: '365d',
                 label: 'Scoped review',
                 value: 'scoped_review',
-                refresh: 'on_expiry'
               },
               evidence: [],
               assurance: 'Missing',
@@ -314,7 +306,6 @@ export const mockApi = {
                 ttl: '0d',
                 label: 'Restricted',
                 value: 'restricted',
-                refresh: 'per_release'
               },
               evidence: [],
               assurance: 'Missing',
@@ -337,7 +328,6 @@ export const mockApi = {
                 ttl: '0d',
                 label: 'Required',
                 value: 'required',
-                refresh: 'per_release'
               },
               evidence: [],
               assurance: 'Missing',
@@ -351,7 +341,6 @@ export const mockApi = {
                 ttl: '0d',
                 label: 'Required',
                 value: 'required',
-                refresh: 'per_release'
               },
               evidence: [],
               assurance: 'Missing',
@@ -365,7 +354,6 @@ export const mockApi = {
                 ttl: '0d',
                 label: '180 days',
                 value: '180d',
-                refresh: 'per_release'
               },
               evidence: [],
               assurance: 'Missing',
@@ -379,7 +367,6 @@ export const mockApi = {
                 ttl: '0d',
                 label: 'Centralized required',
                 value: 'centralized_required',
-                refresh: 'per_release'
               },
               evidence: [],
               assurance: 'Missing',
@@ -393,7 +380,6 @@ export const mockApi = {
                 ttl: '0d',
                 label: 'Internal pentest annual + continuous scans',
                 value: 'internal_pentest_annual+continuous_scans',
-                refresh: 'per_release'
               },
               evidence: [],
               assurance: 'Missing',
@@ -416,7 +402,6 @@ export const mockApi = {
                 ttl: '90d',
                 label: 'Full with periodic review',
                 value: 'full_with_periodic_review',
-                refresh: 'on_expiry'
               },
               evidence: [],
               assurance: 'Missing',
@@ -439,7 +424,6 @@ export const mockApi = {
                 ttl: '0d',
                 label: '1 hour',
                 value: 1,
-                refresh: 'per_release'
               },
               evidence: [],
               assurance: 'Missing',
@@ -462,7 +446,6 @@ export const mockApi = {
                 ttl: '90d',
                 label: 'Encrypted + tested restores',
                 value: 'encrypted+tested_restores',
-                refresh: 'on_expiry'
               },
               evidence: [],
               assurance: 'Missing',

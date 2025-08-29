@@ -21,6 +21,7 @@ import {
     DialogContent,
     DialogActions,
     IconButton,
+    Link,
 } from '@mui/material';
 import {
     Security as SecurityIcon,
@@ -34,6 +35,7 @@ import {
     Close as CloseIcon,
 } from '@mui/icons-material';
 import type { ProfileDomain, ProfileField, ProfileResponse, PolicyRequirement } from '../../../api/types';
+import { useAuditEvents } from '../../../api/hooks';
 import AttachEvidenceModal from '../components/AttachEvidenceModal';
 
 const ICON_MAP: Record<string, React.ReactElement> = {
@@ -143,19 +145,46 @@ function FieldRow({ field, appId }: FieldRowProps) {
     const [attachModalOpen, setAttachModalOpen] = useState(false);
     const [historyModalOpen, setHistoryModalOpen] = useState(false);
 
+    // Fetch audit events for this profile field
+    const { data: auditData, isLoading: auditLoading, error: auditError } = useAuditEvents(
+        appId, 
+        profileFieldId, 
+        0, 
+        50, // Show more audit events
+        { enabled: historyModalOpen } // Only fetch when modal is open
+    );
+
+    const auditEvents = auditData?.content || [];
+
+    // Helper function to parse audit event details and extract document info
+    const parseAuditEventDetails = (event: any) => {
+        try {
+            if (!event.argsRedacted) return null;
+            
+            const parsed = JSON.parse(event.argsRedacted);
+            const args = parsed.args;
+            
+            if (args && args.length > 1 && args[1].document) {
+                const document = args[1].document;
+                return {
+                    title: document.title,
+                    url: document.url
+                };
+            }
+        } catch (error) {
+            console.warn('Failed to parse audit event details:', error);
+        }
+        return null;
+    };
+
     const formatPolicyRequirementTooltip = (req: PolicyRequirement) => {
-        const { ttl, refresh } = req;
+        const { ttl } = req;
         
         if (ttl === '0d') {
             return 'New evidence is required for every release';
         }
         
-        const validityText = `Evidence valid for ${ttl}`;
-        const refreshText = refresh === 'on_expiry' 
-            ? 'Can be refreshed when expired' 
-            : 'New evidence required each release';
-            
-        return `${validityText} • ${refreshText}`;
+        return `Evidence valid for ${ttl}`;
     };
 
     return (
@@ -195,7 +224,7 @@ function FieldRow({ field, appId }: FieldRowProps) {
                         <Chip size="small" color="error" variant="outlined" label="No evidence" />
                     )}
                 </TableCell>
-                <TableCell>{activeEvidence ? fmtDate(activeEvidence.validUntil) : '—'}</TableCell>
+                <TableCell>{activeEvidence ? fmtDate(activeEvidence.valid_until) : '—'}</TableCell>
                 <TableCell>
                     <Chip
                         size="small"
@@ -244,14 +273,15 @@ function FieldRow({ field, appId }: FieldRowProps) {
                 fieldLabel={label}
                 profileFieldId={profileFieldId}
                 appId={appId}
+                policyRequirement={policyRequirement}
             />
             
-            {/* Evidence History Modal */}
+            {/* Audit History Modal */}
             <Dialog open={historyModalOpen} onClose={() => setHistoryModalOpen(false)} maxWidth="md" fullWidth>
                 <DialogTitle>
                     <Stack direction="row" alignItems="center" justifyContent="space-between">
                         <Typography variant="h6">
-                            Evidence History: {label}
+                            Audit History: {label}
                         </Typography>
                         <IconButton onClick={() => setHistoryModalOpen(false)} size="small">
                             <CloseIcon />
@@ -259,50 +289,67 @@ function FieldRow({ field, appId }: FieldRowProps) {
                     </Stack>
                 </DialogTitle>
                 <DialogContent>
-                    {evidence.length === 0 ? (
+                    {auditLoading ? (
+                        <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+                            <Typography variant="body2" color="text.secondary">
+                                Loading audit events...
+                            </Typography>
+                        </Box>
+                    ) : auditError ? (
+                        <Typography variant="body2" color="error" sx={{ py: 2 }}>
+                            Error loading audit events: {String(auditError)}
+                        </Typography>
+                    ) : auditEvents.length === 0 ? (
                         <Typography variant="body2" color="text.secondary" sx={{ py: 2 }}>
-                            No evidence history available for this field.
+                            No audit events available for this field.
                         </Typography>
                     ) : (
                         <TableContainer>
                             <Table size="small">
                                 <TableHead>
                                     <TableRow>
-                                        <TableCell>Status</TableCell>
-                                        <TableCell>Valid From</TableCell>
-                                        <TableCell>Valid Until</TableCell>
-                                        <TableCell>Reviewed By</TableCell>
-                                        <TableCell>Reviewed At</TableCell>
-                                        <TableCell>URI</TableCell>
+                                        <TableCell>Date</TableCell>
+                                        <TableCell>Action</TableCell>
+                                        <TableCell>Document</TableCell>
                                     </TableRow>
                                 </TableHead>
                                 <TableBody>
-                                    {evidence.map((evidenceItem, index) => (
-                                        <TableRow key={evidenceItem.evidenceId || index}>
+                                    {auditEvents.map((event: any, index: number) => (
+                                        <TableRow key={event.id || index}>
+                                            <TableCell>
+                                                {event.occurredAtUtc ? 
+                                                    new Date(event.occurredAtUtc).toLocaleString() : '—'}
+                                            </TableCell>
                                             <TableCell>
                                                 <Chip
                                                     size="small"
-                                                    label={evidenceItem.status}
-                                                    color={evidenceItem.status === 'active' ? 'success' : 'default'}
+                                                    label={event.action || 'Unknown'}
                                                     variant="outlined"
+                                                    color={event.outcome === 'SUCCESS' ? 'success' : 'error'}
                                                 />
                                             </TableCell>
-                                            <TableCell>{fmtDate(evidenceItem.validFrom)}</TableCell>
-                                            <TableCell>{fmtDate(evidenceItem.validUntil)}</TableCell>
-                                            <TableCell>{evidenceItem.reviewedBy || '—'}</TableCell>
-                                            <TableCell>{fmtDate(evidenceItem.reviewedAt)}</TableCell>
                                             <TableCell>
-                                                {evidenceItem.uri ? (
-                                                    <Button
-                                                        variant="text"
-                                                        size="small"
-                                                        href={evidenceItem.uri}
-                                                        target="_blank"
-                                                        rel="noopener noreferrer"
-                                                    >
-                                                        View
-                                                    </Button>
-                                                ) : '—'}
+                                                {(() => {
+                                                    const documentInfo = parseAuditEventDetails(event);
+                                                    if (documentInfo && documentInfo.title && documentInfo.url) {
+                                                        return (
+                                                            <Link 
+                                                                href={documentInfo.url}
+                                                                target="_blank"
+                                                                rel="noopener noreferrer"
+                                                                variant="body2"
+                                                                sx={{ textDecoration: 'none', '&:hover': { textDecoration: 'underline' } }}
+                                                            >
+                                                                {documentInfo.title}
+                                                            </Link>
+                                                        );
+                                                    }
+                                                    return (
+                                                        <Typography variant="body2" color="text.secondary">
+                                                            {event.action || 'Action performed'}
+                                                        </Typography>
+                                                    );
+                                                })()}
                                             </TableCell>
                                         </TableRow>
                                     ))}

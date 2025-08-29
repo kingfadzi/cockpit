@@ -92,21 +92,20 @@ export type EvidenceItem = {
 };
 
 export type Evidence = {
-  evidenceId: string;
-  profileFieldId?: string;
+  evidence_id: string;
+  profile_field_id?: string;
   uri: string;
   status: 'active' | 'superseded' | 'revoked';
-  validFrom?: string | null;
-  validUntil?: string | null;
-  reviewedBy?: string | null;
-  reviewedAt?: string | null;
+  valid_from?: string | null;
+  valid_until?: string | null;
+  reviewed_by?: string | null;
+  reviewed_at?: string | null;
 };
 
 export type PolicyRequirement = {
   ttl: string;
   label: string;
   value: string | number | boolean;
-  refresh: string;
 };
 
 export type Risk = {

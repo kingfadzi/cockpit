@@ -124,3 +124,11 @@ export const useCreateTrack = (appId: string) => {
         mutationFn: (payload: any) => endpoints.createTrack(appId, payload),
     });
 };
+
+export const useAuditEvents = (appId: string, subjectId: string, page: number = 0, size: number = 10, options?: { enabled?: boolean }) =>
+    useQuery({
+        queryKey: ['auditEvents', appId, subjectId, page, size],
+        queryFn: () => endpoints.getAuditEvents(appId, subjectId, page, size),
+        enabled: (options?.enabled !== false) && !!appId && !!subjectId,
+        ...commonQuery,
+    });

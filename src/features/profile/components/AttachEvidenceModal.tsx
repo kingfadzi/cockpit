@@ -38,6 +38,7 @@ import {
     CheckCircle as CheckCircleIcon,
 } from '@mui/icons-material';
 import { useSuggestedEvidence, useCreateEvidenceWithDocument, useAttachEvidence, useCreateTrack } from '../../../api/hooks';
+import type { PolicyRequirement } from '../../../api/types';
 
 interface AttachEvidenceModalProps {
     open: boolean;
@@ -46,6 +47,7 @@ interface AttachEvidenceModalProps {
     fieldLabel: string;
     profileFieldId: string;
     appId: string;
+    policyRequirement: PolicyRequirement;
 }
 
 interface SuggestedDocument {
@@ -70,7 +72,6 @@ interface NewDocumentForm {
     fieldTypes: string[];
     validFrom: string;
     validUntil: string;
-    tags: string;
     submittedBy: string;
 }
 
@@ -106,8 +107,29 @@ export default function AttachEvidenceModal({
     fieldKey, 
     fieldLabel, 
     profileFieldId, 
-    appId 
+    appId,
+    policyRequirement
 }: AttachEvidenceModalProps) {
+    // Helper function to calculate valid until date based on TTL
+    const calculateValidUntilDate = (ttl: string): string => {
+        const now = new Date();
+        
+        if (ttl === '0d') {
+            // For per-release, set to 1 year from now as default
+            return new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000).toISOString().slice(0, 16);
+        }
+        
+        // Parse TTL format like "90d", "180d", "365d"
+        const match = ttl.match(/^(\d+)d$/);
+        if (match) {
+            const days = parseInt(match[1]);
+            return new Date(now.getTime() + days * 24 * 60 * 60 * 1000).toISOString().slice(0, 16);
+        }
+        
+        // Default fallback to 1 year if TTL format is not recognized
+        return new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000).toISOString().slice(0, 16);
+    };
+
     const [activeTab, setActiveTab] = useState(0);
     const [selectedDocument, setSelectedDocument] = useState<SuggestedDocument | null>(null);
     const [newDocument, setNewDocument] = useState<NewDocumentForm>({
@@ -115,8 +137,7 @@ export default function AttachEvidenceModal({
         url: '',
         fieldTypes: [fieldKey],
         validFrom: new Date().toISOString().slice(0, 16),
-        validUntil: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().slice(0, 16),
-        tags: 'compliance,manual',
+        validUntil: calculateValidUntilDate(policyRequirement.ttl),
         submittedBy: 'user@company.com'
     });
 
@@ -173,8 +194,7 @@ export default function AttachEvidenceModal({
                     sourceSystem: selectedDocument.sourceType,
                     submittedBy: 'user@company.com',
                     validFrom: new Date().toISOString(),
-                    validUntil: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
-                    tags: 'existing,reused',
+                    validUntil: new Date(calculateValidUntilDate(policyRequirement.ttl)).toISOString(),
                     trackId: trackId
                 }
             });
@@ -216,9 +236,8 @@ export default function AttachEvidenceModal({
                     type: 'document',
                     sourceSystem: 'manual',
                     submittedBy: newDocument.submittedBy,
-                    validFrom: newDocument.validFrom,
-                    validUntil: newDocument.validUntil,
-                    tags: newDocument.tags,
+                    validFrom: new Date(newDocument.validFrom).toISOString(),
+                    validUntil: new Date(newDocument.validUntil).toISOString(),
                     trackId: trackId
                 }
             });
@@ -435,7 +454,7 @@ export default function AttachEvidenceModal({
                                 />
                                 
                                 <TextField
-                                    label="Valid Until"
+                                    label={`Valid Until (Policy TTL: ${policyRequirement.ttl})`}
                                     type="datetime-local"
                                     value={newDocument.validUntil}
                                     onChange={(e) => setNewDocument({ ...newDocument, validUntil: e.target.value })}
@@ -444,14 +463,6 @@ export default function AttachEvidenceModal({
                                 />
                             </Stack>
 
-                            <TextField
-                                label="Tags"
-                                value={newDocument.tags}
-                                onChange={(e) => setNewDocument({ ...newDocument, tags: e.target.value })}
-                                placeholder="security,compliance,manual"
-                                fullWidth
-                                helperText="Comma-separated tags"
-                            />
 
                             <TextField
                                 label="Submitted By"
