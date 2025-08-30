@@ -117,7 +117,6 @@ function DomainTable({ domain, appId }: DomainTableProps) {
                                 <TableCell sx={{ minWidth: 140 }}>Property</TableCell>
                                 <TableCell sx={{ minWidth: 120 }}>Requirement</TableCell>
                                 <TableCell sx={{ minWidth: 100 }}>Status</TableCell>
-                                <TableCell sx={{ minWidth: 100 }}>Valid until</TableCell>
                                 <TableCell sx={{ minWidth: 100 }}>Assurance</TableCell>
                                 <TableCell sx={{ minWidth: 80 }}>Risks</TableCell>
                                 <TableCell align="right" sx={{ minWidth: 140 }}>Actions</TableCell>
@@ -282,7 +281,6 @@ function FieldRow({ field, appId }: FieldRowProps) {
                         <Chip size="small" color="error" variant="outlined" label="No evidence" />
                     )}
                 </TableCell>
-                <TableCell>{activeEvidence ? fmtDate(activeEvidence.valid_until) : '—'}</TableCell>
                 <TableCell>
                     <Chip
                         size="small"
