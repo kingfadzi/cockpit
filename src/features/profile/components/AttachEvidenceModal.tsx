@@ -37,7 +37,7 @@ import {
     Add as AddIcon,
     CheckCircle as CheckCircleIcon,
 } from '@mui/icons-material';
-import { useSuggestedEvidence, useCreateEvidenceWithDocument, useAttachEvidence, useCreateTrack } from '../../../api/hooks';
+import { useAttachedDocuments, useAttachDocument, useDetachDocument, useDocs, useCreateDoc, useCreateEvidenceWithDocument, useCreateTrack } from '../../../api/hooks';
 import type { PolicyRequirement } from '../../../api/types';
 
 interface AttachEvidenceModalProps {
@@ -50,29 +50,20 @@ interface AttachEvidenceModalProps {
     policyRequirement: PolicyRequirement;
 }
 
-interface SuggestedDocument {
+interface Document {
     documentId: string;
     title: string;
     canonicalUrl: string;
     sourceType: string;
     relatedEvidenceFields: string[];
+    linkHealth?: number;
     latestVersion?: {
         docVersionId: string;
         versionId: string;
         urlAtVersion: string;
-        author: string;
+        author?: string;
         sourceDate: string;
     };
-    matchReason: string;
-}
-
-interface NewDocumentForm {
-    title: string;
-    url: string;
-    fieldTypes: string[];
-    validFrom: string;
-    validUntil: string;
-    submittedBy: string;
 }
 
 const FIELD_TYPES = [
@@ -110,150 +101,146 @@ export default function AttachEvidenceModal({
     appId,
     policyRequirement
 }: AttachEvidenceModalProps) {
-    // Helper function to calculate valid until date based on TTL
-    const calculateValidUntilDate = (ttl: string): string => {
+    const [activeTab, setActiveTab] = useState(0);
+    const [selectedDocuments, setSelectedDocuments] = useState<Set<string>>(new Set());
+    const calculateValidUntilForInit = () => {
+        if (!policyRequirement?.ttl) return '';
+        
+        const { ttl } = policyRequirement;
+        if (ttl === '0d') return new Date().toISOString().slice(0, 16);
+        
+        const match = ttl.match(/^(\d+)([dhmy])$/);
+        if (!match) return '';
+        
+        const [, value, unit] = match;
         const now = new Date();
         
-        if (ttl === '0d') {
-            // For per-release, set to 1 year from now as default
-            return new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000).toISOString().slice(0, 16);
+        switch (unit) {
+            case 'd': now.setDate(now.getDate() + parseInt(value)); break;
+            case 'h': now.setHours(now.getHours() + parseInt(value)); break;
+            case 'm': now.setMonth(now.getMonth() + parseInt(value)); break;
+            case 'y': now.setFullYear(now.getFullYear() + parseInt(value)); break;
         }
         
-        // Parse TTL format like "90d", "180d", "365d"
-        const match = ttl.match(/^(\d+)d$/);
-        if (match) {
-            const days = parseInt(match[1]);
-            return new Date(now.getTime() + days * 24 * 60 * 60 * 1000).toISOString().slice(0, 16);
-        }
-        
-        // Default fallback to 1 year if TTL format is not recognized
-        return new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000).toISOString().slice(0, 16);
+        return now.toISOString().slice(0, 16);
     };
 
-    const [activeTab, setActiveTab] = useState(0);
-    const [selectedDocument, setSelectedDocument] = useState<SuggestedDocument | null>(null);
-    const [newDocument, setNewDocument] = useState<NewDocumentForm>({
+    const [newDocument, setNewDocument] = useState({
         title: '',
         url: '',
         fieldTypes: [fieldKey],
         validFrom: new Date().toISOString().slice(0, 16),
-        validUntil: calculateValidUntilDate(policyRequirement.ttl),
-        submittedBy: 'user@company.com'
+        validUntil: calculateValidUntilForInit(),
+        submittedBy: ''
     });
 
     // API hooks
-    const { data: suggestedData, isLoading: loadingSuggested } = useSuggestedEvidence(appId, fieldKey);
+    const { data: attachedData, isLoading: loadingAttached } = useAttachedDocuments(appId, profileFieldId);
+    const { data: allDocsData, isLoading: loadingAllDocs } = useDocs(appId, { page: '1', pageSize: '100' });
+    const attachMutation = useAttachDocument(appId, profileFieldId);
+    const detachMutation = useDetachDocument(appId, profileFieldId);
+    const createDocMutation = useCreateDoc(appId);
     const createEvidenceMutation = useCreateEvidenceWithDocument(appId);
-    const attachEvidenceMutation = useAttachEvidence();
     const createTrackMutation = useCreateTrack(appId);
 
-    const suggestedDocuments = suggestedData?.suggestedDocuments || [];
-    
-    // Use profileFieldId from suggested evidence API if available, otherwise use the prop
-    const effectiveProfileFieldId = suggestedData?.profileFieldId || profileFieldId;
+    const attachedDocuments = attachedData?.documents || [];
+    const allDocuments = allDocsData?.items || [];
+    const attachedDocumentIds = new Set(attachedDocuments.map((doc: any) => doc.documentId));
 
-    // Helper function to create a track for evidence
-    const createTrackForEvidence = async (documentTitle: string) => {
-        const trackPayload = {
-            title: `Evidence Submission - ${documentTitle}`,
-            intent: "compliance",
-            provider: "manual", 
-            resourceType: "control",
-            resourceId: "default",
-            uri: window.location.href,
-            attributes: {
-                fieldKey: fieldKey,
-                fieldLabel: fieldLabel
-            },
-            openedAt: new Date().toISOString()
-        };
-
-        const trackResponse = await createTrackMutation.mutateAsync(trackPayload);
-        return trackResponse.trackId;
-    };
-
-    const handleAttachExisting = async () => {
-        if (!selectedDocument) return;
-
-        console.log('Debug - profileFieldId:', profileFieldId, 'fieldKey:', fieldKey, 'effectiveProfileFieldId:', effectiveProfileFieldId);
-
-        try {
-            // First create a track
-            const trackId = await createTrackForEvidence(selectedDocument.title);
-            
-            // Then create evidence with the existing document
-            const evidenceResponse = await createEvidenceMutation.mutateAsync({
-                profileFieldId: effectiveProfileFieldId,
-                document: {
-                    title: selectedDocument.title,
-                    url: selectedDocument.canonicalUrl,
-                    fieldTypes: [fieldKey]
-                },
-                evidence: {
-                    type: 'document',
-                    sourceSystem: selectedDocument.sourceType,
-                    submittedBy: 'user@company.com',
-                    validFrom: new Date().toISOString(),
-                    validUntil: new Date(calculateValidUntilDate(policyRequirement.ttl)).toISOString(),
-                    trackId: trackId
-                }
-            });
-
-            // Then attach it (if needed)
-            if (evidenceResponse.claimId && evidenceResponse.evidenceId) {
-                await attachEvidenceMutation.mutateAsync({
-                    claimId: evidenceResponse.claimId,
-                    evidenceId: evidenceResponse.evidenceId,
-                    payload: {
-                        documentId: selectedDocument.documentId,
-                        docVersionId: selectedDocument.latestVersion?.docVersionId || ''
-                    }
-                });
-            }
-
-            onClose();
-        } catch (error) {
-            console.error('Failed to attach existing evidence:', error);
+    // Enrich attached documents with full document details from allDocuments
+    const enrichedAttachedDocuments = attachedDocuments.map((attachedDoc: any) => {
+        const fullDoc = allDocuments.find((doc: any) => doc.documentId === attachedDoc.documentId);
+        if (fullDoc) {
+            return {
+                ...attachedDoc,
+                canonicalUrl: fullDoc.canonicalUrl,
+                sourceType: fullDoc.sourceType,
+                relatedEvidenceFields: fullDoc.relatedEvidenceFields,
+                latestVersion: fullDoc.latestVersion,
+                linkHealth: fullDoc.linkHealth
+            };
         }
-    };
+        return attachedDoc;
+    });
 
-    const handleCreateNew = async () => {
-        if (!newDocument.title || !newDocument.url) return;
-
-        try {
-            // First create a track
-            const trackId = await createTrackForEvidence(newDocument.title);
-            
-            // Then create evidence with new document
-            await createEvidenceMutation.mutateAsync({
-                profileFieldId: effectiveProfileFieldId,
-                document: {
-                    title: newDocument.title,
-                    url: newDocument.url,
-                    fieldTypes: newDocument.fieldTypes
-                },
-                evidence: {
-                    type: 'document',
-                    sourceSystem: 'manual',
-                    submittedBy: newDocument.submittedBy,
-                    validFrom: new Date(newDocument.validFrom).toISOString(),
-                    validUntil: new Date(newDocument.validUntil).toISOString(),
-                    trackId: trackId
-                }
-            });
-
-            onClose();
-        } catch (error) {
-            console.error('Failed to create new evidence:', error);
+    const handleToggleDocument = async (documentId: string) => {
+        if (attachedDocumentIds.has(documentId)) {
+            // Detach document
+            try {
+                await detachMutation.mutateAsync(documentId);
+            } catch (error) {
+                console.error('Failed to detach document:', error);
+            }
+        } else {
+            // Attach document
+            try {
+                await attachMutation.mutateAsync(documentId);
+            } catch (error) {
+                console.error('Failed to attach document:', error);
+            }
         }
     };
 
     const handleFieldTypesChange = (event: any) => {
-        const value = event.target.value;
+        const { target: { value } } = event;
         setNewDocument({
             ...newDocument,
-            fieldTypes: typeof value === 'string' ? value.split(',') : value
+            fieldTypes: typeof value === 'string' ? value.split(',') : value,
         });
+    };
+
+    const calculateValidUntil = () => {
+        if (!policyRequirement?.ttl) return '';
+        
+        const { ttl } = policyRequirement;
+        if (ttl === '0d') return new Date().toISOString().slice(0, 16);
+        
+        const match = ttl.match(/^(\d+)([dhmy])$/);
+        if (!match) return '';
+        
+        const [, value, unit] = match;
+        const now = new Date();
+        
+        switch (unit) {
+            case 'd': now.setDate(now.getDate() + parseInt(value)); break;
+            case 'h': now.setHours(now.getHours() + parseInt(value)); break;
+            case 'm': now.setMonth(now.getMonth() + parseInt(value)); break;
+            case 'y': now.setFullYear(now.getFullYear() + parseInt(value)); break;
+        }
+        
+        return now.toISOString().slice(0, 16);
+    };
+
+    const handleCreateNew = async () => {
+        try {
+            // Calculate valid until if not set
+            const validUntil = newDocument.validUntil || calculateValidUntil();
+            
+            // First create track
+            const trackResponse = await createTrackMutation.mutateAsync({
+                resourceType: 'ProfileField',
+                resourceId: profileFieldId,
+                action: 'CREATE_EVIDENCE'
+            });
+
+            // Then create evidence with document
+            await createEvidenceMutation.mutateAsync({
+                trackId: trackResponse.trackId,
+                profileFieldId,
+                document: {
+                    title: newDocument.title,
+                    url: newDocument.url,
+                    relatedEvidenceFields: newDocument.fieldTypes
+                },
+                validFrom: newDocument.validFrom,
+                validUntil,
+                submittedBy: newDocument.submittedBy
+            });
+
+            onClose();
+        } catch (error) {
+            console.error('Failed to create evidence:', error);
+        }
     };
 
     const formatDate = (dateString: string) => {
@@ -280,60 +267,49 @@ export default function AttachEvidenceModal({
             <DialogContent>
                 <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
                     <Tabs value={activeTab} onChange={(_, newValue) => setActiveTab(newValue)}>
-                        <Tab label="Use Existing Document" />
+                        <Tab label="Attached Documents" />
+                        <Tab label="Available Documents" />
                         <Tab label="Create New Document" />
                     </Tabs>
                 </Box>
 
-                {/* Tab 1: Use Existing Documents */}
+                {/* Tab 1: Attached Documents */}
                 {activeTab === 0 && (
                     <Stack spacing={2}>
                         <Typography variant="body2" color="text.secondary">
-                            Select from suggested documents that match this field requirement
+                            Documents currently attached to this field
                         </Typography>
 
-                        {loadingSuggested ? (
+                        {loadingAttached ? (
                             <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
                                 <CircularProgress />
                             </Box>
-                        ) : suggestedDocuments.length === 0 ? (
+                        ) : enrichedAttachedDocuments.length === 0 ? (
                             <Alert severity="info">
-                                No suggested documents found for this field. You can create a new document instead.
+                                No documents are currently attached to this field.
                             </Alert>
                         ) : (
                             <TableContainer>
-                                <Table size="small">
+                                <Table size="small" sx={{ minWidth: 650 }}>
                                     <TableHead>
                                         <TableRow>
-                                            <TableCell>Document</TableCell>
-                                            <TableCell>Source</TableCell>
-                                            <TableCell>Related Fields</TableCell>
-                                            <TableCell>Last Updated</TableCell>
-                                            <TableCell>Match Reason</TableCell>
-                                            <TableCell align="center">Select</TableCell>
+                                            <TableCell sx={{ minWidth: 200 }}>Document</TableCell>
+                                            <TableCell sx={{ minWidth: 100 }}>Source</TableCell>
+                                            <TableCell sx={{ minWidth: 150 }}>Related Fields</TableCell>
+                                            <TableCell sx={{ minWidth: 100 }}>Last Updated</TableCell>
+                                            <TableCell align="center" sx={{ minWidth: 100 }}>Actions</TableCell>
                                         </TableRow>
                                     </TableHead>
                                     <TableBody>
-                                        {suggestedDocuments.map((doc) => (
-                                            <TableRow 
-                                                key={doc.documentId} 
-                                                hover
-                                                sx={{ 
-                                                    cursor: 'pointer',
-                                                    bgcolor: selectedDocument?.documentId === doc.documentId ? 'primary.50' : 'inherit',
-                                                    '&:hover': {
-                                                        bgcolor: selectedDocument?.documentId === doc.documentId ? 'primary.100' : 'grey.50'
-                                                    }
-                                                }}
-                                                onClick={() => setSelectedDocument(doc)}
-                                            >
+                                        {enrichedAttachedDocuments.map((doc: any) => (
+                                            <TableRow key={doc.documentId} hover>
                                                 <TableCell>
                                                     <Stack direction="row" alignItems="center" spacing={1}>
+                                                        <DocumentIcon fontSize="small" />
                                                         <MUILink
-                                                            href={doc.canonicalUrl}
+                                                            href={doc.canonicalUrl || doc.url}
                                                             target="_blank"
                                                             rel="noopener noreferrer"
-                                                            onClick={(e) => e.stopPropagation()}
                                                             sx={{ 
                                                                 fontWeight: 600,
                                                                 textDecoration: 'none',
@@ -348,41 +324,51 @@ export default function AttachEvidenceModal({
                                                 <TableCell>
                                                     <Chip 
                                                         size="small" 
-                                                        label={doc.sourceType}
+                                                        label={doc.sourceType || doc.sourceSystem || 'Unknown'}
                                                         variant="outlined"
                                                     />
                                                 </TableCell>
                                                 <TableCell>
                                                     <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                                                        {doc.relatedEvidenceFields.slice(0, 2).map((field) => (
-                                                            <Chip 
-                                                                key={field} 
-                                                                size="small" 
-                                                                label={field} 
-                                                                sx={{ bgcolor: 'primary.50', color: 'primary.main' }}
-                                                            />
-                                                        ))}
-                                                        {doc.relatedEvidenceFields.length > 2 && (
-                                                            <Chip 
-                                                                size="small" 
-                                                                label={`+${doc.relatedEvidenceFields.length - 2}`}
-                                                                variant="outlined"
-                                                            />
+                                                        {doc.relatedEvidenceFields?.length > 0 ? (
+                                                            <>
+                                                                {doc.relatedEvidenceFields.slice(0, 2).map((field: string) => (
+                                                                    <Chip 
+                                                                        key={field} 
+                                                                        size="small" 
+                                                                        label={field} 
+                                                                        sx={{ bgcolor: 'primary.50', color: 'primary.main' }}
+                                                                    />
+                                                                ))}
+                                                                {doc.relatedEvidenceFields.length > 2 && (
+                                                                    <Chip 
+                                                                        size="small" 
+                                                                        label={`+${doc.relatedEvidenceFields.length - 2}`}
+                                                                        variant="outlined"
+                                                                    />
+                                                                )}
+                                                            </>
+                                                        ) : (
+                                                            <Typography variant="body2" color="text.secondary">
+                                                                —
+                                                            </Typography>
                                                         )}
                                                     </Box>
                                                 </TableCell>
                                                 <TableCell>
-                                                    {doc.latestVersion ? formatDate(doc.latestVersion.sourceDate) : '—'}
-                                                </TableCell>
-                                                <TableCell>
-                                                    <Typography variant="body2" color="text.secondary">
-                                                        {doc.matchReason}
-                                                    </Typography>
+                                                    {doc.latestVersion ? formatDate(doc.latestVersion.sourceDate) : 
+                                                     doc.attachedAt ? formatDate(doc.attachedAt) : '—'}
                                                 </TableCell>
                                                 <TableCell align="center">
-                                                    {selectedDocument?.documentId === doc.documentId && (
-                                                        <CheckCircleIcon color="primary" fontSize="small" />
-                                                    )}
+                                                    <Button
+                                                        size="small"
+                                                        color="error"
+                                                        variant="outlined"
+                                                        onClick={() => handleToggleDocument(doc.documentId)}
+                                                        disabled={detachMutation.isPending}
+                                                    >
+                                                        Detach
+                                                    </Button>
                                                 </TableCell>
                                             </TableRow>
                                         ))}
@@ -393,8 +379,111 @@ export default function AttachEvidenceModal({
                     </Stack>
                 )}
 
-                {/* Tab 2: Create New Document */}
+                {/* Tab 2: Available Documents */}
                 {activeTab === 1 && (
+                    <Stack spacing={2}>
+                        <Typography variant="body2" color="text.secondary">
+                            Select documents to attach to this field
+                        </Typography>
+
+                        {loadingAllDocs ? (
+                            <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+                                <CircularProgress />
+                            </Box>
+                        ) : (() => {
+                            const availableDocuments = allDocuments.filter((doc: any) => 
+                                !attachedDocumentIds.has(doc.documentId)
+                            );
+                            
+                            return availableDocuments.length === 0 ? (
+                                <Alert severity="info">
+                                    All available documents are already attached to this field.
+                                </Alert>
+                            ) : (
+                                <TableContainer>
+                                    <Table size="small" sx={{ minWidth: 650 }}>
+                                        <TableHead>
+                                            <TableRow>
+                                                <TableCell sx={{ minWidth: 200 }}>Document</TableCell>
+                                                <TableCell sx={{ minWidth: 100 }}>Source</TableCell>
+                                                <TableCell sx={{ minWidth: 150 }}>Related Fields</TableCell>
+                                                <TableCell sx={{ minWidth: 100 }}>Last Updated</TableCell>
+                                                <TableCell align="center" sx={{ minWidth: 100 }}>Actions</TableCell>
+                                            </TableRow>
+                                        </TableHead>
+                                        <TableBody>
+                                            {availableDocuments.map((doc: any) => (
+                                                <TableRow key={doc.documentId} hover>
+                                                    <TableCell>
+                                                        <Stack direction="row" alignItems="center" spacing={1}>
+                                                            <DocumentIcon fontSize="small" />
+                                                            <MUILink
+                                                                href={doc.canonicalUrl}
+                                                                target="_blank"
+                                                                rel="noopener noreferrer"
+                                                                sx={{ 
+                                                                    fontWeight: 600,
+                                                                    textDecoration: 'none',
+                                                                    '&:hover': { textDecoration: 'underline' }
+                                                                }}
+                                                            >
+                                                                {doc.title}
+                                                                <OpenInNewIcon sx={{ ml: 0.5, fontSize: '0.75rem' }} />
+                                                            </MUILink>
+                                                        </Stack>
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        <Chip 
+                                                            size="small" 
+                                                            label={doc.sourceType}
+                                                            variant="outlined"
+                                                        />
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                                                            {doc.relatedEvidenceFields?.slice(0, 2).map((field: string) => (
+                                                                <Chip 
+                                                                    key={field} 
+                                                                    size="small" 
+                                                                    label={field} 
+                                                                    sx={{ bgcolor: 'primary.50', color: 'primary.main' }}
+                                                                />
+                                                            ))}
+                                                            {doc.relatedEvidenceFields?.length > 2 && (
+                                                                <Chip 
+                                                                    size="small" 
+                                                                    label={`+${doc.relatedEvidenceFields.length - 2}`}
+                                                                    variant="outlined"
+                                                                />
+                                                            )}
+                                                        </Box>
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        {doc.latestVersion ? formatDate(doc.latestVersion.sourceDate) : '—'}
+                                                    </TableCell>
+                                                    <TableCell align="center">
+                                                        <Button
+                                                            size="small"
+                                                            color="primary"
+                                                            variant="outlined"
+                                                            onClick={() => handleToggleDocument(doc.documentId)}
+                                                            disabled={attachMutation.isPending}
+                                                        >
+                                                            Attach
+                                                        </Button>
+                                                    </TableCell>
+                                                </TableRow>
+                                            ))}
+                                        </TableBody>
+                                    </Table>
+                                </TableContainer>
+                            );
+                        })()}
+                    </Stack>
+                )}
+
+                {/* Tab 3: Create New Document */}
+                {activeTab === 2 && (
                     <Stack spacing={3}>
                         <Typography variant="body2" color="text.secondary">
                             Create a new document to serve as evidence for this field
@@ -476,9 +565,9 @@ export default function AttachEvidenceModal({
                 )}
 
                 {/* Error Display */}
-                {(createEvidenceMutation.error || attachEvidenceMutation.error || createTrackMutation.error) && (
+                {(createEvidenceMutation.error || attachMutation.error || detachMutation.error || createTrackMutation.error) && (
                     <Alert severity="error" sx={{ mt: 2 }}>
-                        {String(createEvidenceMutation.error || attachEvidenceMutation.error || createTrackMutation.error)}
+                        {String(createEvidenceMutation.error || attachMutation.error || detachMutation.error || createTrackMutation.error)}
                     </Alert>
                 )}
             </DialogContent>
@@ -489,19 +578,17 @@ export default function AttachEvidenceModal({
                 </Button>
                 
                 {activeTab === 0 ? (
-                    <Button
-                        variant="contained"
-                        onClick={handleAttachExisting}
-                        disabled={!selectedDocument || createEvidenceMutation.isPending || attachEvidenceMutation.isPending || createTrackMutation.isPending}
-                        startIcon={createEvidenceMutation.isPending || attachEvidenceMutation.isPending || createTrackMutation.isPending ? <CircularProgress size={20} /> : <AddIcon />}
-                    >
-                        Attach Selected Document
-                    </Button>
+                    // Attached Documents tab - no action button needed
+                    null
+                ) : activeTab === 1 ? (
+                    // Available Documents tab - no action button needed (attach buttons are inline)
+                    null
                 ) : (
+                    // Create New Document tab
                     <Button
                         variant="contained"
                         onClick={handleCreateNew}
-                        disabled={!newDocument.title || !newDocument.url || createEvidenceMutation.isPending || createTrackMutation.isPending}
+                        disabled={!newDocument.title || !newDocument.url || !newDocument.submittedBy || createEvidenceMutation.isPending || createTrackMutation.isPending}
                         startIcon={createEvidenceMutation.isPending || createTrackMutation.isPending ? <CircularProgress size={20} /> : <AddIcon />}
                     >
                         Create & Attach Document

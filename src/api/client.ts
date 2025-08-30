@@ -217,7 +217,58 @@ export const endpoints = {
     /** Documents (paginated) */
     getDocs: async (appId: string, params?: Record<string, string>): Promise<any> =>
         USE_MOCK 
-            ? { page: 1, pageSize: 10, total: 0, items: [] }
+            ? { 
+                page: 1, 
+                pageSize: 10, 
+                total: 3, 
+                items: [
+                    {
+                        documentId: 'doc_1',
+                        title: 'Security Policy Document',
+                        canonicalUrl: 'https://docs.company.com/security/policy.pdf',
+                        sourceType: 'Confluence',
+                        relatedEvidenceFields: ['encryption_at_rest', 'secrets_management', 'security_testing'],
+                        linkHealth: 200,
+                        latestVersion: {
+                            docVersionId: 'ver_1',
+                            versionId: 'v1.2.0',
+                            urlAtVersion: 'https://docs.company.com/security/policy-v1.2.0.pdf',
+                            author: 'Security Team',
+                            sourceDate: '2025-08-20T10:30:00Z'
+                        }
+                    },
+                    {
+                        documentId: 'doc_2',
+                        title: 'Architecture Guidelines',
+                        canonicalUrl: 'https://wiki.company.com/arch/guidelines',
+                        sourceType: 'Wiki',
+                        relatedEvidenceFields: ['architecture_vision', 'service_vision'],
+                        linkHealth: 200,
+                        latestVersion: {
+                            docVersionId: 'ver_2',
+                            versionId: 'v2.0.1',
+                            urlAtVersion: 'https://wiki.company.com/arch/guidelines-v2.0.1',
+                            author: 'Architecture Team',
+                            sourceDate: '2025-08-22T14:15:00Z'
+                        }
+                    },
+                    {
+                        documentId: 'doc_3',
+                        title: 'Backup and Recovery Procedures',
+                        canonicalUrl: 'https://sharepoint.company.com/backup-procedures',
+                        sourceType: 'SharePoint',
+                        relatedEvidenceFields: ['backup_policy', 'rto_hours'],
+                        linkHealth: 404,
+                        latestVersion: {
+                            docVersionId: 'ver_3',
+                            versionId: 'v1.0.0',
+                            urlAtVersion: 'https://sharepoint.company.com/backup-procedures-v1.0.0',
+                            author: 'Operations Team',
+                            sourceDate: '2025-08-18T09:45:00Z'
+                        }
+                    }
+                ]
+            }
             : (await api.get<any>(`/api/apps/${appId}/documents`, { params })).data,
 
     /** Create document */
@@ -264,4 +315,40 @@ export const endpoints = {
                     sortOrder: 'desc'
                 }
             })).data,
+
+    /** Get currently attached documents for a profile field */
+    getAttachedDocuments: async (appId: string, profileFieldId: string): Promise<any> =>
+        USE_MOCK
+            ? { 
+                documents: profileFieldId.includes('security') || profileFieldId.includes('encryption') ? [
+                    {
+                        documentId: 'doc_1',
+                        title: 'Security Policy Document',
+                        canonicalUrl: 'https://docs.company.com/security/policy.pdf',
+                        sourceType: 'Confluence',
+                        relatedEvidenceFields: ['encryption_at_rest', 'secrets_management', 'security_testing'],
+                        linkHealth: 200,
+                        latestVersion: {
+                            docVersionId: 'ver_1',
+                            versionId: 'v1.2.0',
+                            urlAtVersion: 'https://docs.company.com/security/policy-v1.2.0.pdf',
+                            author: 'Security Team',
+                            sourceDate: '2025-08-20T10:30:00Z'
+                        }
+                    }
+                ] : []
+            }
+            : (await api.get<any>(`/api/apps/${appId}/profile/field/${profileFieldId}/attached-documents`)).data,
+
+    /** Attach existing document to profile field */
+    attachDocumentToField: async (appId: string, profileFieldId: string, documentId: string): Promise<any> =>
+        USE_MOCK
+            ? { evidenceId: 'mock-evidence-id', success: true }
+            : (await api.post<any>(`/api/apps/${appId}/profile/field/${profileFieldId}/attach-document`, { documentId })).data,
+
+    /** Detach document from profile field */
+    detachDocumentFromField: async (appId: string, profileFieldId: string, documentId: string): Promise<any> =>
+        USE_MOCK
+            ? { success: true }
+            : (await api.delete<any>(`/api/apps/${appId}/profile/field/${profileFieldId}/detach-document/${documentId}`)).data,
 };

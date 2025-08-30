@@ -132,3 +132,33 @@ export const useAuditEvents = (appId: string, subjectId: string, page: number = 
         enabled: (options?.enabled !== false) && !!appId && !!subjectId,
         ...commonQuery,
     });
+
+export const useAttachedDocuments = (appId: string, profileFieldId: string) =>
+    useQuery({
+        queryKey: ['attachedDocuments', appId, profileFieldId],
+        queryFn: () => endpoints.getAttachedDocuments(appId, profileFieldId),
+        enabled: !!appId && !!profileFieldId,
+        ...commonQuery,
+    });
+
+export const useAttachDocument = (appId: string, profileFieldId: string) => {
+    const qc = useQueryClient();
+    return useMutation({
+        mutationFn: (documentId: string) => endpoints.attachDocumentToField(appId, profileFieldId, documentId),
+        onSuccess: () => {
+            qc.invalidateQueries({ queryKey: ['attachedDocuments', appId, profileFieldId] });
+            qc.invalidateQueries({ queryKey: ['profile', appId] });
+        },
+    });
+};
+
+export const useDetachDocument = (appId: string, profileFieldId: string) => {
+    const qc = useQueryClient();
+    return useMutation({
+        mutationFn: (documentId: string) => endpoints.detachDocumentFromField(appId, profileFieldId, documentId),
+        onSuccess: () => {
+            qc.invalidateQueries({ queryKey: ['attachedDocuments', appId, profileFieldId] });
+            qc.invalidateQueries({ queryKey: ['profile', appId] });
+        },
+    });
+};
