@@ -134,9 +134,12 @@ export default function AttachEvidenceModal({
         submittedBy: ''
     });
 
-    // API hooks
+    // API hooks - revert to existing endpoints until backend fixes are deployed
     const { data: attachedData, isLoading: loadingAttached } = useAttachedDocuments(appId, profileFieldId);
-    const { data: allDocsData, isLoading: loadingAllDocs } = useDocs(appId, { page: '1', pageSize: '100' });
+    const { data: allDocsData, isLoading: loadingAllDocs } = useDocs(appId, { 
+        page: '1', 
+        pageSize: '100'
+    });
     const attachMutation = useAttachDocument(appId, profileFieldId);
     const detachMutation = useDetachDocument(appId, profileFieldId);
     const createDocMutation = useCreateDoc(appId);
@@ -162,6 +165,9 @@ export default function AttachEvidenceModal({
         }
         return attachedDoc;
     });
+
+    // Filter available documents (not attached to this field)
+    const availableDocuments = allDocuments.filter((doc: any) => !attachedDocumentIds.has(doc.documentId));
 
     const handleToggleDocument = async (documentId: string) => {
         if (attachedDocumentIds.has(documentId)) {
@@ -390,95 +396,89 @@ export default function AttachEvidenceModal({
                             <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
                                 <CircularProgress />
                             </Box>
-                        ) : (() => {
-                            const availableDocuments = allDocuments.filter((doc: any) => 
-                                !attachedDocumentIds.has(doc.documentId)
-                            );
-                            
-                            return availableDocuments.length === 0 ? (
-                                <Alert severity="info">
-                                    All available documents are already attached to this field.
-                                </Alert>
-                            ) : (
-                                <TableContainer>
-                                    <Table size="small" sx={{ minWidth: 650 }}>
-                                        <TableHead>
-                                            <TableRow>
-                                                <TableCell sx={{ minWidth: 200 }}>Document</TableCell>
-                                                <TableCell sx={{ minWidth: 100 }}>Source</TableCell>
-                                                <TableCell sx={{ minWidth: 150 }}>Related Fields</TableCell>
-                                                <TableCell sx={{ minWidth: 100 }}>Last Updated</TableCell>
-                                                <TableCell align="center" sx={{ minWidth: 100 }}>Actions</TableCell>
-                                            </TableRow>
-                                        </TableHead>
-                                        <TableBody>
-                                            {availableDocuments.map((doc: any) => (
-                                                <TableRow key={doc.documentId} hover>
-                                                    <TableCell>
-                                                        <Stack direction="row" alignItems="center" spacing={1}>
-                                                            <DocumentIcon fontSize="small" />
-                                                            <MUILink
-                                                                href={doc.canonicalUrl}
-                                                                target="_blank"
-                                                                rel="noopener noreferrer"
-                                                                sx={{ 
-                                                                    fontWeight: 600,
-                                                                    textDecoration: 'none',
-                                                                    '&:hover': { textDecoration: 'underline' }
-                                                                }}
-                                                            >
-                                                                {doc.title}
-                                                                <OpenInNewIcon sx={{ ml: 0.5, fontSize: '0.75rem' }} />
-                                                            </MUILink>
-                                                        </Stack>
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        <Chip 
-                                                            size="small" 
-                                                            label={doc.sourceType}
-                                                            variant="outlined"
-                                                        />
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                                                            {doc.relatedEvidenceFields?.slice(0, 2).map((field: string) => (
-                                                                <Chip 
-                                                                    key={field} 
-                                                                    size="small" 
-                                                                    label={field} 
-                                                                    sx={{ bgcolor: 'primary.50', color: 'primary.main' }}
-                                                                />
-                                                            ))}
-                                                            {doc.relatedEvidenceFields?.length > 2 && (
-                                                                <Chip 
-                                                                    size="small" 
-                                                                    label={`+${doc.relatedEvidenceFields.length - 2}`}
-                                                                    variant="outlined"
-                                                                />
-                                                            )}
-                                                        </Box>
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        {doc.latestVersion ? formatDate(doc.latestVersion.sourceDate) : '—'}
-                                                    </TableCell>
-                                                    <TableCell align="center">
-                                                        <Button
-                                                            size="small"
-                                                            color="primary"
-                                                            variant="outlined"
-                                                            onClick={() => handleToggleDocument(doc.documentId)}
-                                                            disabled={attachMutation.isPending}
+                        ) : availableDocuments.length === 0 ? (
+                            <Alert severity="info">
+                                All available documents are already attached to this field.
+                            </Alert>
+                        ) : (
+                            <TableContainer>
+                                <Table size="small" sx={{ minWidth: 650 }}>
+                                    <TableHead>
+                                        <TableRow>
+                                            <TableCell sx={{ minWidth: 200 }}>Document</TableCell>
+                                            <TableCell sx={{ minWidth: 100 }}>Source</TableCell>
+                                            <TableCell sx={{ minWidth: 150 }}>Related Fields</TableCell>
+                                            <TableCell sx={{ minWidth: 100 }}>Last Updated</TableCell>
+                                            <TableCell align="center" sx={{ minWidth: 100 }}>Actions</TableCell>
+                                        </TableRow>
+                                    </TableHead>
+                                    <TableBody>
+                                        {availableDocuments.map((doc: any) => (
+                                            <TableRow key={doc.documentId} hover>
+                                                <TableCell>
+                                                    <Stack direction="row" alignItems="center" spacing={1}>
+                                                        <DocumentIcon fontSize="small" />
+                                                        <MUILink
+                                                            href={doc.canonicalUrl}
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            sx={{ 
+                                                                fontWeight: 600,
+                                                                textDecoration: 'none',
+                                                                '&:hover': { textDecoration: 'underline' }
+                                                            }}
                                                         >
-                                                            Attach
-                                                        </Button>
-                                                    </TableCell>
-                                                </TableRow>
-                                            ))}
-                                        </TableBody>
-                                    </Table>
-                                </TableContainer>
-                            );
-                        })()}
+                                                            {doc.title}
+                                                            <OpenInNewIcon sx={{ ml: 0.5, fontSize: '0.75rem' }} />
+                                                        </MUILink>
+                                                    </Stack>
+                                                </TableCell>
+                                                <TableCell>
+                                                    <Chip 
+                                                        size="small" 
+                                                        label={doc.sourceType}
+                                                        variant="outlined"
+                                                    />
+                                                </TableCell>
+                                                <TableCell>
+                                                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                                                        {doc.relatedEvidenceFields?.slice(0, 2).map((field: string) => (
+                                                            <Chip 
+                                                                key={field} 
+                                                                size="small" 
+                                                                label={field} 
+                                                                sx={{ bgcolor: 'primary.50', color: 'primary.main' }}
+                                                            />
+                                                        ))}
+                                                        {doc.relatedEvidenceFields?.length > 2 && (
+                                                            <Chip 
+                                                                size="small" 
+                                                                label={`+${doc.relatedEvidenceFields.length - 2}`}
+                                                                variant="outlined"
+                                                            />
+                                                        )}
+                                                    </Box>
+                                                </TableCell>
+                                                <TableCell>
+                                                    {doc.latestVersion ? formatDate(doc.latestVersion.sourceDate) : '—'}
+                                                </TableCell>
+                                                <TableCell align="center">
+                                                    <Button
+                                                        size="small"
+                                                        color="primary"
+                                                        variant="outlined"
+                                                        onClick={() => handleToggleDocument(doc.documentId)}
+                                                        disabled={attachMutation.isPending}
+                                                    >
+                                                        Attach
+                                                    </Button>
+                                                </TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            </TableContainer>
+                        )}
                     </Stack>
                 )}
 
