@@ -22,6 +22,7 @@ import {
     DialogActions,
     IconButton,
     Link,
+    Pagination,
 } from '@mui/material';
 import {
     Security as SecurityIcon,
@@ -35,7 +36,7 @@ import {
     Close as CloseIcon,
 } from '@mui/icons-material';
 import type { ProfileDomain, ProfileField, ProfileResponse, PolicyRequirement } from '../../../api/types';
-import { useAuditEvents } from '../../../api/hooks';
+import { useAuditEvents, useAuditCount } from '../../../api/hooks';
 import AttachEvidenceModal from '../components/AttachEvidenceModal';
 
 const ICON_MAP: Record<string, React.ReactElement> = {
@@ -144,33 +145,90 @@ function FieldRow({ field, appId }: FieldRowProps) {
     const activeEvidence = evidence.find((e) => e.status === 'active');
     const [attachModalOpen, setAttachModalOpen] = useState(false);
     const [historyModalOpen, setHistoryModalOpen] = useState(false);
+    const [auditPage, setAuditPage] = useState(0);
 
     // Fetch audit events for this profile field
     const { data: auditData, isLoading: auditLoading, error: auditError } = useAuditEvents(
         appId, 
         profileFieldId, 
-        0, 
-        50, // Show more audit events
+        auditPage, 
+        10, // 10 per page
         { enabled: historyModalOpen } // Only fetch when modal is open
     );
+
+    // Fetch audit count for History button
+    const { data: auditCount } = useAuditCount(appId, profileFieldId);
 
     const auditEvents = auditData?.content || [];
 
     // Helper function to parse audit event details and extract document info
     const parseAuditEventDetails = (event: any) => {
         try {
-            if (!event.argsRedacted) return null;
+            // Try to extract document info from multiple possible sources
             
-            const parsed = JSON.parse(event.argsRedacted);
-            const args = parsed.args;
+            // First, try parsing argsRedacted JSON
+            if (event.argsRedacted) {
+                const parsed = JSON.parse(event.argsRedacted);
+                const args = parsed.args;
+                
+                // Try multiple argument positions and structures for document info
+                if (args && Array.isArray(args)) {
+                    // Check args[1].document (common structure)
+                    if (args.length > 1 && args[1]?.document) {
+                        const document = args[1].document;
+                        return {
+                            title: document.title,
+                            url: document.url || document.canonicalUrl,
+                            sourceType: document.sourceType,
+                            versionId: document.latestVersion?.versionId
+                        };
+                    }
+                    
+                    // Check args[0].document
+                    if (args.length > 0 && args[0]?.document) {
+                        const document = args[0].document;
+                        return {
+                            title: document.title,
+                            url: document.url || document.canonicalUrl,
+                            sourceType: document.sourceType,
+                            versionId: document.latestVersion?.versionId
+                        };
+                    }
+                    
+                    // Check direct document in args
+                    for (const arg of args) {
+                        if (arg && arg.title && (arg.url || arg.canonicalUrl)) {
+                            return {
+                                title: arg.title,
+                                url: arg.url || arg.canonicalUrl,
+                                sourceType: arg.sourceType,
+                                versionId: arg.latestVersion?.versionId || arg.versionId
+                            };
+                        }
+                    }
+                }
+                
+                // Check if parsed directly contains document info
+                if (parsed.title && (parsed.url || parsed.canonicalUrl)) {
+                    return {
+                        title: parsed.title,
+                        url: parsed.url || parsed.canonicalUrl,
+                        sourceType: parsed.sourceType,
+                        versionId: parsed.latestVersion?.versionId || parsed.versionId
+                    };
+                }
+            }
             
-            if (args && args.length > 1 && args[1].document) {
-                const document = args[1].document;
+            // Fallback: Check if event itself has document fields
+            if (event.title && (event.url || event.canonicalUrl)) {
                 return {
-                    title: document.title,
-                    url: document.url
+                    title: event.title,
+                    url: event.url || event.canonicalUrl,
+                    sourceType: event.sourceType,
+                    versionId: event.latestVersion?.versionId || event.versionId
                 };
             }
+            
         } catch (error) {
             console.warn('Failed to parse audit event details:', error);
         }
@@ -251,15 +309,15 @@ function FieldRow({ field, appId }: FieldRowProps) {
                 <TableCell align="right">
                     {activeEvidence ? (
                         <Stack direction="row" spacing={1} justifyContent="flex-end">
-                            <Button size="small" variant="text" onClick={() => setAttachModalOpen(true)}>Replace</Button>
-                            <Button size="small" variant="text" onClick={() => setHistoryModalOpen(true)}>History{evidence.length ? ` (${evidence.length})` : ''}</Button>
+                            <Button size="small" variant="text" onClick={() => setAttachModalOpen(true)}>View evidence</Button>
+                            <Button size="small" variant="text" onClick={() => setHistoryModalOpen(true)}>History{auditCount ? ` (${auditCount})` : ''}</Button>
                         </Stack>
                     ) : (
                         <Stack direction="row" spacing={1} justifyContent="flex-end">
                             <Button size="small" variant="text" onClick={() => setAttachModalOpen(true)}>
                                 Attach evidence
                             </Button>
-                            <Button size="small" variant="text" disabled={evidence.length === 0} onClick={() => setHistoryModalOpen(true)}>History{evidence.length ? ` (${evidence.length})` : ''}</Button>
+                            <Button size="small" variant="text" disabled={evidence.length === 0} onClick={() => setHistoryModalOpen(true)}>History{auditCount ? ` (${auditCount})` : ''}</Button>
                         </Stack>
                     )}
                 </TableCell>
@@ -311,6 +369,8 @@ function FieldRow({ field, appId }: FieldRowProps) {
                                         <TableCell>Date</TableCell>
                                         <TableCell>Action</TableCell>
                                         <TableCell>Document</TableCell>
+                                        <TableCell>Source Type</TableCell>
+                                        <TableCell>Version ID</TableCell>
                                     </TableRow>
                                 </TableHead>
                                 <TableBody>
@@ -346,8 +406,32 @@ function FieldRow({ field, appId }: FieldRowProps) {
                                                     }
                                                     return (
                                                         <Typography variant="body2" color="text.secondary">
-                                                            {event.action || 'Action performed'}
+                                                            Document information not available
                                                         </Typography>
+                                                    );
+                                                })()}
+                                            </TableCell>
+                                            <TableCell>
+                                                {(() => {
+                                                    const documentInfo = parseAuditEventDetails(event);
+                                                    return documentInfo?.sourceType ? (
+                                                        <Typography variant="body2">
+                                                            {documentInfo.sourceType}
+                                                        </Typography>
+                                                    ) : (
+                                                        <Typography variant="body2" color="text.secondary">—</Typography>
+                                                    );
+                                                })()}
+                                            </TableCell>
+                                            <TableCell>
+                                                {(() => {
+                                                    const documentInfo = parseAuditEventDetails(event);
+                                                    return documentInfo?.versionId ? (
+                                                        <Typography variant="body2">
+                                                            {documentInfo.versionId}
+                                                        </Typography>
+                                                    ) : (
+                                                        <Typography variant="body2" color="text.secondary">—</Typography>
                                                     );
                                                 })()}
                                             </TableCell>
@@ -356,6 +440,19 @@ function FieldRow({ field, appId }: FieldRowProps) {
                                 </TableBody>
                             </Table>
                         </TableContainer>
+                    )}
+                    
+                    {/* Pagination */}
+                    {auditData && auditData.totalPages > 1 && (
+                        <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
+                            <Pagination
+                                count={auditData.totalPages}
+                                page={auditPage + 1}
+                                onChange={(event, value) => setAuditPage(value - 1)}
+                                color="primary"
+                                size="small"
+                            />
+                        </Box>
                     )}
                 </DialogContent>
                 <DialogActions>

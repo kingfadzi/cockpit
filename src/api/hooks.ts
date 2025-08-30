@@ -133,6 +133,14 @@ export const useAuditEvents = (appId: string, subjectId: string, page: number = 
         ...commonQuery,
     });
 
+export const useAuditCount = (appId: string, subjectId: string, options?: { enabled?: boolean }) =>
+    useQuery({
+        queryKey: ['auditCount', appId, subjectId],
+        queryFn: () => endpoints.getAuditCount(appId, subjectId),
+        enabled: (options?.enabled !== false) && !!appId && !!subjectId,
+        ...commonQuery,
+    });
+
 export const useAttachedDocuments = (appId: string, profileFieldId: string) =>
     useQuery({
         queryKey: ['attachedDocuments', appId, profileFieldId],
@@ -148,6 +156,7 @@ export const useAttachDocument = (appId: string, profileFieldId: string) => {
         onSuccess: () => {
             qc.invalidateQueries({ queryKey: ['attachedDocuments', appId, profileFieldId] });
             qc.invalidateQueries({ queryKey: ['profile', appId] });
+            qc.invalidateQueries({ queryKey: ['auditCount', appId, profileFieldId] });
         },
     });
 };
@@ -159,6 +168,7 @@ export const useDetachDocument = (appId: string, profileFieldId: string) => {
         onSuccess: () => {
             qc.invalidateQueries({ queryKey: ['attachedDocuments', appId, profileFieldId] });
             qc.invalidateQueries({ queryKey: ['profile', appId] });
+            qc.invalidateQueries({ queryKey: ['auditCount', appId, profileFieldId] });
         },
     });
 };

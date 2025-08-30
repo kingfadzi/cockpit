@@ -37,7 +37,7 @@ import {
     Add as AddIcon,
     CheckCircle as CheckCircleIcon,
 } from '@mui/icons-material';
-import { useAttachedDocuments, useAttachDocument, useDetachDocument, useDocs, useCreateDoc, useCreateEvidenceWithDocument, useCreateTrack } from '../../../api/hooks';
+import { useAttachedDocuments, useAttachDocument, useDetachDocument, useSuggestedEvidence, useCreateDoc, useCreateEvidenceWithDocument } from '../../../api/hooks';
 import type { PolicyRequirement } from '../../../api/types';
 
 interface AttachEvidenceModalProps {
@@ -92,6 +92,73 @@ const FIELD_TYPES = [
     'immutability_required'
 ];
 
+const calculateValidUntilDate = (attachedAt: string, ttl: string): Date | null => {
+    if (!attachedAt || !ttl) return null;
+    
+    const attachedDate = new Date(attachedAt);
+    if (isNaN(attachedDate.getTime())) return null;
+    
+    if (ttl === '0d') return attachedDate;
+    
+    const match = ttl.match(/^(\d+)([dhmy])$/);
+    if (!match) return null;
+    
+    const [, value, unit] = match;
+    const numValue = parseInt(value);
+    const validUntil = new Date(attachedDate);
+    
+    switch (unit) {
+        case 'd': validUntil.setDate(validUntil.getDate() + numValue); break;
+        case 'h': validUntil.setHours(validUntil.getHours() + numValue); break;
+        case 'm': validUntil.setMonth(validUntil.getMonth() + numValue); break;
+        case 'y': validUntil.setFullYear(validUntil.getFullYear() + numValue); break;
+        default: return null;
+    }
+    
+    return validUntil;
+};
+
+const getValidationStatus = (sourceDate: string, ttl: string): { status: 'valid' | 'expiring' | 'expired' | 'invalid', validUntil: Date | null } => {
+    if (!sourceDate || !ttl) return { status: 'invalid', validUntil: null };
+    
+    const sourceUpdateDate = new Date(sourceDate);
+    if (isNaN(sourceUpdateDate.getTime())) return { status: 'invalid', validUntil: null };
+    
+    // Calculate valid until date from source date + TTL
+    const validUntil = new Date(sourceUpdateDate);
+    
+    if (ttl === '0d') {
+        return { status: 'expired', validUntil: sourceUpdateDate };
+    }
+    
+    const match = ttl.match(/^(\d+)([dhmy])$/);
+    if (!match) return { status: 'invalid', validUntil: null };
+    
+    const [, value, unit] = match;
+    const numValue = parseInt(value);
+    
+    switch (unit) {
+        case 'd': validUntil.setDate(validUntil.getDate() + numValue); break;
+        case 'h': validUntil.setHours(validUntil.getHours() + numValue); break;
+        case 'm': validUntil.setMonth(validUntil.getMonth() + numValue); break;
+        case 'y': validUntil.setFullYear(validUntil.getFullYear() + numValue); break;
+        default: return { status: 'invalid', validUntil: null };
+    }
+    
+    const now = new Date();
+    
+    if (now > validUntil) {
+        return { status: 'expired', validUntil };
+    }
+    
+    const daysUntilExpiry = Math.ceil((validUntil.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+    if (daysUntilExpiry <= 7) {
+        return { status: 'expiring', validUntil };
+    }
+    
+    return { status: 'valid', validUntil };
+};
+
 export default function AttachEvidenceModal({ 
     open, 
     onClose, 
@@ -134,25 +201,21 @@ export default function AttachEvidenceModal({
         submittedBy: ''
     });
 
-    // API hooks - revert to existing endpoints until backend fixes are deployed
+    // API hooks
     const { data: attachedData, isLoading: loadingAttached } = useAttachedDocuments(appId, profileFieldId);
-    const { data: allDocsData, isLoading: loadingAllDocs } = useDocs(appId, { 
-        page: '1', 
-        pageSize: '100'
-    });
+    const { data: suggestedData, isLoading: loadingSuggested } = useSuggestedEvidence(appId, fieldKey);
     const attachMutation = useAttachDocument(appId, profileFieldId);
     const detachMutation = useDetachDocument(appId, profileFieldId);
     const createDocMutation = useCreateDoc(appId);
     const createEvidenceMutation = useCreateEvidenceWithDocument(appId);
-    const createTrackMutation = useCreateTrack(appId);
 
     const attachedDocuments = attachedData?.documents || [];
-    const allDocuments = allDocsData?.items || [];
+    const suggestedDocuments = suggestedData?.suggestedDocuments || [];
     const attachedDocumentIds = new Set(attachedDocuments.map((doc: any) => doc.documentId));
 
-    // Enrich attached documents with full document details from allDocuments
+    // Enrich attached documents with full document details from suggested documents
     const enrichedAttachedDocuments = attachedDocuments.map((attachedDoc: any) => {
-        const fullDoc = allDocuments.find((doc: any) => doc.documentId === attachedDoc.documentId);
+        const fullDoc = suggestedDocuments.find((doc: any) => doc.documentId === attachedDoc.documentId);
         if (fullDoc) {
             return {
                 ...attachedDoc,
@@ -166,21 +229,21 @@ export default function AttachEvidenceModal({
         return attachedDoc;
     });
 
-    // Filter available documents (not attached to this field)
-    const availableDocuments = allDocuments.filter((doc: any) => !attachedDocumentIds.has(doc.documentId));
+    // Available documents are the suggested documents not already attached
+    const availableDocuments = suggestedDocuments.filter((doc: any) => !attachedDocumentIds.has(doc.documentId));
 
-    const handleToggleDocument = async (documentId: string) => {
-        if (attachedDocumentIds.has(documentId)) {
+    const handleToggleDocument = async (doc: any) => {
+        if (attachedDocumentIds.has(doc.documentId)) {
             // Detach document
             try {
-                await detachMutation.mutateAsync(documentId);
+                await detachMutation.mutateAsync(doc.documentId);
             } catch (error) {
                 console.error('Failed to detach document:', error);
             }
         } else {
             // Attach document
             try {
-                await attachMutation.mutateAsync(documentId);
+                await attachMutation.mutateAsync(doc.documentId);
             } catch (error) {
                 console.error('Failed to attach document:', error);
             }
@@ -222,25 +285,22 @@ export default function AttachEvidenceModal({
             // Calculate valid until if not set
             const validUntil = newDocument.validUntil || calculateValidUntil();
             
-            // First create track
-            const trackResponse = await createTrackMutation.mutateAsync({
-                resourceType: 'ProfileField',
-                resourceId: profileFieldId,
-                action: 'CREATE_EVIDENCE'
-            });
-
-            // Then create evidence with document
+            // Create evidence with document (no track needed)
             await createEvidenceMutation.mutateAsync({
-                trackId: trackResponse.trackId,
                 profileFieldId,
                 document: {
                     title: newDocument.title,
                     url: newDocument.url,
                     relatedEvidenceFields: newDocument.fieldTypes
                 },
-                validFrom: newDocument.validFrom,
-                validUntil,
-                submittedBy: newDocument.submittedBy
+                evidence: {
+                    type: "document",
+                    sourceSystem: "manual",
+                    submittedBy: newDocument.submittedBy,
+                    validFrom: newDocument.validFrom,
+                    validUntil,
+                    relatedEvidenceFields: newDocument.fieldTypes.join(',')
+                }
             });
 
             onClose();
@@ -274,7 +334,7 @@ export default function AttachEvidenceModal({
                 <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
                     <Tabs value={activeTab} onChange={(_, newValue) => setActiveTab(newValue)}>
                         <Tab label="Attached Documents" />
-                        <Tab label="Available Documents" />
+                        <Tab label="Suggested Documents" />
                         <Tab label="Create New Document" />
                     </Tabs>
                 </Box>
@@ -303,6 +363,7 @@ export default function AttachEvidenceModal({
                                             <TableCell sx={{ minWidth: 100 }}>Source</TableCell>
                                             <TableCell sx={{ minWidth: 150 }}>Related Fields</TableCell>
                                             <TableCell sx={{ minWidth: 100 }}>Last Updated</TableCell>
+                                            <TableCell sx={{ minWidth: 120 }}>Valid Until</TableCell>
                                             <TableCell align="center" sx={{ minWidth: 100 }}>Actions</TableCell>
                                         </TableRow>
                                     </TableHead>
@@ -365,12 +426,33 @@ export default function AttachEvidenceModal({
                                                     {doc.latestVersion ? formatDate(doc.latestVersion.sourceDate) : 
                                                      doc.attachedAt ? formatDate(doc.attachedAt) : '—'}
                                                 </TableCell>
+                                                <TableCell>
+                                                    {(() => {
+                                                        const { status, validUntil } = getValidationStatus(doc.latestVersion?.sourceDate, policyRequirement.ttl);
+                                                        
+                                                        if (!validUntil) {
+                                                            return <Typography variant="body2" color="text.secondary">—</Typography>;
+                                                        }
+                                                        
+                                                        const color = status === 'valid' ? 'success' : 
+                                                                     status === 'expiring' ? 'warning' : 'error';
+                                                        
+                                                        return (
+                                                            <Chip
+                                                                size="small"
+                                                                color={color}
+                                                                variant="outlined"
+                                                                label={formatDate(validUntil.toISOString())}
+                                                            />
+                                                        );
+                                                    })()}
+                                                </TableCell>
                                                 <TableCell align="center">
                                                     <Button
                                                         size="small"
                                                         color="error"
                                                         variant="outlined"
-                                                        onClick={() => handleToggleDocument(doc.documentId)}
+                                                        onClick={() => handleToggleDocument(doc)}
                                                         disabled={detachMutation.isPending}
                                                     >
                                                         Detach
@@ -385,20 +467,20 @@ export default function AttachEvidenceModal({
                     </Stack>
                 )}
 
-                {/* Tab 2: Available Documents */}
+                {/* Tab 2: Suggested Documents */}
                 {activeTab === 1 && (
                     <Stack spacing={2}>
                         <Typography variant="body2" color="text.secondary">
-                            Select documents to attach to this field
+                            Select from suggested documents that match this field requirement
                         </Typography>
 
-                        {loadingAllDocs ? (
+                        {loadingSuggested ? (
                             <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
                                 <CircularProgress />
                             </Box>
                         ) : availableDocuments.length === 0 ? (
                             <Alert severity="info">
-                                All available documents are already attached to this field.
+                                No suggested documents found for this field, or all are already attached.
                             </Alert>
                         ) : (
                             <TableContainer>
@@ -409,6 +491,7 @@ export default function AttachEvidenceModal({
                                             <TableCell sx={{ minWidth: 100 }}>Source</TableCell>
                                             <TableCell sx={{ minWidth: 150 }}>Related Fields</TableCell>
                                             <TableCell sx={{ minWidth: 100 }}>Last Updated</TableCell>
+                                            <TableCell sx={{ minWidth: 120 }}>Valid Until</TableCell>
                                             <TableCell align="center" sx={{ minWidth: 100 }}>Actions</TableCell>
                                         </TableRow>
                                     </TableHead>
@@ -462,12 +545,33 @@ export default function AttachEvidenceModal({
                                                 <TableCell>
                                                     {doc.latestVersion ? formatDate(doc.latestVersion.sourceDate) : '—'}
                                                 </TableCell>
+                                                <TableCell>
+                                                    {(() => {
+                                                        const { status, validUntil } = getValidationStatus(doc.latestVersion?.sourceDate, policyRequirement.ttl);
+                                                        
+                                                        if (!validUntil) {
+                                                            return <Typography variant="body2" color="text.secondary">—</Typography>;
+                                                        }
+                                                        
+                                                        const color = status === 'valid' ? 'success' : 
+                                                                     status === 'expiring' ? 'warning' : 'error';
+                                                        
+                                                        return (
+                                                            <Chip
+                                                                size="small"
+                                                                color={color}
+                                                                variant="outlined"
+                                                                label={formatDate(validUntil.toISOString())}
+                                                            />
+                                                        );
+                                                    })()}
+                                                </TableCell>
                                                 <TableCell align="center">
                                                     <Button
                                                         size="small"
                                                         color="primary"
                                                         variant="outlined"
-                                                        onClick={() => handleToggleDocument(doc.documentId)}
+                                                        onClick={() => handleToggleDocument(doc)}
                                                         disabled={attachMutation.isPending}
                                                     >
                                                         Attach
@@ -565,9 +669,9 @@ export default function AttachEvidenceModal({
                 )}
 
                 {/* Error Display */}
-                {(createEvidenceMutation.error || attachMutation.error || detachMutation.error || createTrackMutation.error) && (
+                {(createEvidenceMutation.error || attachMutation.error || detachMutation.error) && (
                     <Alert severity="error" sx={{ mt: 2 }}>
-                        {String(createEvidenceMutation.error || attachMutation.error || detachMutation.error || createTrackMutation.error)}
+                        {String(createEvidenceMutation.error || attachMutation.error || detachMutation.error)}
                     </Alert>
                 )}
             </DialogContent>
@@ -581,15 +685,15 @@ export default function AttachEvidenceModal({
                     // Attached Documents tab - no action button needed
                     null
                 ) : activeTab === 1 ? (
-                    // Available Documents tab - no action button needed (attach buttons are inline)
+                    // Suggested Documents tab - no action button needed (attach buttons are inline)
                     null
                 ) : (
                     // Create New Document tab
                     <Button
                         variant="contained"
                         onClick={handleCreateNew}
-                        disabled={!newDocument.title || !newDocument.url || !newDocument.submittedBy || createEvidenceMutation.isPending || createTrackMutation.isPending}
-                        startIcon={createEvidenceMutation.isPending || createTrackMutation.isPending ? <CircularProgress size={20} /> : <AddIcon />}
+                        disabled={!newDocument.title || !newDocument.url || !newDocument.submittedBy || createEvidenceMutation.isPending}
+                        startIcon={createEvidenceMutation.isPending ? <CircularProgress size={20} /> : <AddIcon />}
                     >
                         Create & Attach Document
                     </Button>

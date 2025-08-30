@@ -316,6 +316,21 @@ export const endpoints = {
                 }
             })).data,
 
+    /** Get audit events count for profile field */
+    getAuditCount: async (appId: string, subjectId: string): Promise<number> =>
+        USE_MOCK
+            ? 5
+            : (await auditApi.get<any>('/audit/events/search', {
+                params: {
+                    appId,
+                    subjectId,
+                    page: 0,
+                    size: 1,
+                    sortBy: 'occurred_at_utc',
+                    sortOrder: 'desc'
+                }
+            })).data.totalElements,
+
     /** Get currently attached documents for a profile field */
     getAttachedDocuments: async (appId: string, profileFieldId: string): Promise<any> =>
         USE_MOCK
@@ -344,7 +359,7 @@ export const endpoints = {
     attachDocumentToField: async (appId: string, profileFieldId: string, documentId: string): Promise<any> =>
         USE_MOCK
             ? { evidenceId: 'mock-evidence-id', success: true }
-            : (await api.post<any>(`/api/apps/${appId}/profile/field/${profileFieldId}/attach-document`, { documentId })).data,
+            : (await api.post<any>(`/api/apps/${appId}/profile/field/${profileFieldId}/attach-document/${documentId}`)).data,
 
     /** Detach document from profile field */
     detachDocumentFromField: async (appId: string, profileFieldId: string, documentId: string): Promise<any> =>
