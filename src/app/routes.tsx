@@ -10,6 +10,7 @@ import PortfolioEvidence from '../features/evidence/PortfolioEvidence';
 import AppProfilePage from '../features/profile/AppProfilePage';
 
 import POProfilePage from '../features/profile/POProfilePage';
+import SecuritySmeView from '../features/sme/views/SecuritySmeView';
 
 export const router = createBrowserRouter([
   {
@@ -24,6 +25,10 @@ export const router = createBrowserRouter([
       { path: 'po/apps/:appId', element: <POProfilePage /> },
 
       { path: 'sme', element: <SMEHome /> },
+      { path: 'sme/security', element: <SecuritySmeView /> },
+      { path: 'sme/data-architecture', element: <div>Data Architecture SME View (Coming Soon)</div> },
+      { path: 'sme/service-transition', element: <div>Service Transition SME View (Coming Soon)</div> },
+      { path: 'sme/enterprise-architecture', element: <div>Enterprise Architecture SME View (Coming Soon)</div> },
       { path: 'search', element: <div>Search (placeholder)</div> },
     ],
   },
