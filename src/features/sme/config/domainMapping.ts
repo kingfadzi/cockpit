@@ -10,6 +10,8 @@ export interface SmeAssignment {
     status: 'pending' | 'in_review' | 'approved' | 'rejected';
     evidenceStatus: 'missing' | 'expired' | 'pending_approval' | 'approved';
     daysOverdue?: number;
+    criticality: 'A' | 'B' | 'C' | 'D';
+    department: string;
 }
 
 export interface SmeQueueItem {
@@ -21,6 +23,10 @@ export interface SmeQueueItem {
     lastUpdated: string;
     priority: 'urgent' | 'normal' | 'low';
     issueCount: number;
+    criticality: 'A' | 'B' | 'C' | 'D';
+    department: string;
+    businessService?: string;
+    daysOverdue?: number;
 }
 
 export interface RiskItem {
@@ -33,6 +39,10 @@ export interface RiskItem {
     fieldKey?: string;
     createdBy: string;
     createdAt: string;
+    domain?: string;
+    department?: string;
+    businessService?: string;
+    criticality?: 'A' | 'B' | 'C' | 'D';
 }
 
 export const SME_DOMAIN_FIELDS = {

@@ -12,7 +12,9 @@ export const mockSmeAssignments: SmeAssignment[] = [
         priority: 'urgent',
         status: 'pending',
         evidenceStatus: 'pending_approval',
-        daysOverdue: 2
+        daysOverdue: 2,
+        criticality: 'A',
+        department: 'Retail'
     },
     {
         fieldKey: 'encryption_at_rest',
@@ -23,7 +25,9 @@ export const mockSmeAssignments: SmeAssignment[] = [
         assignedAt: '2025-08-30T14:30:00Z',
         priority: 'urgent',
         status: 'in_review',
-        evidenceStatus: 'pending_approval'
+        evidenceStatus: 'pending_approval',
+        criticality: 'A',
+        department: 'Trading'
     },
     {
         fieldKey: 'mfa_enforcement',
@@ -34,34 +38,224 @@ export const mockSmeAssignments: SmeAssignment[] = [
         assignedAt: '2025-08-29T09:15:00Z',
         priority: 'normal',
         status: 'pending',
-        evidenceStatus: 'missing'
+        evidenceStatus: 'missing',
+        criticality: 'B',
+        department: 'Investment Banking'
     }
 ];
 
 export const mockSmeQueue: SmeQueueItem[] = [
     {
+        appId: 'NEW-0001',
+        appName: 'New Trading Platform',
+        fieldKey: 'security_comprehensive',
+        fieldLabel: 'All Security Controls',
+        evidenceStatus: 'missing',
+        lastUpdated: '2025-08-30T10:00:00Z',
+        priority: 'urgent',
+        issueCount: 45,
+        criticality: 'A',
+        department: 'Trading',
+        businessService: 'Trading Operations'
+    },
+    {
+        appId: 'PAY-7890',
+        appName: 'Payment Gateway',
+        fieldKey: 'security_controls',
+        fieldLabel: 'Security Controls',
+        evidenceStatus: 'expired',
+        lastUpdated: '2025-07-20T10:00:00Z',
+        priority: 'urgent',
+        issueCount: 23,
+        criticality: 'A',
+        department: 'Trading',
+        businessService: 'Payment Processing'
+    },
+    {
         appId: 'CORR-12356',
         appName: 'Customer Portal',
-        fieldKey: 'secrets_management',
-        fieldLabel: 'Secrets Management',
+        fieldKey: 'security_mixed',
+        fieldLabel: 'Security Issues',
         evidenceStatus: 'expired',
         lastUpdated: '2025-07-15T10:00:00Z',
         priority: 'normal',
-        issueCount: 1
+        issueCount: 15,
+        criticality: 'A',
+        department: 'Retail',
+        businessService: 'Customer Experience'
     },
     {
         appId: 'API-9876',
         appName: 'Core API',
-        fieldKey: 'waf_protection',
-        fieldLabel: 'Web Application Firewall Evidence',
+        fieldKey: 'security_minor',
+        fieldLabel: 'Security Controls',
         evidenceStatus: 'missing',
         lastUpdated: '2025-08-25T16:20:00Z',
         priority: 'normal',
-        issueCount: 2
+        issueCount: 8,
+        criticality: 'B',
+        department: 'Investment Banking',
+        businessService: 'Core API Services'
+    },
+    {
+        appId: 'TOOLS-001',
+        appName: 'Internal Tools',
+        fieldKey: 'security_basic',
+        fieldLabel: 'Basic Security',
+        evidenceStatus: 'missing',
+        lastUpdated: '2025-08-20T12:00:00Z',
+        priority: 'low',
+        issueCount: 3,
+        criticality: 'C',
+        department: 'Operations',
+        businessService: 'Development Tools'
+    },
+    {
+        appId: 'CRM-5678',
+        appName: 'Customer Relationship Management',
+        fieldKey: 'security_controls',
+        fieldLabel: 'Security Controls',
+        evidenceStatus: 'expired',
+        lastUpdated: '2025-08-15T10:00:00Z',
+        priority: 'urgent',
+        issueCount: 28,
+        criticality: 'A',
+        department: 'Retail',
+        businessService: 'Customer Experience'
+    },
+    {
+        appId: 'LOAN-9012',
+        appName: 'Loan Origination System',
+        fieldKey: 'security_testing',
+        fieldLabel: 'Security Testing',
+        evidenceStatus: 'missing',
+        lastUpdated: '2025-08-22T14:00:00Z',
+        priority: 'normal',
+        issueCount: 17,
+        criticality: 'A',
+        department: 'Mortgages',
+        businessService: 'Lending Services'
+    },
+    {
+        appId: 'RISK-3456',
+        appName: 'Risk Management Platform',
+        fieldKey: 'security_controls',
+        fieldLabel: 'Security Controls',
+        evidenceStatus: 'pending_approval',
+        lastUpdated: '2025-08-26T09:00:00Z',
+        priority: 'urgent',
+        issueCount: 31,
+        criticality: 'A',
+        department: 'Trading',
+        businessService: 'Risk Management'
+    },
+    {
+        appId: 'MOBILE-7891',
+        appName: 'Mobile Banking App',
+        fieldKey: 'encryption_standards',
+        fieldLabel: 'Encryption Standards',
+        evidenceStatus: 'expired',
+        lastUpdated: '2025-07-30T11:00:00Z',
+        priority: 'urgent',
+        issueCount: 19,
+        criticality: 'A',
+        department: 'Retail',
+        businessService: 'Mobile Banking'
+    },
+    {
+        appId: 'DOCS-2345',
+        appName: 'Document Management',
+        fieldKey: 'access_controls',
+        fieldLabel: 'Access Controls',
+        evidenceStatus: 'missing',
+        lastUpdated: '2025-08-18T13:00:00Z',
+        priority: 'normal',
+        issueCount: 11,
+        criticality: 'B',
+        department: 'Operations',
+        businessService: 'Document Services'
+    },
+    {
+        appId: 'CHAT-6789',
+        appName: 'Internal Chat System',
+        fieldKey: 'security_basic',
+        fieldLabel: 'Basic Security',
+        evidenceStatus: 'approved',
+        lastUpdated: '2025-08-28T16:00:00Z',
+        priority: 'low',
+        issueCount: 2,
+        criticality: 'D',
+        department: 'Operations',
+        businessService: 'Communication Tools'
+    },
+    {
+        appId: 'VAULT-1234',
+        appName: 'Digital Vault',
+        fieldKey: 'encryption_comprehensive',
+        fieldLabel: 'Comprehensive Encryption',
+        evidenceStatus: 'missing',
+        lastUpdated: '2025-08-24T08:00:00Z',
+        priority: 'urgent',
+        issueCount: 35,
+        criticality: 'A',
+        department: 'Trading',
+        businessService: 'Secure Storage'
+    },
+    {
+        appId: 'BACKUP-5678',
+        appName: 'Backup Services',
+        fieldKey: 'security_controls',
+        fieldLabel: 'Security Controls',
+        evidenceStatus: 'expired',
+        lastUpdated: '2025-08-12T15:00:00Z',
+        priority: 'normal',
+        issueCount: 14,
+        criticality: 'B',
+        department: 'Operations',
+        businessService: 'Core Infrastructure'
+    },
+    {
+        appId: 'ANALYTICS-9012',
+        appName: 'Business Analytics',
+        fieldKey: 'data_security',
+        fieldLabel: 'Data Security',
+        evidenceStatus: 'pending_approval',
+        lastUpdated: '2025-08-27T12:00:00Z',
+        priority: 'normal',
+        issueCount: 9,
+        criticality: 'B',
+        department: 'Investment Banking',
+        businessService: 'Reporting & Analytics'
+    },
+    {
+        appId: 'NOTIF-3456',
+        appName: 'Notification Service',
+        fieldKey: 'security_basic',
+        fieldLabel: 'Basic Security',
+        evidenceStatus: 'approved',
+        lastUpdated: '2025-08-29T14:00:00Z',
+        priority: 'low',
+        issueCount: 1,
+        criticality: 'D',
+        department: 'Operations',
+        businessService: 'Communication Tools'
     }
 ];
 
 export const mockCrossDomainIssues: SmeQueueItem[] = [
+    {
+        appId: 'PAY-7890',
+        appName: 'Payment Gateway',
+        fieldKey: 'cross_domain_mixed',
+        fieldLabel: 'Cross-Domain Issues',
+        evidenceStatus: 'expired',
+        lastUpdated: '2025-06-10T10:00:00Z',
+        priority: 'normal',
+        issueCount: 12,
+        criticality: 'A',
+        department: 'Trading',
+        businessService: 'Payment Processing'
+    },
     {
         appId: 'CORR-12356',
         appName: 'Customer Portal',
@@ -70,17 +264,127 @@ export const mockCrossDomainIssues: SmeQueueItem[] = [
         evidenceStatus: 'expired',
         lastUpdated: '2025-06-10T10:00:00Z',
         priority: 'low',
-        issueCount: 1
+        issueCount: 5,
+        criticality: 'A',
+        department: 'Retail',
+        businessService: 'Customer Experience'
     },
     {
-        appId: 'PAY-7890',
-        appName: 'Payment Gateway',
-        fieldKey: 'product_roadmap',
-        fieldLabel: 'Product Roadmap',
+        appId: 'MORT-123',
+        appName: 'Mortgage System',
+        fieldKey: 'governance_docs',
+        fieldLabel: 'Governance Documents',
         evidenceStatus: 'missing',
         lastUpdated: '2025-08-20T12:00:00Z',
         priority: 'low',
-        issueCount: 1
+        issueCount: 3,
+        criticality: 'B',
+        department: 'Mortgages',
+        businessService: 'Lending Services'
+    },
+    {
+        appId: 'FUND-4567',
+        appName: 'Fund Management',
+        fieldKey: 'backup_policy',
+        fieldLabel: 'Backup Policy',
+        evidenceStatus: 'expired',
+        lastUpdated: '2025-07-25T10:00:00Z',
+        priority: 'normal',
+        issueCount: 8,
+        criticality: 'A',
+        department: 'Investment Banking',
+        businessService: 'Investment Management'
+    },
+    {
+        appId: 'TRADE-8901',
+        appName: 'Trading Desk Tools',
+        fieldKey: 'audit_logging',
+        fieldLabel: 'Audit Logging',
+        evidenceStatus: 'missing',
+        lastUpdated: '2025-08-23T11:00:00Z',
+        priority: 'urgent',
+        issueCount: 15,
+        criticality: 'A',
+        department: 'Trading',
+        businessService: 'Trading Operations'
+    },
+    {
+        appId: 'COMP-2345',
+        appName: 'Compliance Dashboard',
+        fieldKey: 'change_control',
+        fieldLabel: 'Change Control',
+        evidenceStatus: 'expired',
+        lastUpdated: '2025-08-10T09:00:00Z',
+        priority: 'normal',
+        issueCount: 6,
+        criticality: 'B',
+        department: 'Operations',
+        businessService: 'Risk & Compliance'
+    },
+    {
+        appId: 'REPO-6789',
+        appName: 'Reporting Engine',
+        fieldKey: 'access_review',
+        fieldLabel: 'Access Review',
+        evidenceStatus: 'pending_approval',
+        lastUpdated: '2025-08-25T15:00:00Z',
+        priority: 'normal',
+        issueCount: 4,
+        criticality: 'B',
+        department: 'Investment Banking',
+        businessService: 'Reporting & Analytics'
+    },
+    {
+        appId: 'NET-1234',
+        appName: 'Network Monitor',
+        fieldKey: 'network_segmentation',
+        fieldLabel: 'Network Segmentation',
+        evidenceStatus: 'missing',
+        lastUpdated: '2025-08-21T10:00:00Z',
+        priority: 'urgent',
+        issueCount: 22,
+        criticality: 'A',
+        department: 'Trading',
+        businessService: 'Core Infrastructure'
+    },
+    {
+        appId: 'LOG-5678',
+        appName: 'Log Aggregation',
+        fieldKey: 'log_retention',
+        fieldLabel: 'Log Retention',
+        evidenceStatus: 'expired',
+        lastUpdated: '2025-08-05T12:00:00Z',
+        priority: 'normal',
+        issueCount: 7,
+        criticality: 'B',
+        department: 'Operations',
+        businessService: 'Core Infrastructure'
+    },
+    {
+        appId: 'INCIDENT-9012',
+        appName: 'Incident Response',
+        fieldKey: 'ir_plan',
+        fieldLabel: 'Incident Response Plan',
+        evidenceStatus: 'pending_approval',
+        lastUpdated: '2025-08-26T14:00:00Z',
+        priority: 'urgent',
+        issueCount: 13,
+        criticality: 'A',
+        department: 'Operations',
+        businessService: 'Risk & Compliance'
+    },
+    {
+        appId: 'TEST-3456',
+        appName: 'Test Automation',
+        fieldKey: 'ir_exercise',
+        fieldLabel: 'IR Exercises',
+        evidenceStatus: 'missing',
+        lastUpdated: '2025-08-19T16:00:00Z',
+        priority: 'low',
+        issueCount: 5,
+        criticality: 'C',
+        department: 'Operations',
+        businessService: 'Development Tools'
     }
 ];
 
@@ -94,7 +398,11 @@ export const mockRisks: RiskItem[] = [
         appName: 'Authentication Service',
         fieldKey: 'mfa_enforcement',
         createdBy: 'security_sme_1',
-        createdAt: '2025-08-25T11:30:00Z'
+        createdAt: '2025-08-25T11:30:00Z',
+        domain: 'Security',
+        department: 'Investment Banking',
+        businessService: 'Identity Management',
+        criticality: 'A'
     },
     {
         riskId: 'risk_2', 
@@ -105,6 +413,40 @@ export const mockRisks: RiskItem[] = [
         appName: 'Legacy System',
         fieldKey: 'encryption_at_rest',
         createdBy: 'security_sme_1',
-        createdAt: '2025-08-20T14:15:00Z'
+        createdAt: '2025-08-20T14:15:00Z',
+        domain: 'Security',
+        department: 'Operations',
+        businessService: 'Legacy Systems',
+        criticality: 'B'
+    },
+    {
+        riskId: 'risk_3',
+        title: 'Insufficient backup testing',
+        severity: 'High',
+        status: 'Open',
+        appId: 'PAY-7890',
+        appName: 'Payment Gateway',
+        fieldKey: 'backup_policy',
+        createdBy: 'data_sme_1',
+        createdAt: '2025-08-28T09:15:00Z',
+        domain: 'Data Architecture',
+        department: 'Trading',
+        businessService: 'Payment Processing',
+        criticality: 'A'
+    },
+    {
+        riskId: 'risk_4',
+        title: 'Missing incident response plan',
+        severity: 'Medium',
+        status: 'Open',
+        appId: 'TRADE-8901',
+        appName: 'Trading Desk Tools',
+        fieldKey: 'ir_plan',
+        createdBy: 'service_sme_1',
+        createdAt: '2025-08-26T14:30:00Z',
+        domain: 'Service Transition',
+        department: 'Trading',
+        businessService: 'Trading Operations',
+        criticality: 'A'
     }
 ];

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Outlet } from 'react-router-dom';
+import { Outlet, useNavigate } from 'react-router-dom';
 import {
     AppBar,
     Toolbar,
@@ -13,12 +13,22 @@ import SearchIcon from '@mui/icons-material/Search';
 
 /**
  * Top-level shell with a single AppBar.
- * Contains app title, search bar, and persona selector (PO/SME/Both).
+ * Contains app title, search bar, and persona selector (PO/SME).
  * Removes the old side drawer entirely.
  */
 export const AppShell: React.FC = () => {
     const [search, setSearch] = useState('');
-    const [persona, setPersona] = useState<'PO' | 'SME' | 'Both'>('PO');
+    const [persona, setPersona] = useState<'PO' | 'SME'>('PO');
+    const navigate = useNavigate();
+
+    const handlePersonaChange = (newPersona: 'PO' | 'SME') => {
+        setPersona(newPersona);
+        if (newPersona === 'PO') {
+            navigate('/po');
+        } else {
+            navigate('/sme');
+        }
+    };
 
     return (
         <Box sx={{ flexGrow: 1 }}>
@@ -41,12 +51,11 @@ export const AppShell: React.FC = () => {
                     <Select
                         size="small"
                         value={persona}
-                        onChange={(e) => setPersona(e.target.value as any)}
+                        onChange={(e) => handlePersonaChange(e.target.value as 'PO' | 'SME')}
                         sx={{ minWidth: 120 }}
                     >
                         <MenuItem value="PO">PO View</MenuItem>
                         <MenuItem value="SME">SME View</MenuItem>
-                        <MenuItem value="Both">Both</MenuItem>
                     </Select>
                 </Toolbar>
             </AppBar>
