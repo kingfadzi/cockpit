@@ -1,467 +1,31 @@
-import React, { useMemo, useState } from 'react';
+import React, { useState } from 'react';
 import {
     Alert,
     Box,
-    Chip,
-    Divider,
-    LinearProgress,
-    Paper,
     Stack,
-    Typography,
-    Button,
-    Tooltip,
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableRow,
-    TableContainer,
-    Dialog,
-    DialogTitle,
-    DialogContent,
-    DialogActions,
-    IconButton,
-    Link,
-    Pagination,
+    Tabs,
+    Tab,
 } from '@mui/material';
 import {
     Security as SecurityIcon,
     GppGood as IntegrityIcon,
     AvTimer as AvailabilityIcon,
     Bolt as ResilienceIcon,
-    Summarize as SummaryIcon,
-    FactCheck as FactCheckIcon,
-    ReportProblem as RiskIcon,
-    Description as DefaultIcon,
-    Close as CloseIcon,
+    Description as ArtifactIcon,
 } from '@mui/icons-material';
-import type { ProfileDomain, ProfileField, ProfileResponse, PolicyRequirement } from '../../../api/types';
-import { useAuditEvents, useAuditCount } from '../../../api/hooks';
-import AttachEvidenceModal from '../components/AttachEvidenceModal';
+import type { ProfileResponse, ProfileDomain } from '../../../api/types';
+import DomainTable from '../components/DomainTable';
 
-const ICON_MAP: Record<string, React.ReactElement> = {
-    SecurityIcon: <SecurityIcon fontSize="small" />,
-    IntegrityIcon: <IntegrityIcon fontSize="small" />,
-    AvailabilityIcon: <AvailabilityIcon fontSize="small" />,
-    ResilienceIcon: <ResilienceIcon fontSize="small" />,
-    SummaryIcon: <SummaryIcon fontSize="small" />,
-    DefaultIcon: <DefaultIcon fontSize="small" />,
-};
+type DomainTabValue = 'artifact' | 'security_rating' | 'confidentiality_rating' | 'integrity_rating' | 'availability_rating' | 'resilience_rating';
 
-const fmtDate = (iso?: string | null) => (iso ? new Date(iso).toLocaleDateString() : '—');
-
-interface DomainTableProps {
-    domain: ProfileDomain;
-    appId: string;
-}
-
-function DomainTable({ domain, appId, onTabChange }: DomainTableProps & { onTabChange?: (tab: string) => void }) {
-    const { title, icon, driverLabel, driverValue, fields } = domain;
-
-    const coverage = useMemo(() => {
-        let cur = 0, exp = 0, expd = 0, miss = 0;
-        fields.forEach((field) => {
-            if (field.assurance === 'Current') cur++;
-            else if (field.assurance === 'Expiring') exp++;
-            else if (field.assurance === 'Expired') expd++;
-            else miss++;
-        });
-        const total = fields.length || 1;
-        const readiness = Math.round((cur / total) * 100);
-        return { Current: cur, Expiring: exp, Expired: expd, Missing: miss, readiness };
-    }, [fields]);
-
-    return (
-        <Paper variant="outlined" sx={{ p: 2, borderRadius: 3 }}>
-            <Stack spacing={1.25}>
-                {/* Header */}
-                <Stack direction="row" spacing={1} alignItems="center" justifyContent="space-between">
-                    <Stack direction="row" spacing={1} alignItems="center">
-                        {ICON_MAP[icon] || <DefaultIcon fontSize="small" />}
-                        <Typography variant="subtitle1" fontWeight={700}>
-                            {title}
-                        </Typography>
-                        {driverValue && (
-                            <Chip 
-                                size="small" 
-                                label={driverValue} 
-                                variant="outlined"
-                                sx={{ ml: 1 }}
-                            />
-                        )}
-                    </Stack>
-                    <Stack direction="row" spacing={1} alignItems="center">
-                        <Tooltip title="Current coverage across this domain">
-                            <FactCheckIcon fontSize="small" />
-                        </Tooltip>
-                        <Typography variant="caption" color="text.secondary">
-                            Current {coverage.Current} • Expiring {coverage.Expiring} • Expired {coverage.Expired} • Missing {coverage.Missing}
-                        </Typography>
-                    </Stack>
-                </Stack>
-                <Stack direction="row" spacing={2} alignItems="center">
-                    <Typography variant="caption" color="text.secondary">Coverage</Typography>
-                    <Box sx={{ flex: 1 }}>
-                        <LinearProgress variant="determinate" value={coverage.readiness} sx={{ height: 8, borderRadius: 4 }} />
-                    </Box>
-                    <Typography variant="caption" fontWeight={700}>{coverage.readiness}%</Typography>
-                </Stack>
-
-                <Divider />
-
-                {/* Table */}
-                <TableContainer sx={{ overflowX: 'auto' }}>
-                    <Table size="small" sx={{ minWidth: 650 }}>
-                        <TableHead>
-                            <TableRow>
-                                <TableCell sx={{ minWidth: 140 }}>Property</TableCell>
-                                <TableCell sx={{ minWidth: 120 }}>Requirement</TableCell>
-                                <TableCell sx={{ minWidth: 100 }}>Status</TableCell>
-                                <TableCell sx={{ minWidth: 100 }}>Assurance</TableCell>
-                                <TableCell sx={{ minWidth: 80 }}>Risks</TableCell>
-                                <TableCell align="right" sx={{ minWidth: 140 }}>Actions</TableCell>
-                            </TableRow>
-                        </TableHead>
-                        <TableBody>
-                            {fields.map((field) => (
-                                <FieldRow key={field.fieldKey} field={field} appId={appId} onTabChange={onTabChange} />
-                            ))}
-                        </TableBody>
-                    </Table>
-                </TableContainer>
-            </Stack>
-        </Paper>
-    );
-}
-
-interface FieldRowProps {
-    field: ProfileField;
-    appId: string;
-}
-
-function FieldRow({ field, appId, onTabChange }: FieldRowProps & { onTabChange?: (tab: string) => void }) {
-    const { label, policyRequirement, evidence, assurance, risks, fieldKey, profileFieldId } = field;
-    const activeEvidence = evidence.find((e) => e.status === 'active');
-    const [attachModalOpen, setAttachModalOpen] = useState(false);
-    const [historyModalOpen, setHistoryModalOpen] = useState(false);
-    const [auditPage, setAuditPage] = useState(0);
-
-    // Fetch audit events for this profile field
-    const { data: auditData, isLoading: auditLoading, error: auditError } = useAuditEvents(
-        appId, 
-        profileFieldId, 
-        auditPage, 
-        10, // 10 per page
-        { enabled: historyModalOpen } // Only fetch when modal is open
-    );
-
-    // Fetch audit count for History button
-    const { data: auditCount } = useAuditCount(appId, profileFieldId);
-
-    const auditEvents = auditData?.content || [];
-
-    // Helper function to parse audit event details and extract document info
-    const parseAuditEventDetails = (event: any) => {
-        try {
-            // Try to extract document info from multiple possible sources
-            
-            // First, try parsing argsRedacted JSON
-            if (event.argsRedacted) {
-                const parsed = JSON.parse(event.argsRedacted);
-                const args = parsed.args;
-                
-                // Try multiple argument positions and structures for document info
-                if (args && Array.isArray(args)) {
-                    // Check args[1].document (common structure)
-                    if (args.length > 1 && args[1]?.document) {
-                        const document = args[1].document;
-                        return {
-                            title: document.title,
-                            url: document.url || document.canonicalUrl,
-                            sourceType: document.sourceType,
-                            versionId: document.latestVersion?.versionId
-                        };
-                    }
-                    
-                    // Check args[0].document
-                    if (args.length > 0 && args[0]?.document) {
-                        const document = args[0].document;
-                        return {
-                            title: document.title,
-                            url: document.url || document.canonicalUrl,
-                            sourceType: document.sourceType,
-                            versionId: document.latestVersion?.versionId
-                        };
-                    }
-                    
-                    // Check direct document in args
-                    for (const arg of args) {
-                        if (arg && arg.title && (arg.url || arg.canonicalUrl)) {
-                            return {
-                                title: arg.title,
-                                url: arg.url || arg.canonicalUrl,
-                                sourceType: arg.sourceType,
-                                versionId: arg.latestVersion?.versionId || arg.versionId
-                            };
-                        }
-                    }
-                }
-                
-                // Check if parsed directly contains document info
-                if (parsed.title && (parsed.url || parsed.canonicalUrl)) {
-                    return {
-                        title: parsed.title,
-                        url: parsed.url || parsed.canonicalUrl,
-                        sourceType: parsed.sourceType,
-                        versionId: parsed.latestVersion?.versionId || parsed.versionId
-                    };
-                }
-            }
-            
-            // Fallback: Check if event itself has document fields
-            if (event.title && (event.url || event.canonicalUrl)) {
-                return {
-                    title: event.title,
-                    url: event.url || event.canonicalUrl,
-                    sourceType: event.sourceType,
-                    versionId: event.latestVersion?.versionId || event.versionId
-                };
-            }
-            
-        } catch (error) {
-            console.warn('Failed to parse audit event details:', error);
-        }
-        return null;
-    };
-
-    const formatPolicyRequirementTooltip = (req: PolicyRequirement) => {
-        const { ttl } = req;
-        
-        if (ttl === '0d') {
-            return 'New evidence is required for every release';
-        }
-        
-        return `Evidence valid for ${ttl}`;
-    };
-
-    return (
-        <>
-            <TableRow hover>
-                <TableCell>
-                    <Typography variant="body2" fontWeight={600}>{label}</Typography>
-                </TableCell>
-                <TableCell>
-                    <Tooltip 
-                        title={formatPolicyRequirementTooltip(policyRequirement)}
-                        placement="top"
-                        arrow
-                    >
-                        <Typography 
-                            variant="body2" 
-                            sx={{ 
-                                cursor: 'help',
-                                textDecoration: 'underline',
-                                textDecorationStyle: 'dotted',
-                                textDecorationColor: 'rgba(0, 0, 0, 0.3)',
-                                '&:hover': {
-                                    textDecorationColor: 'rgba(0, 0, 0, 0.6)'
-                                }
-                            }}
-                        >
-                            {policyRequirement.label}
-                        </Typography>
-                    </Tooltip>
-                </TableCell>
-                <TableCell>
-                    {activeEvidence ? (
-                        <Chip size="small" color="success" variant="outlined" label="Approved" />
-                    ) : evidence.length > 0 ? (
-                        <Chip size="small" color="default" variant="outlined" label="No active" />
-                    ) : (
-                        <Chip size="small" color="error" variant="outlined" label="No evidence" />
-                    )}
-                </TableCell>
-                <TableCell>
-                    <Chip
-                        size="small"
-                        color={assurance === 'Current' ? 'success' : assurance === 'Expiring' ? 'warning' : 'error'}
-                        variant="outlined"
-                        label={assurance}
-                    />
-                </TableCell>
-                <TableCell>
-                    {risks.length ? (
-                        <Button
-                            size="small"
-                            color="error"
-                            variant="text"
-                            startIcon={<RiskIcon fontSize="small" />}
-                            onClick={() => onTabChange?.('risks')}
-                        >
-                            {risks.length}
-                        </Button>
-                    ) : (
-                        <Typography variant="caption" color="text.secondary">—</Typography>
-                    )}
-                </TableCell>
-                <TableCell align="right">
-                    {activeEvidence ? (
-                        <Stack direction="row" spacing={1} justifyContent="flex-end">
-                            <Button size="small" variant="text" onClick={() => setAttachModalOpen(true)}>View evidence</Button>
-                            <Button size="small" variant="text" onClick={() => setHistoryModalOpen(true)}>History{auditCount ? ` (${auditCount})` : ''}</Button>
-                        </Stack>
-                    ) : (
-                        <Stack direction="row" spacing={1} justifyContent="flex-end">
-                            <Button size="small" variant="text" onClick={() => setAttachModalOpen(true)}>
-                                Attach evidence
-                            </Button>
-                            <Button size="small" variant="text" disabled={evidence.length === 0} onClick={() => setHistoryModalOpen(true)}>History{auditCount ? ` (${auditCount})` : ''}</Button>
-                        </Stack>
-                    )}
-                </TableCell>
-            </TableRow>
-            
-            {/* Attach Evidence Modal */}
-            <AttachEvidenceModal
-                open={attachModalOpen}
-                onClose={() => setAttachModalOpen(false)}
-                fieldKey={fieldKey}
-                fieldLabel={label}
-                profileFieldId={profileFieldId}
-                appId={appId}
-                policyRequirement={policyRequirement}
-            />
-            
-            {/* Audit History Modal */}
-            <Dialog open={historyModalOpen} onClose={() => setHistoryModalOpen(false)} maxWidth="md" fullWidth>
-                <DialogTitle>
-                    <Stack direction="row" alignItems="center" justifyContent="space-between">
-                        <Typography variant="h6">
-                            Audit History: {label}
-                        </Typography>
-                        <IconButton onClick={() => setHistoryModalOpen(false)} size="small">
-                            <CloseIcon />
-                        </IconButton>
-                    </Stack>
-                </DialogTitle>
-                <DialogContent>
-                    {auditLoading ? (
-                        <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
-                            <Typography variant="body2" color="text.secondary">
-                                Loading audit events...
-                            </Typography>
-                        </Box>
-                    ) : auditError ? (
-                        <Typography variant="body2" color="error" sx={{ py: 2 }}>
-                            Error loading audit events: {String(auditError)}
-                        </Typography>
-                    ) : auditEvents.length === 0 ? (
-                        <Typography variant="body2" color="text.secondary" sx={{ py: 2 }}>
-                            No audit events available for this field.
-                        </Typography>
-                    ) : (
-                        <TableContainer>
-                            <Table size="small">
-                                <TableHead>
-                                    <TableRow>
-                                        <TableCell>Date</TableCell>
-                                        <TableCell>Action</TableCell>
-                                        <TableCell>Document</TableCell>
-                                        <TableCell>Source Type</TableCell>
-                                        <TableCell>Version ID</TableCell>
-                                    </TableRow>
-                                </TableHead>
-                                <TableBody>
-                                    {auditEvents.map((event: any, index: number) => (
-                                        <TableRow key={event.id || index}>
-                                            <TableCell>
-                                                {event.occurredAtUtc ? 
-                                                    new Date(event.occurredAtUtc).toLocaleString() : '—'}
-                                            </TableCell>
-                                            <TableCell>
-                                                <Chip
-                                                    size="small"
-                                                    label={event.action || 'Unknown'}
-                                                    variant="outlined"
-                                                    color={event.outcome === 'SUCCESS' ? 'success' : 'error'}
-                                                />
-                                            </TableCell>
-                                            <TableCell>
-                                                {(() => {
-                                                    const documentInfo = parseAuditEventDetails(event);
-                                                    if (documentInfo && documentInfo.title && documentInfo.url) {
-                                                        return (
-                                                            <Link 
-                                                                href={documentInfo.url}
-                                                                target="_blank"
-                                                                rel="noopener noreferrer"
-                                                                variant="body2"
-                                                                sx={{ textDecoration: 'none', '&:hover': { textDecoration: 'underline' } }}
-                                                            >
-                                                                {documentInfo.title}
-                                                            </Link>
-                                                        );
-                                                    }
-                                                    return (
-                                                        <Typography variant="body2" color="text.secondary">
-                                                            Document information not available
-                                                        </Typography>
-                                                    );
-                                                })()}
-                                            </TableCell>
-                                            <TableCell>
-                                                {(() => {
-                                                    const documentInfo = parseAuditEventDetails(event);
-                                                    return documentInfo?.sourceType ? (
-                                                        <Typography variant="body2">
-                                                            {documentInfo.sourceType}
-                                                        </Typography>
-                                                    ) : (
-                                                        <Typography variant="body2" color="text.secondary">—</Typography>
-                                                    );
-                                                })()}
-                                            </TableCell>
-                                            <TableCell>
-                                                {(() => {
-                                                    const documentInfo = parseAuditEventDetails(event);
-                                                    return documentInfo?.versionId ? (
-                                                        <Typography variant="body2">
-                                                            {documentInfo.versionId}
-                                                        </Typography>
-                                                    ) : (
-                                                        <Typography variant="body2" color="text.secondary">—</Typography>
-                                                    );
-                                                })()}
-                                            </TableCell>
-                                        </TableRow>
-                                    ))}
-                                </TableBody>
-                            </Table>
-                        </TableContainer>
-                    )}
-                    
-                    {/* Pagination */}
-                    {auditData && auditData.totalPages > 1 && (
-                        <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
-                            <Pagination
-                                count={auditData.totalPages}
-                                page={auditPage + 1}
-                                onChange={(event, value) => setAuditPage(value - 1)}
-                                color="primary"
-                                size="small"
-                            />
-                        </Box>
-                    )}
-                </DialogContent>
-                <DialogActions>
-                    <Button onClick={() => setHistoryModalOpen(false)}>
-                        Close
-                    </Button>
-                </DialogActions>
-            </Dialog>
-        </>
-    );
-}
+const DOMAIN_TAB_CONFIG = [
+    { value: 'artifact', label: 'Artifacts', icon: <ArtifactIcon fontSize="small" /> },
+    { value: 'security_rating', label: 'Security', icon: <SecurityIcon fontSize="small" /> },
+    { value: 'confidentiality_rating', label: 'Confidentiality', icon: <SecurityIcon fontSize="small" /> },
+    { value: 'integrity_rating', label: 'Integrity', icon: <IntegrityIcon fontSize="small" /> },
+    { value: 'availability_rating', label: 'Availability', icon: <AvailabilityIcon fontSize="small" /> },
+    { value: 'resilience_rating', label: 'Resilience', icon: <ResilienceIcon fontSize="small" /> },
+] as const;
 
 interface ProfileTabProps {
     profile: ProfileResponse;
@@ -470,21 +34,119 @@ interface ProfileTabProps {
 }
 
 export default function ProfileTab({ profile, appId = '', onTabChange }: ProfileTabProps) {
-    return (
-        <Stack spacing={2}>
-            {profile.domains.map((domain: ProfileDomain) => {
-                // Skip the Summary card (app_criticality domain)
-                if (domain.domainKey === 'app_criticality' || domain.title.toLowerCase() === 'summary') {
-                    return null;
-                }
-                
-                // Use regular DomainTable for all domains (including artifact)
-                return <DomainTable key={domain.domainKey} domain={domain} appId={appId} onTabChange={onTabChange} />;
-            })}
+    // Filter out summary domain and get available domains
+    const availableDomains = profile.domains.filter(domain => 
+        domain.domainKey !== 'app_criticality' && domain.title.toLowerCase() !== 'summary'
+    );
 
-            {(!profile.domains || profile.domains.length === 0) && (
-                <Alert severity="warning">No domains found in profile.</Alert>
-            )}
+    // Find the first available domain as default
+    const firstAvailableDomain = availableDomains.find(domain => 
+        DOMAIN_TAB_CONFIG.some(config => config.value === domain.domainKey)
+    );
+
+    const [activeDomainTab, setActiveDomainTab] = useState<DomainTabValue>(
+        firstAvailableDomain?.domainKey as DomainTabValue || 'artifact'
+    );
+
+    const handleDomainTabChange = (_event: React.SyntheticEvent, newTab: DomainTabValue) => {
+        setActiveDomainTab(newTab);
+    };
+
+    const renderDomainTabContent = () => {
+        const selectedDomain = availableDomains.find(domain => domain.domainKey === activeDomainTab);
+        
+        if (!selectedDomain) {
+            return <Alert severity="info">No data available for this domain.</Alert>;
+        }
+
+        return <DomainTable domain={selectedDomain} appId={appId} onTabChange={onTabChange} />;
+    };
+
+    if (!profile.domains || profile.domains.length === 0) {
+        return <Alert severity="warning">No domains found in profile.</Alert>;
+    }
+
+    // Only show tabs for domains that actually exist in the profile, with ratings
+    const visibleTabs = DOMAIN_TAB_CONFIG.filter(tabConfig => 
+        availableDomains.some(domain => domain.domainKey === tabConfig.value)
+    ).map(tabConfig => {
+        const domain = availableDomains.find(d => d.domainKey === tabConfig.value);
+        const rating = domain?.driverValue;
+        return {
+            ...tabConfig,
+            label: rating ? `${tabConfig.label} (${rating})` : tabConfig.label
+        };
+    });
+
+    return (
+        <Stack spacing={0}>
+            {/* Domain Sub-Navigation - Styled as child tabs */}
+            <Box sx={{ 
+                bgcolor: 'grey.50', 
+                borderRadius: '8px 8px 0 0',
+                border: '1px solid',
+                borderColor: 'divider',
+                borderBottom: 'none'
+            }}>
+                <Tabs
+                    value={activeDomainTab}
+                    onChange={handleDomainTabChange}
+                    variant="scrollable"
+                    scrollButtons="auto"
+                    sx={{ 
+                        px: 1,
+                        minHeight: 40,
+                        '& .MuiTabs-indicator': { 
+                            height: 2,
+                            borderRadius: '2px 2px 0 0',
+                            backgroundColor: 'primary.main'
+                        },
+                        '& .MuiTabs-flexContainer': {
+                            gap: 0.5
+                        }
+                    }}
+                >
+                    {visibleTabs.map((tab) => (
+                        <Tab
+                            key={tab.value}
+                            value={tab.value}
+                            label={tab.label}
+                            icon={tab.icon}
+                            iconPosition="start"
+                            sx={{ 
+                                minHeight: 40,
+                                minWidth: 120,
+                                textTransform: 'none',
+                                fontWeight: 500,
+                                fontSize: '0.875rem',
+                                px: 1.5,
+                                py: 0.5,
+                                mx: 0.25,
+                                borderRadius: '6px 6px 0 0',
+                                '&.Mui-selected': {
+                                    bgcolor: 'background.paper',
+                                    color: 'primary.main',
+                                    fontWeight: 600
+                                },
+                                '&:hover:not(.Mui-selected)': {
+                                    bgcolor: 'grey.100'
+                                }
+                            }}
+                        />
+                    ))}
+                </Tabs>
+            </Box>
+
+            {/* Domain Tab Content */}
+            <Box sx={{ 
+                bgcolor: 'background.paper',
+                border: '1px solid',
+                borderColor: 'divider',
+                borderRadius: '0 0 8px 8px',
+                p: 2
+            }}>
+                {renderDomainTabContent()}
+            </Box>
         </Stack>
     );
 }

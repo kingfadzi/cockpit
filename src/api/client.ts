@@ -377,6 +377,66 @@ export const endpoints = {
             ? { success: true }
             : (await api.delete<any>(`/api/apps/${appId}/profile/field/${profileFieldId}/detach-document/${documentId}`)).data,
 
+    /** Get evidence for profile field */
+    getProfileFieldEvidence: async (profileFieldId: string): Promise<any> =>
+        USE_MOCK
+            ? {
+                page: 1,
+                pageSize: 10,
+                total: 3,
+                items: [
+                    {
+                        evidenceId: "ev_security_scan_001",
+                        appId: "app_customer_portal",
+                        profileFieldId: "pf_encryption_rest_456",
+                        claimId: "claim_compliance_001",
+                        uri: "https://evidence-storage.company.com/scans/security_scan_001.pdf",
+                        type: "vulnerability_scan",
+                        status: "active",
+                        submittedBy: "security_team_bot",
+                        validFrom: "2024-12-01T00:00:00Z",
+                        validUntil: "2024-12-31T23:59:59Z",
+                        trackId: "track_compliance_789",
+                        documentId: "doc_vulnerability_report_001",
+                        createdAt: "2024-12-01T10:15:00Z",
+                        updatedAt: "2024-12-01T10:15:00Z"
+                    },
+                    {
+                        evidenceId: "ev_manual_review_002",
+                        appId: "app_customer_portal",
+                        profileFieldId: "pf_encryption_rest_456",
+                        claimId: "claim_compliance_002",
+                        uri: "https://evidence-storage.company.com/reviews/encryption_config.docx",
+                        type: "manual_review",
+                        status: "active",
+                        submittedBy: "security_analyst_001",
+                        validFrom: "2024-11-15T00:00:00Z",
+                        validUntil: "2024-12-31T23:59:59Z",
+                        trackId: "track_compliance_789",
+                        documentId: "doc_encryption_config_001",
+                        createdAt: "2024-11-15T14:30:00Z",
+                        updatedAt: "2024-11-15T14:30:00Z"
+                    },
+                    {
+                        evidenceId: "ev_policy_doc_003",
+                        appId: "app_customer_portal",
+                        profileFieldId: "pf_encryption_rest_456",
+                        claimId: "claim_compliance_003",
+                        uri: "https://docs.company.com/policies/data-protection.pdf",
+                        type: "policy_document",
+                        status: "active",
+                        submittedBy: "compliance_team",
+                        validFrom: "2024-10-01T00:00:00Z",
+                        validUntil: "2025-03-31T23:59:59Z",
+                        trackId: "track_compliance_789",
+                        documentId: "doc_data_protection_policy",
+                        createdAt: "2024-10-01T08:00:00Z",
+                        updatedAt: "2024-10-01T08:00:00Z"
+                    }
+                ]
+            }
+            : (await api.get<any>(`/api/profile-fields/${profileFieldId}/evidence`)).data,
+
     // Risk Management Endpoints
 
     /** Get individual risk story */
@@ -581,4 +641,220 @@ export const endpoints = {
         USE_MOCK
             ? { success: true }
             : (await api.delete<any>(`/api/risks/${riskId}/evidence/${evidenceId}`)).data,
+
+    // SME Endpoints using unified search
+    /** Get risks pending SME review assigned to current user */
+    getSmeReviewQueue: async (smeId: string): Promise<any[]> =>
+        USE_MOCK
+            ? [
+                {
+                    riskId: "risk_123",
+                    appId: "CORR-12356", 
+                    title: "Encryption at Rest Not Implemented",
+                    severity: "high",
+                    status: "PENDING_SME_REVIEW",
+                    fieldKey: "encryption_at_rest",
+                    assignedAt: "2025-01-10T09:00:00Z",
+                    dueDate: "2025-01-17T09:00:00Z",
+                    appName: "Core Banking System"
+                },
+                {
+                    riskId: "risk_124",
+                    appId: "PAY-7890",
+                    title: "MFA Not Enforced",
+                    severity: "medium",
+                    status: "PENDING_SME_REVIEW", 
+                    fieldKey: "mfa_enforcement",
+                    assignedAt: "2025-01-11T14:00:00Z",
+                    dueDate: "2025-01-18T14:00:00Z",
+                    appName: "Payment Gateway"
+                },
+                {
+                    riskId: "risk_125",
+                    appId: "AUTH-4567",
+                    title: "Session Timeout Too Long",
+                    severity: "low",
+                    status: "PENDING_SME_REVIEW",
+                    fieldKey: "session_timeout",
+                    assignedAt: "2025-01-12T10:30:00Z",
+                    dueDate: "2025-01-19T10:30:00Z",
+                    appName: "Authentication Service"
+                }
+            ]
+            : (await api.get<any[]>(`/api/risks/search?assignedSme=${smeId}&status=PENDING_SME_REVIEW`)).data,
+
+    /** Get all security-related risks assigned to this SME across all apps */
+    getSmeSecurityDomainRisks: async (smeId: string): Promise<any[]> =>
+        USE_MOCK
+            ? [
+                {
+                    riskId: "risk_456",
+                    appId: "TRADING-789",
+                    title: "Key Rotation Period Exceeds Policy", 
+                    severity: "medium",
+                    status: "UNDER_REVIEW",
+                    fieldKey: "key_rotation_max",
+                    assignedAt: "2025-01-08T14:30:00Z",
+                    lastReviewedAt: "2025-01-12T10:15:00Z",
+                    appName: "Trading Platform"
+                },
+                {
+                    riskId: "risk_457",
+                    appId: "MOBILE-APP",
+                    title: "Weak Password Policy",
+                    severity: "high",
+                    status: "PENDING_SME_REVIEW",
+                    fieldKey: "password_policy",
+                    assignedAt: "2025-01-09T09:00:00Z",
+                    appName: "Mobile Banking"
+                },
+                {
+                    riskId: "risk_458", 
+                    appId: "WEB-PORTAL",
+                    title: "SQL Injection Vulnerability",
+                    severity: "critical",
+                    status: "UNDER_REVIEW",
+                    fieldKey: "input_validation",
+                    assignedAt: "2025-01-07T16:45:00Z",
+                    lastReviewedAt: "2025-01-11T11:30:00Z",
+                    appName: "Web Portal"
+                },
+                {
+                    riskId: "risk_459",
+                    appId: "API-GATEWAY", 
+                    title: "Missing Rate Limiting",
+                    severity: "medium",
+                    status: "SME_APPROVED",
+                    fieldKey: "rate_limiting",
+                    assignedAt: "2025-01-06T13:20:00Z",
+                    lastReviewedAt: "2025-01-13T14:00:00Z",
+                    appName: "API Gateway"
+                },
+                {
+                    riskId: "risk_460",
+                    appId: "FILE-SHARE",
+                    title: "Unencrypted File Storage", 
+                    severity: "high",
+                    status: "SME_REJECTED",
+                    fieldKey: "file_encryption",
+                    assignedAt: "2025-01-05T11:10:00Z",
+                    lastReviewedAt: "2025-01-14T09:45:00Z",
+                    appName: "File Sharing Service"
+                }
+            ]
+            : (await api.get<any[]>(`/api/risks/search?assignedSme=${smeId}&domain=security`)).data,
+
+    /** Get risks from other domains assigned to this SME */
+    getSmeCrossDomainRisks: async (smeId: string): Promise<any[]> =>
+        USE_MOCK
+            ? [
+                {
+                    riskId: "risk_789",
+                    appId: "MOBILE-APP",
+                    title: "RTO Exceeds Target",
+                    severity: "medium", 
+                    status: "PENDING_SME_REVIEW",
+                    fieldKey: "rto_hours",
+                    domain: "availability",
+                    assignedAt: "2025-01-09T11:20:00Z",
+                    appName: "Mobile Banking"
+                },
+                {
+                    riskId: "risk_790",
+                    appId: "BACKUP-SYS",
+                    title: "Backup Integrity Check Failed",
+                    severity: "high",
+                    status: "UNDER_REVIEW", 
+                    fieldKey: "backup_integrity",
+                    domain: "integrity",
+                    assignedAt: "2025-01-08T15:45:00Z",
+                    appName: "Backup System"
+                },
+                {
+                    riskId: "risk_791",
+                    appId: "DATA-LAKE",
+                    title: "Data Retention Policy Violation",
+                    severity: "medium",
+                    status: "PENDING_SME_REVIEW",
+                    fieldKey: "data_retention",
+                    domain: "compliance",
+                    assignedAt: "2025-01-10T08:30:00Z", 
+                    appName: "Data Lake Platform"
+                }
+            ]
+            : (await api.get<any[]>(`/api/risks/search?assignedSme=${smeId}&domain=availability,integrity,compliance`)).data,
+
+    /** Get all open risks assigned to SME (for Open Risks table) */
+    getSmeAllOpenRisks: async (smeId: string): Promise<any[]> =>
+        USE_MOCK
+            ? [
+                // Combined mock data from all tables for Open Risks
+                {
+                    riskId: "risk_123",
+                    appId: "CORR-12356", 
+                    title: "Encryption at Rest Not Implemented",
+                    severity: "high",
+                    status: "PENDING_SME_REVIEW",
+                    fieldKey: "encryption_at_rest",
+                    domain: "security",
+                    assignedAt: "2025-01-10T09:00:00Z",
+                    appName: "Core Banking System"
+                },
+                {
+                    riskId: "risk_457",
+                    appId: "MOBILE-APP",
+                    title: "Weak Password Policy",
+                    severity: "high",
+                    status: "PENDING_SME_REVIEW",
+                    fieldKey: "password_policy",
+                    domain: "security",
+                    assignedAt: "2025-01-09T09:00:00Z",
+                    appName: "Mobile Banking"
+                },
+                {
+                    riskId: "risk_458", 
+                    appId: "WEB-PORTAL",
+                    title: "SQL Injection Vulnerability",
+                    severity: "critical",
+                    status: "UNDER_REVIEW",
+                    fieldKey: "input_validation",
+                    domain: "security",
+                    assignedAt: "2025-01-07T16:45:00Z",
+                    appName: "Web Portal"
+                },
+                {
+                    riskId: "risk_789",
+                    appId: "MOBILE-APP",
+                    title: "RTO Exceeds Target",
+                    severity: "medium", 
+                    status: "PENDING_SME_REVIEW",
+                    fieldKey: "rto_hours",
+                    domain: "availability",
+                    assignedAt: "2025-01-09T11:20:00Z",
+                    appName: "Mobile Banking"
+                },
+                {
+                    riskId: "risk_790",
+                    appId: "BACKUP-SYS",
+                    title: "Backup Integrity Check Failed",
+                    severity: "high",
+                    status: "UNDER_REVIEW", 
+                    fieldKey: "backup_integrity",
+                    domain: "integrity",
+                    assignedAt: "2025-01-08T15:45:00Z",
+                    appName: "Backup System"
+                }
+            ]
+            : (await api.get<any[]>(`/api/risks/search?assignedSme=${smeId}&status=PENDING_SME_REVIEW,UNDER_REVIEW`)).data,
+
+    /** SME approves or rejects a risk */
+    submitSmeReview: async (riskId: string, payload: { action: 'approve' | 'reject'; comments: string; smeId: string }): Promise<any> =>
+        USE_MOCK
+            ? {
+                riskId,
+                status: payload.action === 'approve' ? 'SME_APPROVED' : 'SME_REJECTED',
+                reviewedBy: payload.smeId,
+                reviewedAt: new Date().toISOString()
+            }
+            : (await api.put<any>(`/api/risks/${riskId}/sme-review`, payload)).data,
 };

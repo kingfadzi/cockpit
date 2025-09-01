@@ -36,9 +36,10 @@ import {
     Search as SearchIcon
 } from '@mui/icons-material';
 import SectionHeader from '../../../components/SectionHeader';
-import { mockSmeAssignments, mockSmeQueue, mockCrossDomainIssues, mockRisks } from '../mock/smeData';
+import { useSmeReviewQueue, useSmeSecurityDomainRisks, useSmeCrossDomainRisks, useSmeAllOpenRisks, useSubmitSmeReview } from '../../../api/hooks';
 import RaiseRiskModal from '../components/RaiseRiskModal';
 import AppSecurityReviewModal from '../components/AppSecurityReviewModal';
+import RiskStoryModal from '../components/RiskStoryModal';
 
 const getCriticalityBadge = (criticality: 'A' | 'B' | 'C' | 'D', appName: string) => {
     const colors = {
@@ -65,10 +66,22 @@ const getCriticalityBadge = (criticality: 'A' | 'B' | 'C' | 'D', appName: string
 };
 
 export default function SecuritySmeView() {
+    // Hardcoded SME ID for development
+    const smeId = 'security_sme_001';
+    
+    // Fetch data using real hooks
+    const { data: reviewQueue = [], isLoading: queueLoading } = useSmeReviewQueue(smeId);
+    const { data: securityDomainRisks = [], isLoading: domainLoading } = useSmeSecurityDomainRisks(smeId);
+    const { data: crossDomainRisks = [], isLoading: crossDomainLoading } = useSmeCrossDomainRisks(smeId);
+    const { data: allOpenRisksData = [], isLoading: allRisksLoading } = useSmeAllOpenRisks(smeId);
+    const submitReviewMutation = useSubmitSmeReview();
+    
     const [raiseRiskModalOpen, setRaiseRiskModalOpen] = useState(false);
     const [selectedItem, setSelectedItem] = useState<any>(null);
     const [securityModalOpen, setSecurityModalOpen] = useState(false);
     const [selectedApp, setSelectedApp] = useState<any>(null);
+    const [riskStoryModalOpen, setRiskStoryModalOpen] = useState(false);
+    const [selectedRisk, setSelectedRisk] = useState<any>(null);
     
     // Search states
     const [queueSearch, setQueueSearch] = useState('');
@@ -90,10 +103,13 @@ export default function SecuritySmeView() {
     const pageSize = 5;
     const [expandedApps, setExpandedApps] = useState<Set<string>>(new Set());
 
-    const assignments = mockSmeAssignments.filter(a => a.assignedSmeId === 'security_sme_1');
-    const domainQueue = mockSmeQueue;
-    const crossDomainIssues = mockCrossDomainIssues;
-    const openRisks = mockRisks.filter(r => r.status === 'Open');
+    // Use real data from hooks
+    const assignments = reviewQueue;
+    const domainQueue = securityDomainRisks;
+    const crossDomainIssues = crossDomainRisks;
+    
+    // Use dedicated endpoint for Open Risks table
+    const allOpenRisks = allOpenRisksData;
 
     // Enhanced filtering and search logic
     const getFilteredAndSearchedItems = (items: any[], filter: string, search: string, type: 'queue' | 'domain' | 'risks') => {
@@ -119,9 +135,15 @@ export default function SecuritySmeView() {
         
         switch (filter) {
             case 'overdue':
-                return filtered.filter(item => item.daysOverdue && item.daysOverdue > 0);
+                return filtered.filter(item => {
+                    if (item.dueDate) {
+                        const dueDate = new Date(item.dueDate);
+                        return dueDate < now;
+                    }
+                    return false;
+                });
             case 'urgent':
-                return filtered.filter(item => item.priority === 'urgent');
+                return filtered.filter(item => item.severity === 'critical' || item.severity === 'high');
             case 'critical_a':
                 return filtered.filter(item => item.criticality === 'A');
             case 'this_week':
@@ -133,36 +155,38 @@ export default function SecuritySmeView() {
                     return false;
                 });
             case 'high_severity':
-                return filtered.filter(item => item.severity === 'High');
+                return filtered.filter(item => item.severity === 'high' || item.severity === 'critical');
             case 'recent':
                 const threeDaysAgo = new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000);
-                return filtered.filter(item => new Date(item.createdAt || item.lastUpdated) >= threeDaysAgo);
+                return filtered.filter(item => new Date(item.assignedAt || item.lastReviewedAt) >= threeDaysAgo);
             default:
                 return filtered;
         }
     };
 
 
-    // Sort by criticality first, then by issue count
+    // Sort by severity, then by assigned date
     const sortedDomainQueue = [...domainQueue].sort((a, b) => {
-        if (a.criticality !== b.criticality) {
-            return a.criticality.localeCompare(b.criticality);
+        const severityOrder = { critical: 0, high: 1, medium: 2, low: 3 };
+        if (a.severity !== b.severity) {
+            return severityOrder[a.severity] - severityOrder[b.severity];
         }
-        return b.issueCount - a.issueCount;
+        return new Date(b.assignedAt).getTime() - new Date(a.assignedAt).getTime();
     });
     
     const sortedCrossDomain = [...crossDomainIssues].sort((a, b) => {
-        if (a.criticality !== b.criticality) {
-            return a.criticality.localeCompare(b.criticality);
+        const severityOrder = { critical: 0, high: 1, medium: 2, low: 3 };
+        if (a.severity !== b.severity) {
+            return severityOrder[a.severity] - severityOrder[b.severity];
         }
-        return b.issueCount - a.issueCount;
+        return new Date(b.assignedAt).getTime() - new Date(a.assignedAt).getTime();
     });
 
     // Apply filters and search to each table
     const filteredAssignments = getFilteredAndSearchedItems(assignments, queueFilter, queueSearch, 'queue');
     const filteredDomainQueue = getFilteredAndSearchedItems(sortedDomainQueue, domainFilter, domainSearch, 'domain');
     const filteredCrossDomain = getFilteredAndSearchedItems(sortedCrossDomain, crossDomainFilter, crossDomainSearch, 'domain');
-    const filteredRisks = getFilteredAndSearchedItems(openRisks, risksFilter, risksSearch, 'risks');
+    const filteredRisks = getFilteredAndSearchedItems(allOpenRisks, risksFilter, risksSearch, 'risks');
 
     // Pagination logic
     const getPaginatedItems = (items: any[], page: number) => {
@@ -193,6 +217,11 @@ export default function SecuritySmeView() {
     const openSecurityModal = (app: any) => {
         setSelectedApp(app);
         setSecurityModalOpen(true);
+    };
+
+    const openRiskStoryModal = (risk: any) => {
+        setSelectedRisk(risk);
+        setRiskStoryModalOpen(true);
     };
 
     const formatDaysOverdue = (days?: number) => {
@@ -266,7 +295,25 @@ export default function SecuritySmeView() {
         <Stack spacing={3}>
             <SectionHeader 
                 title="Security SME Dashboard" 
-                subtitle="Review security controls and evidence across applications"
+                subtitle={
+                    <Stack spacing={1}>
+                        <Typography variant="body2" color="text.secondary">
+                            Review security controls and evidence across applications
+                        </Typography>
+                        <Stack direction="row" alignItems="center" spacing={1}>
+                            <Typography variant="caption" color="text.secondary">
+                                SME ID:
+                            </Typography>
+                            <Chip
+                                size="small"
+                                label={smeId}
+                                variant="outlined"
+                                color="primary"
+                                sx={{ fontFamily: 'monospace', fontSize: '0.75rem' }}
+                            />
+                        </Stack>
+                    </Stack>
+                }
                 icon={<SecurityIcon />}
             />
 
@@ -284,8 +331,8 @@ export default function SecuritySmeView() {
                         setQueueFilter,
                         [
                             { value: 'all', label: 'All' },
-                            { value: 'overdue', label: 'Overdue', count: assignments.filter(a => a.daysOverdue && a.daysOverdue > 0).length },
-                            { value: 'urgent', label: 'Urgent', count: assignments.filter(a => a.priority === 'urgent').length },
+                            { value: 'overdue', label: 'Overdue', count: assignments.filter(a => a.dueDate && new Date(a.dueDate) < new Date()).length },
+                            { value: 'urgent', label: 'Urgent', count: assignments.filter(a => a.severity === 'critical' || a.severity === 'high').length },
                             { value: 'this_week', label: 'Due This Week' }
                         ],
                         'Search applications or requirements...'
@@ -302,71 +349,52 @@ export default function SecuritySmeView() {
                                     <TableHead>
                                         <TableRow>
                                             <TableCell>Application</TableCell>
-                                            <TableCell>TC</TableCell>
-                                            <TableCell>Requirement</TableCell>
-                                            <TableCell>Evidence Status</TableCell>
-                                            <TableCell>Priority</TableCell>
+                                            <TableCell>Risk Title</TableCell>
+                                            <TableCell>Field</TableCell>
+                                            <TableCell>Severity</TableCell>
+                                            <TableCell>Status</TableCell>
                                             <TableCell>Due Date</TableCell>
-                                            <TableCell align="right">Actions</TableCell>
                                         </TableRow>
                                     </TableHead>
                                     <TableBody>
                                         {paginatedAssignments.map((assignment) => (
-                                            <TableRow key={`${assignment.appId}-${assignment.fieldKey}`} hover>
+                                            <TableRow 
+                                                key={`${assignment.riskId}`} 
+                                                hover
+                                                sx={{ cursor: 'pointer' }}
+                                                onClick={() => openRiskStoryModal(assignment)}
+                                            >
                                                 <TableCell>
-                                                    {getCriticalityBadge(assignment.criticality, assignment.appName)}
+                                                    <Typography variant="body2" fontWeight={600}>
+                                                        {assignment.appName || assignment.appId || 'Unknown App'}
+                                                    </Typography>
                                                 </TableCell>
-                                                <TableCell>{assignment.department}</TableCell>
-                                                <TableCell>{assignment.fieldLabel}</TableCell>
+                                                <TableCell>{assignment.title}</TableCell>
                                                 <TableCell>
-                                                    <Stack direction="row" spacing={1} alignItems="center">
-                                                        <Chip
-                                                            size="small"
-                                                            color={assignment.evidenceStatus === 'approved' ? 'success' : 
-                                                                   assignment.evidenceStatus === 'pending_approval' ? 'warning' : 'error'}
-                                                            label={assignment.evidenceStatus.replace('_', ' ')}
-                                                            variant="outlined"
-                                                        />
-                                                        {assignment.daysOverdue && (
-                                                            <Chip size="small" color="error" label={formatDaysOverdue(assignment.daysOverdue)} />
-                                                        )}
-                                                    </Stack>
+                                                    <Typography variant="caption" color="text.secondary">
+                                                        {assignment.fieldKey}
+                                                    </Typography>
                                                 </TableCell>
                                                 <TableCell>
                                                     <Chip
                                                         size="small"
-                                                        color={assignment.priority === 'urgent' ? 'error' : 
-                                                               assignment.priority === 'normal' ? 'warning' : 'default'}
-                                                        label={assignment.priority}
+                                                        color={assignment.severity === 'critical' ? 'error' : 
+                                                               assignment.severity === 'high' ? 'error' : 
+                                                               assignment.severity === 'medium' ? 'warning' : 'default'}
+                                                        label={assignment.severity}
+                                                        variant="outlined"
+                                                    />
+                                                </TableCell>
+                                                <TableCell>
+                                                    <Chip
+                                                        size="small"
+                                                        color="warning"
+                                                        label={assignment.status.replace('_', ' ')}
                                                         variant="outlined"
                                                     />
                                                 </TableCell>
                                                 <TableCell>
                                                     {assignment.dueDate ? new Date(assignment.dueDate).toLocaleDateString() : '—'}
-                                                </TableCell>
-                                                <TableCell align="right">
-                                                    <Stack direction="row" spacing={0.5} justifyContent="flex-end">
-                                                        <IconButton size="small" title="View Evidence">
-                                                            <ViewIcon fontSize="small" />
-                                                        </IconButton>
-                                                        <IconButton size="small" color="success" title="Approve">
-                                                            <ApproveIcon fontSize="small" />
-                                                        </IconButton>
-                                                        <IconButton size="small" color="error" title="Reject">
-                                                            <RejectIcon fontSize="small" />
-                                                        </IconButton>
-                                                        <IconButton size="small" title="Request More Evidence">
-                                                            <RequestIcon fontSize="small" />
-                                                        </IconButton>
-                                                        <IconButton 
-                                                            size="small" 
-                                                            color="warning" 
-                                                            title="Raise Risk"
-                                                            onClick={() => handleRaiseRisk(assignment)}
-                                                        >
-                                                            <RiskIcon fontSize="small" />
-                                                        </IconButton>
-                                                    </Stack>
                                                 </TableCell>
                                             </TableRow>
                                         ))}
@@ -566,7 +594,7 @@ export default function SecuritySmeView() {
                         setRisksFilter,
                         [
                             { value: 'all', label: 'All' },
-                            { value: 'high_severity', label: 'High Severity', count: openRisks.filter(r => r.severity === 'High').length },
+                            { value: 'high_severity', label: 'High Severity', count: allOpenRisks.filter(r => r.severity === 'high' || r.severity === 'critical').length },
                             { value: 'recent', label: 'Recent' }
                         ],
                         'Search risks or applications...'
@@ -583,12 +611,12 @@ export default function SecuritySmeView() {
                                     <TableHead>
                                         <TableRow>
                                             <TableCell>Application</TableCell>
-                                            <TableCell>TC</TableCell>
-                                            <TableCell>Business Service</TableCell>
-                                            <TableCell>Domain</TableCell>
                                             <TableCell>Risk Title</TableCell>
+                                            <TableCell>Field</TableCell>
+                                            <TableCell>Domain</TableCell>
                                             <TableCell>Severity</TableCell>
-                                            <TableCell>Created</TableCell>
+                                            <TableCell>Status</TableCell>
+                                            <TableCell>Assigned</TableCell>
                                         </TableRow>
                                     </TableHead>
                                     <TableBody>
@@ -597,42 +625,52 @@ export default function SecuritySmeView() {
                                                 key={risk.riskId} 
                                                 hover 
                                                 sx={{ cursor: 'pointer' }}
-                                                onClick={() => console.log('View risk story for', risk.riskId)}
+                                                onClick={() => openRiskStoryModal(risk)}
                                             >
                                                 <TableCell>
-                                                    {risk.criticality ? (
-                                                        getCriticalityBadge(risk.criticality, risk.appName)
-                                                    ) : (
-                                                        <Typography variant="body2" fontWeight={600}>
-                                                            {risk.appName}
-                                                        </Typography>
-                                                    )}
+                                                    <Typography variant="body2" fontWeight={600}>
+                                                        {risk.appName || risk.appId || 'Unknown App'}
+                                                    </Typography>
                                                 </TableCell>
-                                                <TableCell>{risk.department || '—'}</TableCell>
-                                                <TableCell>{risk.businessService || '—'}</TableCell>
+                                                <TableCell>{risk.title}</TableCell>
+                                                <TableCell>
+                                                    <Typography variant="caption" color="text.secondary">
+                                                        {risk.fieldKey}
+                                                    </Typography>
+                                                </TableCell>
                                                 <TableCell>
                                                     {risk.domain && (
                                                         <Chip
                                                             size="small"
                                                             label={risk.domain}
-                                                            color={risk.domain === 'Security' ? 'error' : 
-                                                                   risk.domain === 'Data Architecture' ? 'info' :
-                                                                   risk.domain === 'Service Transition' ? 'success' : 'warning'}
+                                                            color={risk.domain === 'security' ? 'error' : 
+                                                                   risk.domain === 'availability' ? 'info' :
+                                                                   risk.domain === 'integrity' ? 'success' : 'warning'}
                                                             variant="outlined"
                                                         />
                                                     )}
                                                 </TableCell>
-                                                <TableCell>{risk.title}</TableCell>
                                                 <TableCell>
                                                     <Chip
                                                         size="small"
-                                                        color={risk.severity === 'High' ? 'error' : 
-                                                               risk.severity === 'Medium' ? 'warning' : 'default'}
+                                                        color={risk.severity === 'critical' ? 'error' : 
+                                                               risk.severity === 'high' ? 'error' :
+                                                               risk.severity === 'medium' ? 'warning' : 'default'}
                                                         label={risk.severity}
                                                         variant="outlined"
                                                     />
                                                 </TableCell>
-                                                <TableCell>{new Date(risk.createdAt).toLocaleDateString()}</TableCell>
+                                                <TableCell>
+                                                    <Chip
+                                                        size="small"
+                                                        color={risk.status === 'PENDING_SME_REVIEW' ? 'warning' : 'info'}
+                                                        label={risk.status.replace('_', ' ')}
+                                                        variant="outlined"
+                                                    />
+                                                </TableCell>
+                                                <TableCell>
+                                                    {risk.assignedAt ? new Date(risk.assignedAt).toLocaleDateString() : '—'}
+                                                </TableCell>
                                             </TableRow>
                                         ))}
                                     </TableBody>
@@ -669,6 +707,13 @@ export default function SecuritySmeView() {
                     department={selectedApp.department}
                 />
             )}
+
+            <RiskStoryModal
+                open={riskStoryModalOpen}
+                onClose={() => setRiskStoryModalOpen(false)}
+                risk={selectedRisk}
+                smeId={smeId}
+            />
         </Stack>
     );
 }

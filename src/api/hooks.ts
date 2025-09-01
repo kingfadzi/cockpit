@@ -173,6 +173,14 @@ export const useDetachDocument = (appId: string, profileFieldId: string) => {
     });
 };
 
+export const useProfileFieldEvidence = (profileFieldId: string) =>
+    useQuery({
+        queryKey: ['profileFieldEvidence', profileFieldId],
+        queryFn: () => endpoints.getProfileFieldEvidence(profileFieldId),
+        enabled: !!profileFieldId,
+        ...commonQuery,
+    });
+
 // Risk Management Hooks
 
 export const useRisk = (riskId: string) =>
@@ -235,6 +243,53 @@ export const useDetachEvidenceFromRisk = (riskId: string) => {
         mutationFn: (evidenceId: string) => endpoints.detachEvidenceFromRisk(riskId, evidenceId),
         onSuccess: () => {
             qc.invalidateQueries({ queryKey: ['risk', riskId] });
+            qc.invalidateQueries({ queryKey: ['risks'] });
+        },
+    });
+};
+
+// SME Hooks
+export const useSmeReviewQueue = (smeId: string) =>
+    useQuery<any[]>({ 
+        queryKey: ['sme', 'queue', smeId], 
+        queryFn: () => endpoints.getSmeReviewQueue(smeId), 
+        enabled: !!smeId, 
+        ...commonQuery 
+    });
+
+export const useSmeSecurityDomainRisks = (smeId: string) =>
+    useQuery<any[]>({ 
+        queryKey: ['sme', 'security-domain', smeId], 
+        queryFn: () => endpoints.getSmeSecurityDomainRisks(smeId), 
+        enabled: !!smeId, 
+        ...commonQuery 
+    });
+
+export const useSmeCrossDomainRisks = (smeId: string) =>
+    useQuery<any[]>({ 
+        queryKey: ['sme', 'cross-domain', smeId], 
+        queryFn: () => endpoints.getSmeCrossDomainRisks(smeId), 
+        enabled: !!smeId, 
+        ...commonQuery 
+    });
+
+export const useSmeAllOpenRisks = (smeId: string) =>
+    useQuery<any[]>({ 
+        queryKey: ['sme', 'all-open-risks', smeId], 
+        queryFn: () => endpoints.getSmeAllOpenRisks(smeId), 
+        enabled: !!smeId, 
+        ...commonQuery 
+    });
+
+export const useSubmitSmeReview = () => {
+    const qc = useQueryClient();
+    return useMutation({
+        mutationFn: ({ riskId, payload }: { riskId: string; payload: { action: 'approve' | 'reject'; comments: string; smeId: string } }) => 
+            endpoints.submitSmeReview(riskId, payload),
+        onSuccess: (_, variables) => {
+            // Invalidate all SME-related queries
+            qc.invalidateQueries({ queryKey: ['sme'] });
+            qc.invalidateQueries({ queryKey: ['risk', variables.riskId] });
             qc.invalidateQueries({ queryKey: ['risks'] });
         },
     });
