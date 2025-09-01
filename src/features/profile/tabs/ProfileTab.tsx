@@ -55,7 +55,7 @@ interface DomainTableProps {
     appId: string;
 }
 
-function DomainTable({ domain, appId }: DomainTableProps) {
+function DomainTable({ domain, appId, onTabChange }: DomainTableProps & { onTabChange?: (tab: string) => void }) {
     const { title, icon, driverLabel, driverValue, fields } = domain;
 
     const coverage = useMemo(() => {
@@ -124,7 +124,7 @@ function DomainTable({ domain, appId }: DomainTableProps) {
                         </TableHead>
                         <TableBody>
                             {fields.map((field) => (
-                                <FieldRow key={field.fieldKey} field={field} appId={appId} />
+                                <FieldRow key={field.fieldKey} field={field} appId={appId} onTabChange={onTabChange} />
                             ))}
                         </TableBody>
                     </Table>
@@ -139,7 +139,7 @@ interface FieldRowProps {
     appId: string;
 }
 
-function FieldRow({ field, appId }: FieldRowProps) {
+function FieldRow({ field, appId, onTabChange }: FieldRowProps & { onTabChange?: (tab: string) => void }) {
     const { label, policyRequirement, evidence, assurance, risks, fieldKey, profileFieldId } = field;
     const activeEvidence = evidence.find((e) => e.status === 'active');
     const [attachModalOpen, setAttachModalOpen] = useState(false);
@@ -296,7 +296,7 @@ function FieldRow({ field, appId }: FieldRowProps) {
                             color="error"
                             variant="text"
                             startIcon={<RiskIcon fontSize="small" />}
-                            onClick={() => console.log('open-risk-stories', field.fieldKey)}
+                            onClick={() => onTabChange?.('risks')}
                         >
                             {risks.length}
                         </Button>
@@ -466,9 +466,10 @@ function FieldRow({ field, appId }: FieldRowProps) {
 interface ProfileTabProps {
     profile: ProfileResponse;
     appId?: string;
+    onTabChange?: (tab: string) => void;
 }
 
-export default function ProfileTab({ profile, appId = '' }: ProfileTabProps) {
+export default function ProfileTab({ profile, appId = '', onTabChange }: ProfileTabProps) {
     return (
         <Stack spacing={2}>
             {profile.domains.map((domain: ProfileDomain) => {
@@ -478,7 +479,7 @@ export default function ProfileTab({ profile, appId = '' }: ProfileTabProps) {
                 }
                 
                 // Use regular DomainTable for all domains (including artifact)
-                return <DomainTable key={domain.domainKey} domain={domain} appId={appId} />;
+                return <DomainTable key={domain.domainKey} domain={domain} appId={appId} onTabChange={onTabChange} />;
             })}
 
             {(!profile.domains || profile.domains.length === 0) && (

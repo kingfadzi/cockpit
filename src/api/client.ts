@@ -9,6 +9,8 @@ import type {
     ServerApp,
     ProfileResponse,
     AppKpis,
+    AttachDocumentResponse,
+    RiskStory,
 } from './types';
 
 export const API_BASE = '';
@@ -356,14 +358,227 @@ export const endpoints = {
             : (await api.get<any>(`/api/apps/${appId}/profile/field/${profileFieldId}/attached-documents`)).data,
 
     /** Attach existing document to profile field */
-    attachDocumentToField: async (appId: string, profileFieldId: string, documentId: string): Promise<any> =>
+    attachDocumentToField: async (appId: string, profileFieldId: string, documentId: string): Promise<AttachDocumentResponse> =>
         USE_MOCK
-            ? { evidenceId: 'mock-evidence-id', success: true }
-            : (await api.post<any>(`/api/apps/${appId}/profile/field/${profileFieldId}/attach-document/${documentId}`)).data,
+            ? { 
+                evidenceId: 'mock-evidence-id',
+                appId,
+                profileFieldId,
+                documentId,
+                riskWasCreated: true,
+                autoCreatedRiskId: 'risk_mock_001',
+                assignedSme: 'security_sme_001'
+            }
+            : (await api.post<AttachDocumentResponse>(`/api/apps/${appId}/profile/field/${profileFieldId}/attach-document/${documentId}`)).data,
 
     /** Detach document from profile field */
     detachDocumentFromField: async (appId: string, profileFieldId: string, documentId: string): Promise<any> =>
         USE_MOCK
             ? { success: true }
             : (await api.delete<any>(`/api/apps/${appId}/profile/field/${profileFieldId}/detach-document/${documentId}`)).data,
+
+    // Risk Management Endpoints
+
+    /** Get individual risk story */
+    getRisk: async (riskId: string): Promise<RiskStory> =>
+        USE_MOCK
+            ? {
+                riskId,
+                appId: 'CORR-12356',
+                fieldKey: 'encryption_at_rest',
+                profileFieldId: 'pf_001',
+                title: 'Encryption at Rest Not Implemented',
+                description: 'Application does not have proper encryption at rest implementation which poses security risks.',
+                status: 'pending_evidence',
+                severity: 'high',
+                assignedSme: 'security_sme_001',
+                createdBy: 'po_user_001',
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
+                evidenceCount: 0
+            }
+            : (await api.get<RiskStory>(`/api/risks/${riskId}`)).data,
+
+    /** Get all risks for application */
+    getAppRisks: async (appId: string): Promise<RiskStory[]> =>
+        USE_MOCK
+            ? [
+                {
+                    riskId: 'risk_04c51349-ed55-43f5-afb5-93b69ac7a9eb',
+                    appId,
+                    fieldKey: 'encryption_at_rest',
+                    triggeringEvidenceId: 'ev_be6dc1a423b74494be60ca6f02e3b913',
+                    creationType: 'SYSTEM_AUTO_CREATION',
+                    assignedSme: 'security_sme_001',
+                    title: 'Auto-created risk for encryption_at_rest field',
+                    hypothesis: 'Evidence may indicate risk in encryption_at_rest implementation',
+                    condition: 'IF the attached evidence reveals security gaps',
+                    consequence: 'THEN security posture may be compromised',
+                    severity: 'high',
+                    status: 'PENDING_SME_REVIEW',
+                    raisedBy: 'SYSTEM_AUTO_CREATION',
+                    openedAt: '2025-09-01T19:37:29.216084Z',
+                    assignedAt: '2025-09-01T19:37:29.216089Z',
+                    policyRequirementSnapshot: {
+                        fieldKey: 'encryption_at_rest',
+                        activeRule: {
+                            ttl: '90d',
+                            label: 'Required',
+                            value: 'required',
+                            security_rating: 'A2',
+                            requiresReview: true
+                        },
+                        fieldLabel: 'Encryption at Rest',
+                        snapshotTimestamp: 1756755449216,
+                        complianceFrameworks: [
+                            {
+                                controls: ['SC-28', 'SC-8'],
+                                framework: 'NIST'
+                            },
+                            {
+                                controls: ['A.10.1.1'],
+                                framework: 'ISO27001'
+                            }
+                        ]
+                    },
+                    createdAt: '2025-09-01T19:37:28.547524Z',
+                    updatedAt: '2025-09-01T19:37:28.547524Z',
+                    evidenceCount: 1
+                },
+                {
+                    riskId: 'risk_002',
+                    appId,
+                    fieldKey: 'key_rotation_max',
+                    creationType: 'MANUAL',
+                    assignedSme: 'security_sme_002',
+                    title: 'Key Rotation Period Exceeds Policy',
+                    hypothesis: 'Current key rotation practices may not align with security policy',
+                    condition: 'IF key rotation period exceeds 90 days',
+                    consequence: 'THEN cryptographic keys become vulnerable to compromise',
+                    severity: 'medium',
+                    status: 'under_review',
+                    raisedBy: 'po_user_001',
+                    openedAt: '2024-01-10T09:15:00Z',
+                    assignedAt: '2024-01-10T10:00:00Z',
+                    policyRequirementSnapshot: {
+                        fieldKey: 'key_rotation_max',
+                        activeRule: {
+                            ttl: '90d',
+                            label: 'Maximum 90 days',
+                            value: '90d',
+                            security_rating: 'A2',
+                            requiresReview: true
+                        },
+                        fieldLabel: 'Key Rotation Maximum Period',
+                        snapshotTimestamp: 1704876900000,
+                        complianceFrameworks: [
+                            {
+                                controls: ['SC-12', 'SC-17'],
+                                framework: 'NIST'
+                            }
+                        ]
+                    },
+                    createdAt: '2024-01-10T09:15:00Z',
+                    updatedAt: '2024-01-18T11:45:00Z',
+                    evidenceCount: 2,
+                    lastReviewedAt: '2024-01-18T11:45:00Z',
+                    lastReviewedBy: 'security_sme_002'
+                },
+                {
+                    riskId: 'risk_003',
+                    appId,
+                    fieldKey: 'rto_hours',
+                    creationType: 'MANUAL',
+                    assignedSme: 'ops_sme_001',
+                    title: 'Recovery Time Objective Exceeds Target',
+                    hypothesis: 'Current RTO configuration may not meet business requirements',
+                    condition: 'IF recovery time exceeds 4 hours',
+                    consequence: 'THEN business operations may be significantly impacted during outages',
+                    severity: 'medium',
+                    status: 'open',
+                    raisedBy: 'audit_system',
+                    openedAt: '2024-01-12T16:00:00Z',
+                    policyRequirementSnapshot: {
+                        fieldKey: 'rto_hours',
+                        activeRule: {
+                            ttl: '90d',
+                            label: '≤ 4 hours',
+                            value: '4',
+                            availability_rating: 'B',
+                            requiresReview: false
+                        },
+                        fieldLabel: 'Recovery Time Objective (Hours)',
+                        snapshotTimestamp: 1704876900000,
+                        complianceFrameworks: [
+                            {
+                                controls: ['CP-2', 'CP-4'],
+                                framework: 'NIST'
+                            }
+                        ]
+                    },
+                    createdAt: '2024-01-12T16:00:00Z',
+                    updatedAt: '2024-01-12T16:00:00Z',
+                    evidenceCount: 1
+                }
+            ]
+            : (await api.get<RiskStory[]>(`/api/apps/${appId}/risks`)).data,
+
+    /** Get risks by field key */
+    getFieldRisks: async (appId: string, fieldKey: string): Promise<RiskStory[]> =>
+        USE_MOCK
+            ? [
+                {
+                    riskId: 'risk_001',
+                    appId,
+                    fieldKey,
+                    profileFieldId: 'pf_001',
+                    title: `Risk for ${fieldKey}`,
+                    description: `Security risk identified for field ${fieldKey}`,
+                    status: 'pending_evidence',
+                    severity: 'high',
+                    assignedSme: 'security_sme_001',
+                    createdBy: 'system',
+                    createdAt: new Date().toISOString(),
+                    updatedAt: new Date().toISOString(),
+                    evidenceCount: 0
+                }
+            ]
+            : (await api.get<RiskStory[]>(`/api/apps/${appId}/fields/${fieldKey}/risks`)).data,
+
+    /** Get risks by profile field ID */
+    getProfileFieldRisks: async (profileFieldId: string): Promise<RiskStory[]> =>
+        USE_MOCK
+            ? []
+            : (await api.get<RiskStory[]>(`/api/profile-fields/${profileFieldId}/risks`)).data,
+
+    /** Create new risk story */
+    createRisk: async (appId: string, fieldKey: string, payload: any): Promise<RiskStory> =>
+        USE_MOCK
+            ? {
+                riskId: 'risk_new_' + Date.now(),
+                appId,
+                fieldKey,
+                title: payload.title,
+                description: payload.description,
+                status: 'open',
+                severity: payload.severity || 'medium',
+                createdBy: 'current_user',
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
+                evidenceCount: 0,
+                ...payload
+            }
+            : (await api.post<RiskStory>(`/api/apps/${appId}/fields/${fieldKey}/risks`, payload)).data,
+
+    /** Attach evidence to risk */
+    attachEvidenceToRisk: async (riskId: string, payload: any): Promise<any> =>
+        USE_MOCK
+            ? { success: true, evidenceId: 'ev_' + Date.now() }
+            : (await api.post<any>(`/api/risks/${riskId}/evidence`, payload)).data,
+
+    /** Detach evidence from risk */
+    detachEvidenceFromRisk: async (riskId: string, evidenceId: string): Promise<any> =>
+        USE_MOCK
+            ? { success: true }
+            : (await api.delete<any>(`/api/risks/${riskId}/evidence/${evidenceId}`)).data,
 };

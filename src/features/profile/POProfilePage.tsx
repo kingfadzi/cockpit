@@ -19,6 +19,7 @@ import {
     Security as ProfileIcon,
     Contacts as ContactsIcon,
     Description as EvidenceIcon,
+    Warning as RiskIcon,
     ArrowBack as BackIcon,
     Home as HomeIcon,
 } from '@mui/icons-material';
@@ -27,14 +28,16 @@ import OverviewTab from './tabs/OverviewTab';
 import ProfileTab from './tabs/ProfileTab';
 import ContactsTab from './tabs/ContactsTab';
 import EvidenceTab from './tabs/EvidenceTab';
+import RisksTab from './tabs/RisksTab';
 
 const fmtDate = (iso?: string | null) => (iso ? new Date(iso).toLocaleDateString() : '—');
 
-type TabValue = 'overview' | 'profile' | 'contacts' | 'evidence';
+type TabValue = 'overview' | 'profile' | 'contacts' | 'evidence' | 'risks';
 
 const TAB_CONFIG = [
     { value: 'overview', label: 'Overview', icon: <OverviewIcon fontSize="small" /> },
     { value: 'profile', label: 'Profile', icon: <ProfileIcon fontSize="small" /> },
+    { value: 'risks', label: 'Risks', icon: <RiskIcon fontSize="small" /> },
     { value: 'evidence', label: 'Evidence', icon: <EvidenceIcon fontSize="small" /> },
     { value: 'contacts', label: 'Contacts', icon: <ContactsIcon fontSize="small" /> },
 ] as const;
@@ -102,9 +105,11 @@ export default function POProfilePage() {
             case 'overview':
                 return <OverviewTab appId={appId!} onTabChange={handleTabChangeFromChild} />;
             case 'profile':
-                return <ProfileTab profile={profile} appId={appId!} />;
+                return <ProfileTab profile={profile} appId={appId!} onTabChange={handleTabChangeFromChild} />;
             case 'evidence':
                 return <EvidenceTab appId={appId!} />;
+            case 'risks':
+                return <RisksTab appId={appId!} userRole="po" />;
             case 'contacts':
                 return <ContactsTab appId={appId!} />;
             default:

@@ -172,3 +172,70 @@ export const useDetachDocument = (appId: string, profileFieldId: string) => {
         },
     });
 };
+
+// Risk Management Hooks
+
+export const useRisk = (riskId: string) =>
+    useQuery({
+        queryKey: ['risk', riskId],
+        queryFn: () => endpoints.getRisk(riskId),
+        enabled: !!riskId,
+        ...commonQuery,
+    });
+
+export const useAppRisks = (appId: string) =>
+    useQuery({
+        queryKey: ['risks', appId],
+        queryFn: () => endpoints.getAppRisks(appId),
+        enabled: !!appId,
+        ...commonQuery,
+    });
+
+export const useFieldRisks = (appId: string, fieldKey: string) =>
+    useQuery({
+        queryKey: ['fieldRisks', appId, fieldKey],
+        queryFn: () => endpoints.getFieldRisks(appId, fieldKey),
+        enabled: !!appId && !!fieldKey,
+        ...commonQuery,
+    });
+
+export const useProfileFieldRisks = (profileFieldId: string) =>
+    useQuery({
+        queryKey: ['profileFieldRisks', profileFieldId],
+        queryFn: () => endpoints.getProfileFieldRisks(profileFieldId),
+        enabled: !!profileFieldId,
+        ...commonQuery,
+    });
+
+export const useCreateRisk = (appId: string, fieldKey: string) => {
+    const qc = useQueryClient();
+    return useMutation({
+        mutationFn: (payload: any) => endpoints.createRisk(appId, fieldKey, payload),
+        onSuccess: () => {
+            qc.invalidateQueries({ queryKey: ['risks', appId] });
+            qc.invalidateQueries({ queryKey: ['fieldRisks', appId, fieldKey] });
+        },
+    });
+};
+
+export const useAttachEvidenceToRisk = (riskId: string) => {
+    const qc = useQueryClient();
+    return useMutation({
+        mutationFn: (payload: any) => endpoints.attachEvidenceToRisk(riskId, payload),
+        onSuccess: () => {
+            qc.invalidateQueries({ queryKey: ['risk', riskId] });
+            qc.invalidateQueries({ queryKey: ['risks'] });
+        },
+    });
+};
+
+export const useDetachEvidenceFromRisk = (riskId: string) => {
+    const qc = useQueryClient();
+    return useMutation({
+        mutationFn: (evidenceId: string) => endpoints.detachEvidenceFromRisk(riskId, evidenceId),
+        onSuccess: () => {
+            qc.invalidateQueries({ queryKey: ['risk', riskId] });
+            qc.invalidateQueries({ queryKey: ['risks'] });
+        },
+    });
+};

@@ -38,7 +38,7 @@ import {
     CheckCircle as CheckCircleIcon,
 } from '@mui/icons-material';
 import { useAttachedDocuments, useAttachDocument, useDetachDocument, useSuggestedEvidence, useCreateDoc, useCreateEvidenceWithDocument } from '../../../api/hooks';
-import type { PolicyRequirement } from '../../../api/types';
+import type { PolicyRequirement, AttachDocumentResponse } from '../../../api/types';
 
 interface AttachEvidenceModalProps {
     open: boolean;
@@ -170,6 +170,11 @@ export default function AttachEvidenceModal({
 }: AttachEvidenceModalProps) {
     const [activeTab, setActiveTab] = useState(0);
     const [selectedDocuments, setSelectedDocuments] = useState<Set<string>>(new Set());
+    const [autoCreatedRisk, setAutoCreatedRisk] = useState<{
+        riskId: string;
+        assignedSme: string;
+        documentTitle: string;
+    } | null>(null);
     const calculateValidUntilForInit = () => {
         if (!policyRequirement?.ttl) return '';
         
@@ -237,15 +242,28 @@ export default function AttachEvidenceModal({
             // Detach document
             try {
                 await detachMutation.mutateAsync(doc.documentId);
+                setAutoCreatedRisk(null); // Clear any previous risk notification
             } catch (error) {
                 console.error('Failed to detach document:', error);
             }
         } else {
             // Attach document
             try {
-                await attachMutation.mutateAsync(doc.documentId);
+                const response: AttachDocumentResponse = await attachMutation.mutateAsync(doc.documentId);
+                
+                // Handle auto-risk creation
+                if (response.riskWasCreated && response.autoCreatedRiskId && response.assignedSme) {
+                    setAutoCreatedRisk({
+                        riskId: response.autoCreatedRiskId,
+                        assignedSme: response.assignedSme,
+                        documentTitle: doc.title
+                    });
+                } else {
+                    setAutoCreatedRisk(null);
+                }
             } catch (error) {
                 console.error('Failed to attach document:', error);
+                setAutoCreatedRisk(null);
             }
         }
     };
@@ -303,10 +321,15 @@ export default function AttachEvidenceModal({
                 }
             });
 
-            onClose();
+            handleClose();
         } catch (error) {
             console.error('Failed to create evidence:', error);
         }
+    };
+
+    const handleClose = () => {
+        setAutoCreatedRisk(null);
+        onClose();
     };
 
     const formatDate = (dateString: string) => {
@@ -318,13 +341,13 @@ export default function AttachEvidenceModal({
     };
 
     return (
-        <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
+        <Dialog open={open} onClose={handleClose} maxWidth="md" fullWidth>
             <DialogTitle>
                 <Stack direction="row" alignItems="center" justifyContent="space-between">
                     <Typography variant="h6">
                         Attach Evidence: {fieldLabel}
                     </Typography>
-                    <IconButton onClick={onClose} size="small">
+                    <IconButton onClick={handleClose} size="small">
                         <CloseIcon />
                     </IconButton>
                 </Stack>
@@ -668,6 +691,17 @@ export default function AttachEvidenceModal({
                     </Stack>
                 )}
 
+                {/* Auto-Risk Creation Success */}
+                {autoCreatedRisk && (
+                    <Alert severity="success" sx={{ mt: 2 }}>
+                        <strong>Security Risk Auto-Created!</strong>
+                        <br />
+                        Document "{autoCreatedRisk.documentTitle}" attached successfully. 
+                        A security risk has been automatically created (ID: {autoCreatedRisk.riskId}) 
+                        and assigned to {autoCreatedRisk.assignedSme} for review.
+                    </Alert>
+                )}
+
                 {/* Error Display */}
                 {(createEvidenceMutation.error || attachMutation.error || detachMutation.error) && (
                     <Alert severity="error" sx={{ mt: 2 }}>
@@ -677,7 +711,7 @@ export default function AttachEvidenceModal({
             </DialogContent>
 
             <DialogActions>
-                <Button onClick={onClose}>
+                <Button onClick={handleClose}>
                     Cancel
                 </Button>
                 

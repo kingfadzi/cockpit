@@ -150,4 +150,72 @@ export type AppKpis = {
 };
 
 export type RequirementsResponse = any; // unchanged for now
+
+export type AttachDocumentResponse = {
+  evidenceId: string;
+  appId: string;
+  profileFieldId: string;
+  documentId: string;
+  riskWasCreated: boolean;
+  autoCreatedRiskId?: string;
+  assignedSme?: string;
+};
+
+export type RiskStatus = 'open' | 'under_review' | 'pending_evidence' | 'resolved' | 'accepted' | 'rejected' | 'PENDING_SME_REVIEW' | 'SME_APPROVED' | 'SME_REJECTED';
+
+export type RiskSeverity = 'low' | 'medium' | 'high' | 'critical';
+
+export type RiskCreationType = 'MANUAL' | 'SYSTEM_AUTO_CREATION';
+
+export type PolicyRequirementSnapshot = {
+  fieldKey: string;
+  activeRule: {
+    ttl: string;
+    label: string;
+    value: string;
+    requiresReview: boolean;
+    // Dynamic rating fields based on the specific requirement type
+    security_rating?: string;
+    confidentiality_rating?: string;
+    availability_rating?: string;
+    integrity_rating?: string;
+    resilience_rating?: string;
+  };
+  fieldLabel: string;
+  snapshotTimestamp: number;
+  complianceFrameworks: Array<{
+    controls: string[];
+    framework: string;
+  }>;
+};
+
+export type RiskStory = {
+  riskId: string;
+  appId: string;
+  fieldKey?: string;
+  profileFieldId?: string;
+  triggeringEvidenceId?: string;
+  creationType: RiskCreationType;
+  assignedSme?: string;
+  title: string;
+  hypothesis: string;
+  condition: string;
+  consequence: string;
+  severity: RiskSeverity;
+  status: RiskStatus;
+  raisedBy: string;
+  openedAt: string;
+  assignedAt?: string;
+  policyRequirementSnapshot?: PolicyRequirementSnapshot;
+  createdAt: string;
+  updatedAt: string;
+  // Legacy fields for backward compatibility
+  description?: string;
+  createdBy?: string;
+  evidenceCount?: number;
+  lastReviewedAt?: string;
+  lastReviewedBy?: string;
+  resolution?: string;
+  dueDate?: string;
+};
 export type ReleaseItem = any;          // unchanged for now
