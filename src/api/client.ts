@@ -460,9 +460,9 @@ export const endpoints = {
             : (await api.get<RiskStory>(`/api/risks/${riskId}`)).data,
 
     /** Get all risks for application */
-    getAppRisks: async (appId: string): Promise<RiskStory[]> =>
-        USE_MOCK
-            ? [
+    getAppRisks: async (appId: string, page?: number, size?: number, filters?: { status?: string; severity?: string; assignedSme?: string; search?: string }): Promise<any> => {
+        if (USE_MOCK) {
+            const allRisks = [
                 {
                     riskId: 'risk_04c51349-ed55-43f5-afb5-93b69ac7a9eb',
                     appId,
@@ -580,8 +580,40 @@ export const endpoints = {
                     updatedAt: '2024-01-12T16:00:00Z',
                     evidenceCount: 1
                 }
-            ]
-            : (await api.get<RiskStory[]>(`/api/apps/${appId}/risks`)).data,
+            ];
+            
+            // Apply pagination
+            const pageNum = page || 1;
+            const pageSize = size || 10; // Changed default from 50 to 10
+            console.log('Mock pagination - page:', pageNum, 'size:', pageSize, 'received size param:', size);
+            const startIndex = (pageNum - 1) * pageSize;
+            const endIndex = startIndex + pageSize;
+            const paginatedItems = allRisks.slice(startIndex, endIndex);
+            console.log('Mock pagination result - startIndex:', startIndex, 'endIndex:', endIndex, 'items:', paginatedItems.length);
+            
+            return {
+                page: pageNum,
+                pageSize: pageSize,
+                total: allRisks.length,
+                items: paginatedItems
+            };
+        }
+        
+        const params: Record<string, string> = {
+            appId,
+            ...(page !== undefined && { page: page.toString() }),
+            ...(size !== undefined && { size: size.toString() })
+        };
+        
+        if (filters) {
+            if (filters.status) params.status = filters.status;
+            if (filters.severity) params.severity = filters.severity;
+            if (filters.assignedSme) params.assignedSme = filters.assignedSme;
+            if (filters.search) params.search = filters.search;
+        }
+        
+        return (await api.get<any>(`/api/risks/search`, { params })).data;
+    },
 
     /** Get risks by field key */
     getFieldRisks: async (appId: string, fieldKey: string): Promise<RiskStory[]> =>

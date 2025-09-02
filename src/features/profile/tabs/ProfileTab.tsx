@@ -11,15 +11,15 @@ import {
     GppGood as IntegrityIcon,
     AvTimer as AvailabilityIcon,
     Bolt as ResilienceIcon,
-    Description as ArtifactIcon,
+    Assessment as CriticalityIcon,
 } from '@mui/icons-material';
 import type { ProfileResponse, ProfileDomain } from '../../../api/types';
 import DomainTable from '../components/DomainTable';
 
-type DomainTabValue = 'artifact' | 'security_rating' | 'confidentiality_rating' | 'integrity_rating' | 'availability_rating' | 'resilience_rating';
+type DomainTabValue = 'app_criticality_assessment' | 'security_rating' | 'confidentiality_rating' | 'integrity_rating' | 'availability_rating' | 'resilience_rating';
 
 const DOMAIN_TAB_CONFIG = [
-    { value: 'artifact', label: 'Artifacts', icon: <ArtifactIcon fontSize="small" /> },
+    { value: 'app_criticality_assessment', label: 'Criticality', icon: <CriticalityIcon fontSize="small" /> },
     { value: 'security_rating', label: 'Security', icon: <SecurityIcon fontSize="small" /> },
     { value: 'confidentiality_rating', label: 'Confidentiality', icon: <SecurityIcon fontSize="small" /> },
     { value: 'integrity_rating', label: 'Integrity', icon: <IntegrityIcon fontSize="small" /> },
@@ -34,18 +34,17 @@ interface ProfileTabProps {
 }
 
 export default function ProfileTab({ profile, appId = '', onTabChange }: ProfileTabProps) {
-    // Filter out summary domain and get available domains
-    const availableDomains = profile.domains.filter(domain => 
-        domain.domainKey !== 'app_criticality' && domain.title.toLowerCase() !== 'summary'
-    );
+    // Get all available domains
+    const availableDomains = profile.domains;
 
-    // Find the first available domain as default
+    // Find the Summary domain first, then fallback to first available domain
+    const summaryDomain = availableDomains.find(domain => domain.domainKey === 'app_criticality_assessment');
     const firstAvailableDomain = availableDomains.find(domain => 
         DOMAIN_TAB_CONFIG.some(config => config.value === domain.domainKey)
     );
 
     const [activeDomainTab, setActiveDomainTab] = useState<DomainTabValue>(
-        firstAvailableDomain?.domainKey as DomainTabValue || 'artifact'
+        summaryDomain ? 'app_criticality_assessment' : (firstAvailableDomain?.domainKey as DomainTabValue || 'app_criticality_assessment')
     );
 
     const handleDomainTabChange = (_event: React.SyntheticEvent, newTab: DomainTabValue) => {

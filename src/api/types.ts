@@ -121,7 +121,8 @@ export type ProfileField = {
   label: string;
   policyRequirement: PolicyRequirement;
   evidence: Evidence[];
-  assurance: 'Current' | 'Expiring' | 'Expired' | 'Missing';
+  approvalStatus: 'approved' | 'pending' | 'rejected';
+  freshnessStatus: 'current' | 'expiring' | 'expired' | 'missing';
   risks: Risk[];
 };
 

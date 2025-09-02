@@ -11,6 +11,7 @@ import AppProfilePage from '../features/profile/AppProfilePage';
 
 import POProfilePage from '../features/profile/POProfilePage';
 import SecuritySmeView from '../features/sme/views/SecuritySmeView';
+import PendingReviewPage from '../features/profile/components/PendingReviewPage';
 
 export const router = createBrowserRouter([
   {
@@ -23,6 +24,9 @@ export const router = createBrowserRouter([
 
       // ⬇️ simplified: one page, no nested routes
       { path: 'po/apps/:appId', element: <POProfilePage /> },
+      
+      // KPI drill-down pages
+      { path: 'po/apps/:appId/pending-review', element: <PendingReviewPage /> },
 
       { path: 'sme', element: <SMEHome /> },
       { path: 'sme/security', element: <SecuritySmeView /> },

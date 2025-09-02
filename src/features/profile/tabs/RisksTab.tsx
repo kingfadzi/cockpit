@@ -23,6 +23,7 @@ import {
     TableContainer,
     TableHead,
     TableRow,
+    TablePagination,
     IconButton,
     Tooltip,
     InputAdornment,
@@ -66,6 +67,8 @@ export default function RisksTab({ appId, userRole = 'po' }: RisksTabProps) {
     const [statusFilter, setStatusFilter] = useState<string>('');
     const [severityFilter, setSeverityFilter] = useState<string>('');
     const [smeFilter, setSmeFilter] = useState<string>('');
+    const [page, setPage] = useState(0);
+    const [rowsPerPage, setRowsPerPage] = useState(5);
     const [newRisk, setNewRisk] = useState<CreateRiskForm>({
         title: '',
         description: '',
@@ -74,45 +77,25 @@ export default function RisksTab({ appId, userRole = 'po' }: RisksTabProps) {
         assignedSme: ''
     });
 
+    // Build filters object
+    const filters = {
+        ...(searchTerm && { search: searchTerm }),
+        ...(statusFilter && { status: statusFilter }),
+        ...(severityFilter && { severity: severityFilter }),
+        ...(smeFilter && { assignedSme: smeFilter === 'UNASSIGNED' ? '' : smeFilter })
+    };
+
     // API hooks
-    const { data: allRisks = [], isLoading, error } = useAppRisks(appId);
+    const { data: risksData, isLoading, error } = useAppRisks(appId, page + 1, rowsPerPage, Object.keys(filters).length > 0 ? filters : undefined);
     const createRiskMutation = useCreateRisk(appId, newRisk.fieldKey);
+    
+    const risks = risksData?.items || [];
+    const totalRisks = risksData?.total || 0;
 
-    // Filtered and searched risks
-    const risks = useMemo(() => {
-        let filtered = allRisks;
-
-        // Apply search filter
-        if (searchTerm) {
-            filtered = filtered.filter(risk =>
-                risk.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                risk.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                risk.assignedSme?.toLowerCase().includes(searchTerm.toLowerCase())
-            );
-        }
-
-        // Apply status filter
-        if (statusFilter) {
-            filtered = filtered.filter(risk => risk.status === statusFilter);
-        }
-
-        // Apply severity filter
-        if (severityFilter) {
-            filtered = filtered.filter(risk => risk.severity === severityFilter);
-        }
-
-        // Apply SME filter
-        if (smeFilter) {
-            filtered = filtered.filter(risk => risk.assignedSme === smeFilter);
-        }
-
-        return filtered;
-    }, [allRisks, searchTerm, statusFilter, severityFilter, smeFilter]);
-
-    // Get unique SMEs for filter dropdown
+    // Get unique SMEs for filter dropdown from current page results
     const uniqueSmes = useMemo(() => {
-        return Array.from(new Set(allRisks.map(r => r.assignedSme).filter(Boolean))).sort();
-    }, [allRisks]);
+        return Array.from(new Set(risks.map(r => r.assignedSme).filter(Boolean))).sort();
+    }, [risks]);
 
     const handleCreateRisk = async () => {
         if (!newRisk.title || !newRisk.description || !newRisk.fieldKey) {
@@ -158,6 +141,8 @@ export default function RisksTab({ appId, userRole = 'po' }: RisksTabProps) {
 
     // Helper function to extract and format the dynamic rating field
     const getRatingInfo = (activeRule: any) => {
+        if (!activeRule) return null;
+        
         const ratingFields = [
             'security_rating',
             'confidentiality_rating', 
@@ -189,7 +174,9 @@ export default function RisksTab({ appId, userRole = 'po' }: RisksTabProps) {
         }
         
         const openedDate = new Date(risk.openedAt);
-        const ttl = risk.policyRequirementSnapshot.activeRule.ttl;
+        const activeRule = risk.policyRequirementSnapshot?.activeRule;
+        if (!activeRule?.ttl) return null;
+        const ttl = activeRule.ttl;
         
         // Parse TTL (e.g., "90d", "1y", "30d")
         const ttlMatch = ttl.match(/^(\d+)([dy])$/);
@@ -228,12 +215,7 @@ export default function RisksTab({ appId, userRole = 'po' }: RisksTabProps) {
     };
 
     const formatStatusLabel = (status: RiskStatus) => {
-        switch (status) {
-            case 'PENDING_SME_REVIEW': return 'PENDING REVIEW';
-            case 'SME_APPROVED': return 'APPROVED';
-            case 'SME_REJECTED': return 'REJECTED';
-            default: return status.replace('_', ' ').toUpperCase();
-        }
+        return status;
     };
 
     const getRiskSeverityColor = (severity: RiskSeverity) => {
@@ -251,6 +233,28 @@ export default function RisksTab({ appId, userRole = 'po' }: RisksTabProps) {
         setStatusFilter('');
         setSeverityFilter('');
         setSmeFilter('');
+        setPage(0);
+    };
+
+    // Filter change handlers that reset pagination
+    const handleSearchChange = (newSearchTerm: string) => {
+        setSearchTerm(newSearchTerm);
+        setPage(0);
+    };
+
+    const handleStatusFilterChange = (newStatus: string) => {
+        setStatusFilter(newStatus);
+        setPage(0);
+    };
+
+    const handleSeverityFilterChange = (newSeverity: string) => {
+        setSeverityFilter(newSeverity);
+        setPage(0);
+    };
+
+    const handleSmeFilterChange = (newSme: string) => {
+        setSmeFilter(newSme);
+        setPage(0);
     };
 
     return (
@@ -258,14 +262,9 @@ export default function RisksTab({ appId, userRole = 'po' }: RisksTabProps) {
             {/* Header */}
             <Stack direction="row" alignItems="center" justifyContent="space-between">
                 <Stack>
-                    <Stack direction="row" alignItems="center" spacing={2}>
-                        <Typography variant="h6" fontWeight={700}>
-                            Risk Stories
-                        </Typography>
-                        {risks.length !== allRisks.length && (
-                            <Chip size="small" label={`${risks.length} of ${allRisks.length}`} variant="outlined" />
-                        )}
-                    </Stack>
+                    <Typography variant="h6" fontWeight={700}>
+                        Risk Stories
+                    </Typography>
                     <Typography variant="body2" color="text.secondary">
                         Security and compliance risks identified for {appId}
                     </Typography>
@@ -289,7 +288,7 @@ export default function RisksTab({ appId, userRole = 'po' }: RisksTabProps) {
                         <TextField
                             placeholder="Search risks..."
                             value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
+                            onChange={(e) => handleSearchChange(e.target.value)}
                             size="small"
                             fullWidth
                             InputProps={{
@@ -307,7 +306,7 @@ export default function RisksTab({ appId, userRole = 'po' }: RisksTabProps) {
                             <Select
                                 value={statusFilter}
                                 label="Status"
-                                onChange={(e) => setStatusFilter(e.target.value)}
+                                onChange={(e) => handleStatusFilterChange(e.target.value)}
                             >
                                 <MenuItem value="">All</MenuItem>
                                 <MenuItem value="open">Open</MenuItem>
@@ -328,7 +327,7 @@ export default function RisksTab({ appId, userRole = 'po' }: RisksTabProps) {
                             <Select
                                 value={severityFilter}
                                 label="Severity"
-                                onChange={(e) => setSeverityFilter(e.target.value)}
+                                onChange={(e) => handleSeverityFilterChange(e.target.value)}
                             >
                                 <MenuItem value="">All</MenuItem>
                                 <MenuItem value="critical">Critical</MenuItem>
@@ -344,10 +343,10 @@ export default function RisksTab({ appId, userRole = 'po' }: RisksTabProps) {
                             <Select
                                 value={smeFilter}
                                 label="Assigned SME"
-                                onChange={(e) => setSmeFilter(e.target.value)}
+                                onChange={(e) => handleSmeFilterChange(e.target.value)}
                             >
                                 <MenuItem value="">All</MenuItem>
-                                <MenuItem value="">Unassigned</MenuItem>
+                                <MenuItem value="UNASSIGNED">Unassigned</MenuItem>
                                 {uniqueSmes.map((sme) => (
                                     <MenuItem key={sme} value={sme}>
                                         {sme}
@@ -382,15 +381,12 @@ export default function RisksTab({ appId, userRole = 'po' }: RisksTabProps) {
                 <Paper variant="outlined" sx={{ p: 6, textAlign: 'center', borderRadius: 3 }}>
                     <WarningIcon sx={{ fontSize: 64, color: 'text.disabled', mb: 3 }} />
                     <Typography variant="h6" color="text.secondary" gutterBottom>
-                        {allRisks.length === 0 ? 'No Risk Stories' : 'No Matching Risks'}
+                        No Risk Stories
                     </Typography>
                     <Typography variant="body2" color="text.secondary" sx={{ mb: 3, maxWidth: 400, mx: 'auto' }}>
-                        {allRisks.length === 0 
-                            ? 'No security or compliance risks have been identified for this application yet.'
-                            : 'No risks match your current search and filter criteria.'
-                        }
+                        No security or compliance risks have been identified for this application yet.
                     </Typography>
-                    {allRisks.length === 0 && userRole === 'po' && (
+                    {userRole === 'po' && (
                         <Button
                             variant="contained"
                             size="large"
@@ -398,14 +394,6 @@ export default function RisksTab({ appId, userRole = 'po' }: RisksTabProps) {
                             onClick={() => setCreateDialogOpen(true)}
                         >
                             Create First Risk
-                        </Button>
-                    )}
-                    {allRisks.length > 0 && (
-                        <Button
-                            variant="outlined"
-                            onClick={clearFilters}
-                        >
-                            Clear Filters
                         </Button>
                     )}
                 </Paper>
@@ -502,6 +490,18 @@ export default function RisksTab({ appId, userRole = 'po' }: RisksTabProps) {
                             </TableBody>
                         </Table>
                     </TableContainer>
+                    <TablePagination
+                        component="div"
+                        count={totalRisks}
+                        page={page}
+                        onPageChange={(event, newPage) => setPage(newPage)}
+                        rowsPerPage={rowsPerPage}
+                        onRowsPerPageChange={(event) => {
+                            setRowsPerPage(parseInt(event.target.value, 10));
+                            setPage(0);
+                        }}
+                        rowsPerPageOptions={[5, 10, 25, 50]}
+                    />
                 </Paper>
             )}
 
@@ -609,7 +609,7 @@ export default function RisksTab({ appId, userRole = 'po' }: RisksTabProps) {
                                                     <Grid item xs={6}>
                                                         <Typography variant="subtitle2" sx={{ mb: 0.5 }}>Requirement</Typography>
                                                         <Typography variant="body2">
-                                                            {selectedRisk.policyRequirementSnapshot.activeRule.label}
+                                                            {selectedRisk.policyRequirementSnapshot?.activeRule?.label || selectedRisk.policyRequirementSnapshot?.activeRule?.value || '—'}
                                                         </Typography>
                                                     </Grid>
                                                     <Grid item xs={6}>

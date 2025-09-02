@@ -37,7 +37,7 @@ import {
     Add as AddIcon,
     CheckCircle as CheckCircleIcon,
 } from '@mui/icons-material';
-import { useAttachedDocuments, useAttachDocument, useDetachDocument, useSuggestedEvidence, useCreateDoc, useCreateEvidenceWithDocument } from '../../../api/hooks';
+import { useAttachedDocuments, useAttachDocument, useDetachDocument, useSuggestedEvidence, useCreateDoc, useCreateEvidenceWithDocument, useProfileFieldEvidence } from '../../../api/hooks';
 import type { PolicyRequirement, AttachDocumentResponse } from '../../../api/types';
 
 interface AttachEvidenceModalProps {
@@ -208,6 +208,7 @@ export default function AttachEvidenceModal({
 
     // API hooks
     const { data: attachedData, isLoading: loadingAttached } = useAttachedDocuments(appId, profileFieldId);
+    const { data: evidenceData, isLoading: loadingEvidence } = useProfileFieldEvidence(profileFieldId);
     const { data: suggestedData, isLoading: loadingSuggested } = useSuggestedEvidence(appId, fieldKey);
     const attachMutation = useAttachDocument(appId, profileFieldId);
     const detachMutation = useDetachDocument(appId, profileFieldId);
@@ -369,11 +370,11 @@ export default function AttachEvidenceModal({
                             Documents currently attached to this field
                         </Typography>
 
-                        {loadingAttached ? (
+                        {loadingAttached || loadingEvidence ? (
                             <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
                                 <CircularProgress />
                             </Box>
-                        ) : enrichedAttachedDocuments.length === 0 ? (
+                        ) : !evidenceData?.items || evidenceData.items.length === 0 ? (
                             <Alert severity="info">
                                 No documents are currently attached to this field.
                             </Alert>
@@ -383,21 +384,22 @@ export default function AttachEvidenceModal({
                                     <TableHead>
                                         <TableRow>
                                             <TableCell sx={{ minWidth: 200 }}>Document</TableCell>
-                                            <TableCell sx={{ minWidth: 100 }}>Source</TableCell>
-                                            <TableCell sx={{ minWidth: 150 }}>Related Fields</TableCell>
-                                            <TableCell sx={{ minWidth: 100 }}>Last Updated</TableCell>
+                                            <TableCell sx={{ minWidth: 100 }}>Source Type</TableCell>
                                             <TableCell sx={{ minWidth: 120 }}>Valid Until</TableCell>
+                                            <TableCell sx={{ minWidth: 120 }}>Link Status</TableCell>
+                                            <TableCell sx={{ minWidth: 100 }}>Health</TableCell>
                                             <TableCell align="center" sx={{ minWidth: 100 }}>Actions</TableCell>
                                         </TableRow>
                                     </TableHead>
                                     <TableBody>
-                                        {enrichedAttachedDocuments.map((doc: any) => (
-                                            <TableRow key={doc.documentId} hover>
+                                        {evidenceData?.items?.map((evidence: any) => {
+                                            return (
+                                            <TableRow key={evidence.evidenceId} hover>
                                                 <TableCell>
                                                     <Stack direction="row" alignItems="center" spacing={1}>
                                                         <DocumentIcon fontSize="small" />
                                                         <MUILink
-                                                            href={doc.canonicalUrl || doc.url}
+                                                            href={evidence.uri}
                                                             target="_blank"
                                                             rel="noopener noreferrer"
                                                             sx={{ 
@@ -406,7 +408,7 @@ export default function AttachEvidenceModal({
                                                                 '&:hover': { textDecoration: 'underline' }
                                                             }}
                                                         >
-                                                            {doc.title}
+                                                            {evidence.documentTitle || 'Untitled Document'}
                                                             <OpenInNewIcon sx={{ ml: 0.5, fontSize: '0.75rem' }} />
                                                         </MUILink>
                                                     </Stack>
@@ -414,75 +416,59 @@ export default function AttachEvidenceModal({
                                                 <TableCell>
                                                     <Chip 
                                                         size="small" 
-                                                        label={doc.sourceType || doc.sourceSystem || 'Unknown'}
+                                                        label={evidence.documentSourceType || 'Unknown'}
                                                         variant="outlined"
                                                     />
                                                 </TableCell>
                                                 <TableCell>
-                                                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                                                        {doc.relatedEvidenceFields?.length > 0 ? (
-                                                            <>
-                                                                {doc.relatedEvidenceFields.slice(0, 2).map((field: string) => (
-                                                                    <Chip 
-                                                                        key={field} 
-                                                                        size="small" 
-                                                                        label={field} 
-                                                                        sx={{ bgcolor: 'primary.50', color: 'primary.main' }}
-                                                                    />
-                                                                ))}
-                                                                {doc.relatedEvidenceFields.length > 2 && (
-                                                                    <Chip 
-                                                                        size="small" 
-                                                                        label={`+${doc.relatedEvidenceFields.length - 2}`}
-                                                                        variant="outlined"
-                                                                    />
-                                                                )}
-                                                            </>
-                                                        ) : (
-                                                            <Typography variant="body2" color="text.secondary">
-                                                                —
-                                                            </Typography>
-                                                        )}
-                                                    </Box>
+                                                    {evidence.validUntil ? (
+                                                        <Typography variant="body2">
+                                                            {formatDate(evidence.validUntil)}
+                                                        </Typography>
+                                                    ) : (
+                                                        <Typography variant="body2" color="text.secondary">—</Typography>
+                                                    )}
                                                 </TableCell>
                                                 <TableCell>
-                                                    {doc.latestVersion ? formatDate(doc.latestVersion.sourceDate) : 
-                                                     doc.attachedAt ? formatDate(doc.attachedAt) : '—'}
+                                                    {evidence.linkStatus ? (
+                                                        <Chip
+                                                            size="small"
+                                                            label={evidence.linkStatus.replace('_', ' ')}
+                                                            color={evidence.linkStatus === 'PENDING_REVIEW' ? 'warning' : 'default'}
+                                                            variant="outlined"
+                                                        />
+                                                    ) : (
+                                                        <Typography variant="body2" color="text.secondary">—</Typography>
+                                                    )}
                                                 </TableCell>
                                                 <TableCell>
-                                                    {(() => {
-                                                        const { status, validUntil } = getValidationStatus(doc.latestVersion?.sourceDate, policyRequirement.ttl);
-                                                        
-                                                        if (!validUntil) {
-                                                            return <Typography variant="body2" color="text.secondary">—</Typography>;
-                                                        }
-                                                        
-                                                        const color = status === 'valid' ? 'success' : 
-                                                                     status === 'expiring' ? 'warning' : 'error';
-                                                        
-                                                        return (
-                                                            <Chip
-                                                                size="small"
-                                                                color={color}
-                                                                variant="outlined"
-                                                                label={formatDate(validUntil.toISOString())}
-                                                            />
-                                                        );
-                                                    })()}
+                                                    {evidence.documentLinkHealth === 200 ? (
+                                                        <CheckCircleIcon color="success" fontSize="small" />
+                                                    ) : evidence.documentLinkHealth ? (
+                                                        <Chip
+                                                            size="small"
+                                                            label={evidence.documentLinkHealth}
+                                                            color={evidence.documentLinkHealth >= 400 ? 'error' : 'warning'}
+                                                            variant="outlined"
+                                                        />
+                                                    ) : (
+                                                        <Typography variant="body2" color="text.secondary">—</Typography>
+                                                    )}
                                                 </TableCell>
                                                 <TableCell align="center">
                                                     <Button
                                                         size="small"
                                                         color="error"
                                                         variant="outlined"
-                                                        onClick={() => handleToggleDocument(doc)}
+                                                        onClick={() => handleToggleDocument({ documentId: evidence.documentId })}
                                                         disabled={detachMutation.isPending}
                                                     >
                                                         Detach
                                                     </Button>
                                                 </TableCell>
                                             </TableRow>
-                                        ))}
+                                        )
+                                        })}
                                     </TableBody>
                                 </Table>
                             </TableContainer>
@@ -513,8 +499,8 @@ export default function AttachEvidenceModal({
                                             <TableCell sx={{ minWidth: 200 }}>Document</TableCell>
                                             <TableCell sx={{ minWidth: 100 }}>Source</TableCell>
                                             <TableCell sx={{ minWidth: 150 }}>Related Fields</TableCell>
-                                            <TableCell sx={{ minWidth: 100 }}>Last Updated</TableCell>
-                                            <TableCell sx={{ minWidth: 120 }}>Valid Until</TableCell>
+                                            <TableCell sx={{ minWidth: 100 }}>Health</TableCell>
+                                            <TableCell sx={{ minWidth: 120 }}>Source Date</TableCell>
                                             <TableCell align="center" sx={{ minWidth: 100 }}>Actions</TableCell>
                                         </TableRow>
                                     </TableHead>
@@ -566,28 +552,21 @@ export default function AttachEvidenceModal({
                                                     </Box>
                                                 </TableCell>
                                                 <TableCell>
-                                                    {doc.latestVersion ? formatDate(doc.latestVersion.sourceDate) : '—'}
+                                                    {doc.linkHealth === 200 ? (
+                                                        <CheckCircleIcon color="success" fontSize="small" />
+                                                    ) : doc.linkHealth ? (
+                                                        <Chip
+                                                            size="small"
+                                                            label={doc.linkHealth}
+                                                            color={doc.linkHealth >= 400 ? 'error' : 'warning'}
+                                                            variant="outlined"
+                                                        />
+                                                    ) : (
+                                                        <Typography variant="body2" color="text.secondary">—</Typography>
+                                                    )}
                                                 </TableCell>
                                                 <TableCell>
-                                                    {(() => {
-                                                        const { status, validUntil } = getValidationStatus(doc.latestVersion?.sourceDate, policyRequirement.ttl);
-                                                        
-                                                        if (!validUntil) {
-                                                            return <Typography variant="body2" color="text.secondary">—</Typography>;
-                                                        }
-                                                        
-                                                        const color = status === 'valid' ? 'success' : 
-                                                                     status === 'expiring' ? 'warning' : 'error';
-                                                        
-                                                        return (
-                                                            <Chip
-                                                                size="small"
-                                                                color={color}
-                                                                variant="outlined"
-                                                                label={formatDate(validUntil.toISOString())}
-                                                            />
-                                                        );
-                                                    })()}
+                                                    {doc.latestVersion?.sourceDate ? formatDate(doc.latestVersion.sourceDate) : '—'}
                                                 </TableCell>
                                                 <TableCell align="center">
                                                     <Button

@@ -33,10 +33,13 @@ import {
     ReportProblem as RiskIcon,
     Description as DefaultIcon,
     Close as CloseIcon,
+    VerifiedUser as AttestationIcon,
 } from '@mui/icons-material';
 import type { ProfileDomain, ProfileField, PolicyRequirement } from '../../../api/types';
 import { useAuditEvents, useAuditCount } from '../../../api/hooks';
 import AttachEvidenceModal from './AttachEvidenceModal';
+import FieldRisksModal from './FieldRisksModal';
+import AttestationListModal from './AttestationListModal';
 
 const ICON_MAP: Record<string, React.ReactElement> = {
     SecurityIcon: <SecurityIcon fontSize="small" />,
@@ -54,10 +57,12 @@ interface DomainTableProps {
 }
 
 function FieldRow({ field, appId, onTabChange }: { field: ProfileField; appId: string; onTabChange?: (tab: string) => void }) {
-    const { label, policyRequirement, evidence, assurance, risks, fieldKey, profileFieldId } = field;
+    const { label, policyRequirement, evidence, approvalStatus, freshnessStatus, risks, attestations, fieldKey, profileFieldId } = field as any;
     const activeEvidence = evidence.find((e) => e.status === 'active');
     const [attachModalOpen, setAttachModalOpen] = useState(false);
     const [historyModalOpen, setHistoryModalOpen] = useState(false);
+    const [risksModalOpen, setRisksModalOpen] = useState(false);
+    const [attestationsModalOpen, setAttestationsModalOpen] = useState(false);
     const [auditPage, setAuditPage] = useState(0);
 
     // Fetch audit events for this profile field
@@ -73,6 +78,20 @@ function FieldRow({ field, appId, onTabChange }: { field: ProfileField; appId: s
     const { data: auditCount } = useAuditCount(appId, profileFieldId);
 
     const auditEvents = auditData?.content || [];
+
+    // Helper function to determine attestation button color
+    const getAttestationColor = (attestations: any[]) => {
+        if (!attestations?.length) return 'inherit';
+        
+        const allAttested = attestations.every((att: any) => att.status === 'attested');
+        const hasExpired = attestations.some((att: any) => att.status === 'expired');
+        const hasPending = attestations.some((att: any) => att.status === 'pending' || !att.status);
+        
+        if (allAttested) return 'success';
+        if (hasExpired) return 'error';
+        if (hasPending) return 'warning';
+        return 'inherit';
+    };
 
     // Helper function to parse audit event details and extract document info
     const parseAuditEventDetails = (event: any) => {
@@ -187,20 +206,19 @@ function FieldRow({ field, appId, onTabChange }: { field: ProfileField; appId: s
                     </Tooltip>
                 </TableCell>
                 <TableCell>
-                    {activeEvidence ? (
-                        <Chip size="small" color="success" variant="outlined" label="Approved" />
-                    ) : evidence.length > 0 ? (
-                        <Chip size="small" color="default" variant="outlined" label="No active" />
-                    ) : (
-                        <Chip size="small" color="error" variant="outlined" label="No evidence" />
-                    )}
+                    <Chip
+                        size="small"
+                        color={approvalStatus === 'approved' ? 'success' : approvalStatus === 'pending' ? 'warning' : 'error'}
+                        variant="outlined"
+                        label={approvalStatus ? approvalStatus.charAt(0).toUpperCase() + approvalStatus.slice(1) : '—'}
+                    />
                 </TableCell>
                 <TableCell>
                     <Chip
                         size="small"
-                        color={assurance === 'Current' ? 'success' : assurance === 'Expiring' ? 'warning' : 'error'}
+                        color={freshnessStatus === 'current' ? 'success' : freshnessStatus === 'expiring' ? 'warning' : 'error'}
                         variant="outlined"
-                        label={assurance}
+                        label={freshnessStatus ? freshnessStatus.charAt(0).toUpperCase() + freshnessStatus.slice(1) : '—'}
                     />
                 </TableCell>
                 <TableCell>
@@ -210,9 +228,24 @@ function FieldRow({ field, appId, onTabChange }: { field: ProfileField; appId: s
                             color="error"
                             variant="text"
                             startIcon={<RiskIcon fontSize="small" />}
-                            onClick={() => onTabChange?.('risks')}
+                            onClick={() => setRisksModalOpen(true)}
                         >
                             {risks.length}
+                        </Button>
+                    ) : (
+                        <Typography variant="caption" color="text.secondary">—</Typography>
+                    )}
+                </TableCell>
+                <TableCell>
+                    {attestations?.length ? (
+                        <Button
+                            size="small"
+                            color={getAttestationColor(attestations)}
+                            variant="text"
+                            startIcon={<AttestationIcon fontSize="small" />}
+                            onClick={() => setAttestationsModalOpen(true)}
+                        >
+                            {attestations.length}
                         </Button>
                     ) : (
                         <Typography variant="caption" color="text.secondary">—</Typography>
@@ -373,6 +406,23 @@ function FieldRow({ field, appId, onTabChange }: { field: ProfileField; appId: s
                     </Button>
                 </DialogActions>
             </Dialog>
+            
+            {/* Field Risks Modal */}
+            <FieldRisksModal
+                open={risksModalOpen}
+                onClose={() => setRisksModalOpen(false)}
+                fieldLabel={label}
+                risks={risks}
+            />
+            
+            {/* Attestations Modal */}
+            <AttestationListModal
+                open={attestationsModalOpen}
+                onClose={() => setAttestationsModalOpen(false)}
+                fieldLabel={label}
+                attestations={attestations || []}
+                profileFieldId={profileFieldId}
+            />
         </>
     );
 }
@@ -382,10 +432,10 @@ export default function DomainTable({ domain, appId, onTabChange }: DomainTableP
 
     const coverage = useMemo(() => {
         let cur = 0, exp = 0, expd = 0, miss = 0;
-        fields.forEach((field) => {
-            if (field.assurance === 'Current') cur++;
-            else if (field.assurance === 'Expiring') exp++;
-            else if (field.assurance === 'Expired') expd++;
+        fields.forEach((field: any) => {
+            if (field.freshnessStatus === 'current') cur++;
+            else if (field.freshnessStatus === 'expiring') exp++;
+            else if (field.freshnessStatus === 'expired') expd++;
             else miss++;
         });
         const total = fields.length || 1;
@@ -423,9 +473,10 @@ export default function DomainTable({ domain, appId, onTabChange }: DomainTableP
                         <TableRow>
                             <TableCell sx={{ minWidth: 140 }}>Property</TableCell>
                             <TableCell sx={{ minWidth: 120 }}>Requirement</TableCell>
-                            <TableCell sx={{ minWidth: 100 }}>Status</TableCell>
-                            <TableCell sx={{ minWidth: 100 }}>Assurance</TableCell>
+                            <TableCell sx={{ minWidth: 100 }}>Approval</TableCell>
+                            <TableCell sx={{ minWidth: 100 }}>Freshness</TableCell>
                             <TableCell sx={{ minWidth: 80 }}>Risks</TableCell>
+                            <TableCell sx={{ minWidth: 80 }}>Attestations</TableCell>
                             <TableCell align="right" sx={{ minWidth: 140 }}>Actions</TableCell>
                         </TableRow>
                     </TableHead>
