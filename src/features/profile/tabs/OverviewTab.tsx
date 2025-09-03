@@ -11,6 +11,7 @@ import {
     Launch as LaunchIcon,
     Settings as ProfileIcon 
 } from '@mui/icons-material';
+import { useNavigate } from 'react-router-dom';
 import { useApp, useAppKpis } from '../../../api/hooks';
 import EnhancedBusinessInfoCard from '../components/EnhancedBusinessInfoCard';
 import ComplianceOverview from '../components/ComplianceOverview';
@@ -21,6 +22,7 @@ interface OverviewTabProps {
 }
 
 export default function OverviewTab({ appId, onTabChange }: OverviewTabProps) {
+    const navigate = useNavigate();
     const { data: app, isLoading: appLoading, error: appError } = useApp(appId);
     const { data: kpis, isLoading: kpisLoading, error: kpisError } = useAppKpis(appId);
     
@@ -32,11 +34,16 @@ export default function OverviewTab({ appId, onTabChange }: OverviewTabProps) {
     };
 
     const handleKpiClick = (kpiType: string) => {
-        // Navigate to Profile tab with focus on relevant domains
-        if (onTabChange) {
-            onTabChange('profile');
+        if (kpiType === 'pendingReview') {
+            // Navigate to the redesigned pending review page
+            navigate(`/po/apps/${appId}/pending-review`);
+        } else {
+            // Navigate to Profile tab with focus on relevant domains for other KPIs
+            if (onTabChange) {
+                onTabChange('profile');
+            }
+            console.log('Navigate to profile for KPI:', kpiType);
         }
-        console.log('Navigate to profile for KPI:', kpiType);
     };
 
     const handleViewProfileDetails = () => {
@@ -94,7 +101,7 @@ export default function OverviewTab({ appId, onTabChange }: OverviewTabProps) {
                         <Button 
                             color="inherit" 
                             size="small" 
-                            onClick={() => handleKpiClick('missingEvidence')}
+                            onClick={() => handleKpiClick('pendingReview')}
                             variant="outlined"
                         >
                             Take Action
