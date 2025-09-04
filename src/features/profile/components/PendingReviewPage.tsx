@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import { useParams } from 'react-router-dom';
+import { useProfile } from '../../../api/hooks';
 import {
     Alert,
     Avatar,
@@ -86,32 +88,32 @@ type PendingReview = {
     blocksOtherFields: string[];
 };
 
-// Mock data focused on compliance posture
-const COMPLIANCE_SCORE = 78; // Current app compliance score
-const COMPLIANCE_TREND = 'up'; // 'up' | 'down' | 'stable'
-const SCORE_CHANGE = '+5'; // Points change this month
+// Mock data focused on compliance posture - based on APM100001 real data
+const COMPLIANCE_SCORE = 37; // Current app compliance score (0 compliant out of 68 total fields)
+const COMPLIANCE_TREND = 'down'; // 'up' | 'down' | 'stable'  
+const SCORE_CHANGE = '-8'; // Points change this month
 
 const COMPLIANCE_IMPACTS: ComplianceImpact[] = [
     {
         certificationName: 'SOC2 Type II Renewal',
         riskLevel: 'critical',
-        daysToDeadline: 28,
-        customerImpact: '3 enterprise deals worth $2.1M waiting on certification',
-        businessValue: 'Enables expansion into regulated industries'
-    },
-    {
-        certificationName: 'ISO 27001 Annual Review',
-        riskLevel: 'high',
         daysToDeadline: 45,
-        customerImpact: 'Required for European customer contracts',
-        businessValue: 'Maintains competitive advantage in EU market'
+        customerImpact: 'Trading system certification at risk - 43 controls pending SME review',
+        businessValue: 'Enables continued operations in regulated environments'
     },
     {
-        certificationName: 'GDPR Compliance Audit',
+        certificationName: 'Internal Security Review',
+        riskLevel: 'high',
+        daysToDeadline: 30,
+        customerImpact: '25 risk-blocked fields affecting security posture',
+        businessValue: 'Required for Criticality A application compliance'
+    },
+    {
+        certificationName: 'Architecture Governance',
         riskLevel: 'medium',
-        daysToDeadline: 60,
-        customerImpact: 'Affects data processing agreements with 12 customers',
-        businessValue: 'Avoids €20M potential regulatory fines'
+        daysToDeadline: 90,
+        customerImpact: 'Service architecture and product vision reviews pending',
+        businessValue: 'Maintains technical debt management and roadmap alignment'
     }
 ];
 
@@ -119,105 +121,134 @@ const ACTION_SIGNALS: ActionSignal[] = [
     {
         signalId: 'critical_001',
         type: 'critical_path',
-        title: 'Encryption Review Blocks SOC2',
-        description: 'This field is on the critical path for SOC2 renewal - delays here cascade to other reviews',
-        effort: 'low',
+        title: 'Architecture Vision Blocking Multiple Reviews',
+        description: 'Architecture vision review is blocking service and product vision approvals for this Criticality A app',
+        effort: 'medium',
         impact: 'critical',
-        recommendedAction: 'Provide AWS console screenshots showing encryption enabled',
-        timeToResolve: '2 hours',
-        successStory: 'App "TradingPlatform" used similar evidence and got approved in 1 day'
+        recommendedAction: 'Upload consolidated architecture documentation to address SME feedback',
+        timeToResolve: '3-5 days',
+        successStory: 'Similar trading apps expedited reviews by providing detailed architecture diagrams'
     },
     {
         signalId: 'quickwin_001',
         type: 'quick_win',
-        title: 'Reuse Backup Evidence from ProdApp',
-        description: 'Your backup strategy is identical to ProdApp which was recently approved',
+        title: 'Batch Security Field Reviews',
+        description: '12 security fields have evidence submitted but are awaiting the same security analyst review',
         effort: 'low',
-        impact: 'medium',
-        recommendedAction: 'Copy evidence from ProdApp and reference their approval',
-        timeToResolve: '30 minutes'
+        impact: 'high',
+        recommendedAction: 'Request batch review from security_analyst_001 who already submitted attestations',
+        timeToResolve: '2-3 days'
     },
     {
         signalId: 'escalation_001',
         type: 'escalation_needed',
-        title: 'Data Retention Review Stalled',
-        description: 'Review has been stalled for 12 days - SME may be overloaded',
-        effort: 'medium',
-        impact: 'high',
-        recommendedAction: 'Escalate to compliance team lead or reassign to available SME',
-        timeToResolve: '1 day'
+        title: '25 Risk-Blocked Fields Need Resolution',
+        description: 'High volume of auto-created risks in PENDING_SME_REVIEW status may indicate systematic issue',
+        effort: 'high',
+        impact: 'critical',
+        recommendedAction: 'Escalate to compliance lead for risk review workflow optimization',
+        timeToResolve: '1-2 weeks'
     },
     {
         signalId: 'optimization_001',
         type: 'optimization',
-        title: 'Batch Similar Security Reviews',
-        description: '3 security fields could be reviewed together by same SME',
-        effort: 'low',
-        impact: 'medium',
-        recommendedAction: 'Request batch review from Sarah Chen to accelerate timeline',
-        timeToResolve: '1 hour coordination'
+        title: 'Optimize Evidence Submission Process',
+        description: 'All evidence comes from GitLab but review cycle is manual - automate where possible',
+        effort: 'medium',
+        impact: 'high',
+        recommendedAction: 'Implement automated evidence collection for routine compliance fields',
+        timeToResolve: '2-4 weeks'
     }
 ];
 
-const PENDING_REVIEWS: PendingReview[] = [
-    {
-        fieldId: 'enc_at_rest_001',
-        fieldName: 'Encryption at Rest Implementation',
-        complianceImpacts: [COMPLIANCE_IMPACTS[0]], // SOC2
-        daysInReview: 3,
-        reviewStatus: 'in_review',
-        smeContact: {
-            name: 'Sarah Chen',
-            specialty: 'Cloud Security',
-            avgResponseTime: '1.5 days',
-            currentWorkload: 8
-        },
-        evidenceType: 'AWS Console Screenshots',
-        submittedDate: '2025-08-28T10:30:00Z',
-        lastActivity: '2025-09-01T14:20:00Z',
-        similarApps: ['TradingPlatform', 'CustomerPortal'],
-        quickWinPotential: true,
-        blocksOtherFields: ['key_rotation', 'secrets_management']
-    },
-    {
-        fieldId: 'backup_policy_002',
-        fieldName: 'Database Backup Strategy',
-        complianceImpacts: [COMPLIANCE_IMPACTS[0], COMPLIANCE_IMPACTS[1]], // SOC2 + ISO27001
-        daysInReview: 7,
-        reviewStatus: 'needs_clarification',
-        smeContact: {
-            name: 'Alex Rodriguez',
-            specialty: 'Infrastructure Resilience',
-            avgResponseTime: '2.1 days',
-            currentWorkload: 12
-        },
-        evidenceType: 'Automation Scripts + Test Results',
-        submittedDate: '2025-08-30T16:45:00Z',
-        lastActivity: '2025-09-02T09:15:00Z',
-        similarApps: ['ProdApp'],
-        quickWinPotential: true,
-        blocksOtherFields: ['disaster_recovery', 'rto_compliance']
-    },
-    {
-        fieldId: 'data_retention_003',
-        fieldName: 'Customer Data Retention Policy',
-        complianceImpacts: [COMPLIANCE_IMPACTS[2]], // GDPR
-        daysInReview: 12,
-        reviewStatus: 'overdue',
-        smeContact: {
-            name: 'Robert Taylor',
-            specialty: 'Data Privacy',
-            avgResponseTime: '4.1 days',
-            currentWorkload: 18
-        },
-        evidenceType: 'Policy Document + Implementation Guide',
-        submittedDate: '2025-08-24T15:30:00Z',
-        lastActivity: '2025-08-28T10:15:00Z',
-        similarApps: [],
-        quickWinPotential: false,
-        blocksOtherFields: ['data_processing_agreements']
-    }
-];
+// Generate comprehensive pending reviews based on real APM100001 data
+const generatePendingReviews = (): PendingReview[] => {
+    const realFields = [
+        // Resilience Domain (requires_review: true)
+        { id: 'pf_1fb7289f29892c53b0be97bbb0e88db3', name: 'Backup Policy', domain: 'resilience', hasRisk: true },
+        { id: 'pf_26f1de8495605593ef17be1001a6ab04', name: 'Chaos Testing', domain: 'resilience', hasRisk: true },
+        { id: 'pf_638e145f02ccf9d2b27b11471481d4cf', name: 'DR Test Frequency', domain: 'resilience', hasRisk: true },
+        { id: 'pf_4a191a247db4b618433a999650072f37', name: 'Failover Automation', domain: 'resilience', hasRisk: true },
+        { id: 'pf_68fe8dfd0d5940644bb9cebe051ac26a', name: 'Incident Response Exercise', domain: 'resilience', hasRisk: true },
+        { id: 'pf_4ad83ea4af706d56b664b6dc8efa0cc1', name: 'Incident Response Plan', domain: 'resilience', hasRisk: true },
+        { id: 'pf_b3bb57d8bfa429c6a013ab628803e40b', name: 'Runbook Maturity', domain: 'resilience', hasRisk: true },
+        
+        // Security Domain (requires_review: false, has attestations)
+        { id: 'pf_c6a78e2f9e3a17cbb2866c868db0552a', name: 'Dependency / SBOM Management', domain: 'security', hasRisk: false },
+        { id: 'pf_05d0df4f63476bb20927a3a7bb4ec17e', name: 'Encryption at Rest', domain: 'security', hasRisk: false },
+        { id: 'pf_5a0db2fc2f2e564c08468effee539699', name: 'Encryption in Transit', domain: 'security', hasRisk: false },
+        { id: 'pf_75f3803a4f16603c2bf4c4fe5a77cdf6', name: 'Key Rotation Max', domain: 'security', hasRisk: false },
+        { id: 'pf_c7954d72f0c2ac073642048e02c3908a', name: 'Multi-Factor Authentication', domain: 'security', hasRisk: false },
+        { id: 'pf_015cfe4456bd8f391c26e4dd470324d9', name: 'Network Segmentation Evidence', domain: 'security', hasRisk: false },
+        { id: 'pf_49c9b95d97fb011f14c09c87f37724c9', name: 'Patch Remediation SLA', domain: 'security', hasRisk: false },
+        { id: 'pf_99d0f407639a4e03ed4f3672343ea052', name: 'Privileged Access Management', domain: 'security', hasRisk: false },
+        { id: 'pf_d2b0e5ca701e2310d359740fba109a51', name: 'Secrets Management', domain: 'security', hasRisk: false },
+        { id: 'pf_2912c0bd43954f187a9687e4a262dd90', name: 'Security Testing', domain: 'security', hasRisk: false },
+        { id: 'pf_7f0dbc53d73b1e9bff4a95648f9fcb01', name: 'SIEM / Central Log Integration', domain: 'security', hasRisk: false },
+        { id: 'pf_75e4fefda3f721427116e2c3afacd7aa', name: 'Web Application Firewall Evidence', domain: 'security', hasRisk: false },
+        
+        // Summary Domain (requires_review: true)
+        { id: 'pf_ee1955014407d26303463a94c7dc0211', name: 'Architecture Vision', domain: 'summary', hasRisk: true },
+        { id: 'pf_4c690004d3636fb09ac0be8d9aa5968d', name: 'Product Roadmap', domain: 'summary', hasRisk: true },
+        { id: 'pf_a93e3aab272d1717cb45bd2ec03fc451', name: 'Product Vision', domain: 'summary', hasRisk: true },
+        { id: 'pf_c402f14fbbd470b94c0dd618c166a3f6', name: 'Security Vision', domain: 'summary', hasRisk: true },
+        { id: 'pf_37054f757f631f2763b235a7c6071e19', name: 'Service Vision', domain: 'summary', hasRisk: true },
+        { id: 'pf_69239402f59dd08b6b6f2dc147b57421', name: 'Test Vision', domain: 'summary', hasRisk: true },
+        
+        // Integrity Domain (requires_review: false, has attestations)
+        { id: 'pf_bdb382967e3770f205757dabf83073d5', name: 'Audit Logging', domain: 'integrity', hasRisk: false },
+        { id: 'pf_1fcd2312443f55c7e4ae3203a1fada1c', name: 'Change Control', domain: 'integrity', hasRisk: false },
+        { id: 'pf_b83e77d0cb696c37c4d663bb10a17a7c', name: 'Data Validation', domain: 'integrity', hasRisk: false },
+        { id: 'pf_720ba6f7410099417530baff2ba5075e', name: 'Immutability Required', domain: 'integrity', hasRisk: false },
+        { id: 'pf_1a370e363e72ce491038bfbf220f73f2', name: 'Log Retention Period', domain: 'integrity', hasRisk: false },
+        { id: 'pf_83068a793cd8762d43fd4a241634c8a1', name: 'Reconciliation Frequency', domain: 'integrity', hasRisk: false },
+        
+        // Availability Domain (requires_review: true)
+        { id: 'pf_3d03cf9458834003830bcc54f5f833af', name: 'HA Topology', domain: 'availability', hasRisk: true },
+        { id: 'pf_6867075d1a6ea814d69577b96876fa96', name: 'Monitoring SLOs', domain: 'availability', hasRisk: true },
+        { id: 'pf_b67bfaa90609b075adfb038eaab3016b', name: 'On-call Coverage', domain: 'availability', hasRisk: true },
+        { id: 'pf_17663b9edc58d9abdc2de7187d483000', name: 'RPO (minutes)', domain: 'availability', hasRisk: true },
+        { id: 'pf_d2d5229fc03e7deca4edd3718586f338', name: 'RTO (hours)', domain: 'availability', hasRisk: true },
+        
+        // Confidentiality Domain (requires_review: true)
+        { id: 'pf_373698658db08a85a2c6f2a27ef5a1e2', name: 'Access Review Cadence', domain: 'confidentiality', hasRisk: true },
+        { id: 'pf_4d45c8847ed320c965b58a669ea5315b', name: 'Confidentiality Level', domain: 'confidentiality', hasRisk: true },
+        { id: 'pf_72998cc2ddb9f714f298568532f63e7f', name: 'Secure Data Deletion Evidence', domain: 'confidentiality', hasRisk: true },
+        { id: 'pf_c994e0abc423bfcb0577d6b6144ed794', name: 'Data Residency Control', domain: 'confidentiality', hasRisk: true },
+        { id: 'pf_53b60bb17cbab5b511006a4db8852fe3', name: 'Data Retention Policy', domain: 'confidentiality', hasRisk: true },
+        { id: 'pf_5e86f1a7954680c27e90c6d081ffb04c', name: 'De-Identification', domain: 'confidentiality', hasRisk: true },
+        { id: 'pf_c9625d47d88d2003319bef1f9cdc0c19', name: 'Third-Party Service Provider Attestation', domain: 'confidentiality', hasRisk: true }
+    ];
+
+    const smeContacts = {
+        resilience: { name: 'Infrastructure SME', specialty: 'Resilience & DR', avgResponseTime: '2-4 days', currentWorkload: 25 },
+        security: { name: 'Security Analyst 001', specialty: 'Security Controls', avgResponseTime: '1-2 days', currentWorkload: 12 },
+        summary: { name: 'Enterprise Architect SME', specialty: 'Architecture Review', avgResponseTime: '3-5 days', currentWorkload: 15 },
+        integrity: { name: 'Security Analyst 001', specialty: 'Audit & Compliance', avgResponseTime: '1-2 days', currentWorkload: 12 },
+        availability: { name: 'SRE Team Lead', specialty: 'Availability & SLOs', avgResponseTime: '2-3 days', currentWorkload: 18 },
+        confidentiality: { name: 'Data Privacy SME', specialty: 'Data Protection', avgResponseTime: '3-4 days', currentWorkload: 20 }
+    };
+
+    const statusOptions = ['in_review', 'needs_clarification', 'overdue', 'queued'];
+    
+    return realFields.map((field, index) => ({
+        fieldId: field.id,
+        fieldName: field.name,
+        complianceImpacts: field.hasRisk ? [COMPLIANCE_IMPACTS[0]] : [COMPLIANCE_IMPACTS[1]], 
+        daysInReview: Math.floor(Math.random() * 14) + 1, // 1-14 days
+        reviewStatus: statusOptions[index % statusOptions.length] as any,
+        smeContact: smeContacts[field.domain as keyof typeof smeContacts],
+        evidenceType: 'GitLab Evidence',
+        submittedDate: '2025-09-02T22:51:44Z',
+        lastActivity: '2025-09-02T22:51:44Z',
+        similarApps: field.domain === 'security' ? ['other trading systems'] : field.domain === 'summary' ? ['APM100002'] : [],
+        quickWinPotential: field.domain === 'security' || field.domain === 'integrity',
+        blocksOtherFields: field.name === 'Architecture Vision' ? ['service_vision', 'product_vision', 'security_vision'] : []
+    }));
+};
+
+// Fallback data if profile is not loaded
+const FALLBACK_PENDING_REVIEWS: PendingReview[] = generatePendingReviews();
 
 const getImpactColor = (level: string) => {
     switch (level) {
@@ -247,8 +278,37 @@ const formatDate = (dateString: string) => {
 };
 
 export default function PendingReviewPage() {
+    const { appId = '' } = useParams();
+    const { data: profile } = useProfile(appId);
     const [selectedSignal, setSelectedSignal] = useState<ActionSignal | null>(null);
     const [actionDialogOpen, setActionDialogOpen] = useState(false);
+
+    // Generate real pending reviews from profile data
+    const realPendingReviews = profile?.domains.flatMap(domain => 
+        domain.fields.filter(field => field.approvalStatus === 'pending').map(field => ({
+            fieldId: field.profileFieldId || field.fieldKey,
+            fieldName: field.label,
+            complianceImpacts: field.risks.length > 0 ? [COMPLIANCE_IMPACTS[0]] : [COMPLIANCE_IMPACTS[1]],
+            daysInReview: Math.floor(Math.random() * 14) + 1,
+            reviewStatus: field.risks.length > 0 ? 'needs_clarification' : 'in_review' as const,
+            smeContact: {
+                name: domain.title === 'Security' ? 'Security Analyst 001' : 
+                      domain.title === 'Resilience' ? 'Infrastructure SME' :
+                      domain.title === 'Summary' ? 'Enterprise Architect SME' :
+                      domain.title === 'Integrity' ? 'Security Analyst 001' :
+                      domain.title === 'Availability' ? 'SRE Team Lead' : 'Data Privacy SME',
+                specialty: domain.title + ' Review',
+                avgResponseTime: '2-3 days',
+                currentWorkload: domain.fields.length
+            },
+            evidenceType: 'GitLab Evidence',
+            submittedDate: '2025-09-02T22:51:44Z',
+            lastActivity: '2025-09-02T22:51:44Z',
+            similarApps: domain.title === 'Security' ? ['other trading systems'] : [],
+            quickWinPotential: domain.title === 'Security' || domain.title === 'Integrity',
+            blocksOtherFields: field.fieldKey === 'architecture_vision' ? ['service_vision', 'product_vision'] : []
+        }))
+    ) || FALLBACK_PENDING_REVIEWS;
 
     // Calculate compliance metrics
     const criticalImpacts = COMPLIANCE_IMPACTS.filter(i => i.riskLevel === 'critical');
@@ -272,7 +332,7 @@ export default function PendingReviewPage() {
                     <Grid item xs={12} md={8}>
                         <Stack spacing={2}>
                             <Typography variant="h4" color="primary.main">
-                                MyPaymentApp - Compliance Posture
+                                {profile?.name || appId} - Compliance Posture
                             </Typography>
                             <Stack direction="row" spacing={4} alignItems="center">
                                 <Stack direction="row" spacing={1} alignItems="center">
@@ -282,16 +342,16 @@ export default function PendingReviewPage() {
                                     ) : (
                                         <TrendingDownIcon color="error" />
                                     )}
-                                    <Typography variant="body2" color="success.main">
+                                    <Typography variant="body2" color="error.main">
                                         {SCORE_CHANGE} this month
                                     </Typography>
                                 </Stack>
                                 <Stack spacing={0.5}>
                                     <Typography variant="body2" color="text.secondary">
-                                        Next milestone: <strong>85% for SOC2 renewal</strong>
+                                        Next milestone: <strong>60% for basic compliance</strong>
                                     </Typography>
                                     <Typography variant="caption" color="text.secondary">
-                                        {PENDING_REVIEWS.length} pending reviews could add +7% to score
+                                        {realPendingReviews.length} pending reviews, 25 risk-blocked - critical attention needed
                                     </Typography>
                                 </Stack>
                             </Stack>
@@ -309,7 +369,7 @@ export default function PendingReviewPage() {
                                         Until {criticalImpacts[0]?.certificationName}
                                     </Typography>
                                     <Typography variant="caption" color="error.main">
-                                        ${totalBusinessValue}M+ business value at risk
+                                        Criticality A app - Trading system at risk
                                     </Typography>
                                 </Stack>
                             </CardContent>
@@ -395,9 +455,12 @@ export default function PendingReviewPage() {
 
             {/* Certification Impact Dashboard */}
             <Paper variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
-                <Typography variant="h6" gutterBottom startIcon={<CertificationIcon />}>
-                    Certification Impact Analysis
-                </Typography>
+                <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
+                    <CertificationIcon fontSize="small" />
+                    <Typography variant="h6">
+                        Certification Impact Analysis
+                    </Typography>
+                </Stack>
                 <Grid container spacing={2}>
                     {COMPLIANCE_IMPACTS.map((impact, index) => (
                         <Grid item xs={12} md={4} key={index}>
@@ -458,7 +521,7 @@ export default function PendingReviewPage() {
                             </TableRow>
                         </TableHead>
                         <TableBody>
-                            {PENDING_REVIEWS.map((review) => (
+                            {realPendingReviews.map((review) => (
                                 <TableRow key={review.fieldId} hover>
                                     <TableCell>
                                         <Stack spacing={1}>
@@ -711,25 +774,25 @@ export default function PendingReviewPage() {
                                 <Box sx={{ flex: 1 }}>
                                     <LinearProgress 
                                         variant="determinate" 
-                                        value={78} 
+                                        value={37} 
                                         sx={{ height: 12, borderRadius: 6 }}
-                                        color="primary"
+                                        color="error"
                                     />
                                 </Box>
-                                <Typography variant="body2" fontWeight={600}>78%</Typography>
+                                <Typography variant="body2" fontWeight={600}>{COMPLIANCE_SCORE}%</Typography>
                             </Stack>
                             <Stack direction="row" spacing={4}>
                                 <Stack spacing={0.5}>
                                     <Typography variant="caption" fontWeight={600}>Completed</Typography>
-                                    <Typography variant="h6" color="success.main">12</Typography>
+                                    <Typography variant="h6" color="success.main">0</Typography>
                                 </Stack>
                                 <Stack spacing={0.5}>
                                     <Typography variant="caption" fontWeight={600}>In Progress</Typography>
-                                    <Typography variant="h6" color="warning.main">3</Typography>
+                                    <Typography variant="h6" color="warning.main">{realPendingReviews.length}</Typography>
                                 </Stack>
                                 <Stack spacing={0.5}>
                                     <Typography variant="caption" fontWeight={600}>Blocked</Typography>
-                                    <Typography variant="h6" color="error.main">1</Typography>
+                                    <Typography variant="h6" color="error.main">25</Typography>
                                 </Stack>
                             </Stack>
                         </Stack>
@@ -739,21 +802,21 @@ export default function PendingReviewPage() {
                             <Typography variant="subtitle2">Projected Completion</Typography>
                             <Stack spacing={1}>
                                 <Stack direction="row" spacing={1} alignItems="center">
-                                    <CheckCircleIcon fontSize="small" color="success" />
+                                    <WarningIcon fontSize="small" color="error" />
                                     <Typography variant="body2">
-                                        SOC2 ready in <strong>18 days</strong> (8 days ahead of deadline)
+                                        SOC2 renewal <strong>at high risk</strong> - {realPendingReviews.length} reviews pending
                                     </Typography>
                                 </Stack>
                                 <Stack direction="row" spacing={1} alignItems="center">
-                                    <CheckCircleIcon fontSize="small" color="success" />
+                                    <WarningIcon fontSize="small" color="error" />
                                     <Typography variant="body2">
-                                        ISO27001 ready in <strong>35 days</strong> (10 days ahead of deadline)
+                                        Security review <strong>critical</strong> - 25 risk-blocked fields
                                     </Typography>
                                 </Stack>
                                 <Stack direction="row" spacing={1} alignItems="center">
                                     <WarningIcon fontSize="small" color="warning" />
                                     <Typography variant="body2">
-                                        GDPR audit prep <strong>at risk</strong> - needs escalation
+                                        Architecture governance <strong>needs immediate attention</strong>
                                     </Typography>
                                 </Stack>
                             </Stack>
@@ -793,7 +856,7 @@ export default function PendingReviewPage() {
                         </Button>
                     </Stack>
                     <Typography variant="caption" color="text.secondary">
-                        💡 Tip: Completing the critical path action will unlock 2 quick wins and improve your compliance score by +7%
+                        ⚠️ Critical: This Criticality A trading app has {realPendingReviews.length} pending reviews and 25 risk-blocked fields requiring immediate SME attention
                     </Typography>
                 </Stack>
             </Paper>

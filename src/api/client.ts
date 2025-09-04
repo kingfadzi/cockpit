@@ -13,7 +13,7 @@ import type {
     RiskStory,
 } from './types';
 
-export const API_BASE = '';
+export const API_BASE = import.meta.env.VITE_API_BASE || '';
 export const AUDIT_API_BASE = 'http://localhost:8081';
 const USE_MOCK = (import.meta.env.VITE_USE_MOCK || '1') === '1';
 
