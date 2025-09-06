@@ -7,9 +7,9 @@ services:
       - .env.mars  # Load environment variables from .env.mars
     environment:
       # Backend API URL for main API (/api/* proxying)
-      BACKEND_BASE_URL: "${BACKEND_BASE_URL:-http://mars.butterflycluster.com:8080}"
+      VITE_API_TARGET: "${VITE_API_TARGET:-http://mars.butterflycluster.com:8080}"
       # Audit API URL for audit endpoints (/audit/* proxying)  
-      AUDIT_API_BASE_URL: "${AUDIT_API_BASE_URL:-http://mars.butterflycluster.com:8081}"
+      VITE_AUDIT_API_TARGET: "${VITE_AUDIT_API_TARGET:-http://mars.butterflycluster.com:8081}"
     ports:
       - "80:80"
     healthcheck:
