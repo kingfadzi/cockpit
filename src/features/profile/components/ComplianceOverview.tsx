@@ -15,6 +15,7 @@ import {
     Error as MissingIcon,
     Warning as PendingIcon,
     Block as BlockedIcon,
+    Settings as ProfileIcon,
 } from '@mui/icons-material';
 import {
     severityColor,
@@ -25,6 +26,7 @@ import CriticalityBadge from '../../../components/CriticalityBadge';
 interface ComplianceOverviewProps {
     kpis?: AppKpis;
     onKpiClick?: (kpiType: string) => void;
+    onTabChange?: (tab: string) => void;
     appId?: string;
     useMockData?: boolean;
     // App info for criticality
@@ -92,6 +94,7 @@ function KpiCard({ label, count, severity, tooltip, icon, onClick }: KpiCardProp
 export default function ComplianceOverview({ 
     kpis, 
     onKpiClick, 
+    onTabChange,
     appId, 
     useMockData = false,
     criticality,
@@ -143,16 +146,28 @@ export default function ComplianceOverview({
         <Paper variant="outlined" sx={{ borderRadius: 3 }}>
             <Box sx={{ p: 2 }}>
                 {/* Header with App Info */}
-                <Stack direction="row" alignItems="center" spacing={2} sx={{ mb: 2 }}>
-                    <CriticalityBadge criticality={criticality || 'D'} />
-                    <Stack>
-                        <Typography variant="h6" fontWeight={700}>
-                            Compliance Status
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary">
-                            {appName || appId} • {total} total requirements across all domains
-                        </Typography>
+                <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2 }}>
+                    <Stack direction="row" alignItems="center" spacing={2}>
+                        <CriticalityBadge criticality={criticality || 'D'} />
+                        <Stack>
+                            <Typography variant="h6" fontWeight={700}>
+                                Compliance Status
+                            </Typography>
+                            <Typography variant="body2" color="text.secondary">
+                                {appName || appId} • {total} total requirements across all domains
+                            </Typography>
+                        </Stack>
                     </Stack>
+                    
+                    {/* View Full Compliance Profile Button */}
+                    <Button
+                        variant="outlined"
+                        size="small"
+                        startIcon={<ProfileIcon fontSize="small" />}
+                        onClick={() => onTabChange?.('profile')}
+                    >
+                        View Full Compliance Profile
+                    </Button>
                 </Stack>
 
 
@@ -167,38 +182,6 @@ export default function ComplianceOverview({
                         </Grid>
                     ))}
                 </Grid>
-
-                {/* Quick Actions */}
-                {(activeKpis.missingEvidence > 0 || activeKpis.pendingReview > 0) && (
-                    <Box sx={{ pt: 2, borderTop: 1, borderColor: 'grey.200' }}>
-                        <Stack direction="row" alignItems="center" justifyContent="space-between">
-                            <Typography variant="subtitle2" fontWeight={600}>
-                                Quick Actions
-                            </Typography>
-                            <Stack direction="row" spacing={1}>
-                                {activeKpis.missingEvidence > 0 && (
-                                    <Button 
-                                        variant="contained" 
-                                        color="error" 
-                                        size="small"
-                                        onClick={() => onKpiClick?.('missingEvidence')}
-                                    >
-                                        Upload Evidence ({activeKpis.missingEvidence})
-                                    </Button>
-                                )}
-                                {activeKpis.pendingReview > 0 && (
-                                    <Button 
-                                        variant="outlined" 
-                                        size="small"
-                                        onClick={() => onKpiClick?.('pendingReview')}
-                                    >
-                                        Review Status ({activeKpis.pendingReview})
-                                    </Button>
-                                )}
-                            </Stack>
-                        </Stack>
-                    </Box>
-                )}
             </Box>
         </Paper>
     );

@@ -78,6 +78,13 @@ export type PortfolioKpis = {
   riskBlocked: number;
 };
 
+export type AppsWithKpis = {
+  apps: AppSummary[];
+  kpis: PortfolioKpis;
+  totalCount: number;
+  filteredCount: number;
+};
+
 export type EvidenceItem = {
   evidenceId: string;
   profileFieldId?: string;
@@ -132,6 +139,7 @@ export type ProfileDomain = {
   icon: string;
   driverLabel: string;
   driverValue?: string;
+  bulkAttestationEnabled: boolean;
   fields: ProfileField[];
 };
 
@@ -219,4 +227,48 @@ export type RiskStory = {
   resolution?: string;
   dueDate?: string;
 };
+export type BulkAttestationRequest = {
+  fields: {
+    profileFieldId: string;
+    fieldKey: string;
+  }[];
+  attestationComments?: string;
+  attestationType?: 'compliance' | 'exception' | 'remediation';
+  attestedBy: string;
+};
+
+export type BulkAttestationResponse = {
+  successful: {
+    profileFieldId: string;
+    fieldKey: string;
+    attestationId: string;
+  }[];
+  failed: {
+    profileFieldId: string;
+    fieldKey: string;
+    error: string;
+  }[];
+  summary: {
+    total: number;
+    successful: number;
+    failed: number;
+  };
+};
+
+export type AttestationRequest = {
+  profileFieldId: string;
+  evidenceId?: string;
+  attestationType: 'compliance' | 'exception' | 'remediation';
+  attestationComments?: string;
+  attestedBy: string;
+};
+
+export type AttestationResponse = {
+  attestationId: string;
+  profileFieldId: string;
+  status: 'success' | 'failed';
+  message?: string;
+  attestedAt: string;
+};
+
 export type ReleaseItem = any;          // unchanged for now

@@ -22,6 +22,11 @@ import {
     IconButton,
     Link,
     Pagination,
+    Checkbox,
+    FormControl,
+    InputLabel,
+    Select,
+    MenuItem,
 } from '@mui/material';
 import {
     Security as SecurityIcon,
@@ -34,12 +39,15 @@ import {
     Description as DefaultIcon,
     Close as CloseIcon,
     VerifiedUser as AttestationIcon,
+    SelectAll as SelectAllIcon,
 } from '@mui/icons-material';
 import type { ProfileDomain, ProfileField, PolicyRequirement } from '../../../api/types';
-import { useAuditEvents, useAuditCount } from '../../../api/hooks';
+import { useAuditEvents, useAuditCount, useBulkAttestation as useBulkAttestationApi } from '../../../api/hooks';
 import AttachEvidenceModal from './AttachEvidenceModal';
 import FieldRisksModal from './FieldRisksModal';
 import AttestationListModal from './AttestationListModal';
+import BulkAttestationModal from './BulkAttestationModal';
+import { useBulkAttestation } from '../hooks/useBulkAttestation';
 
 const ICON_MAP: Record<string, React.ReactElement> = {
     SecurityIcon: <SecurityIcon fontSize="small" />,
@@ -54,9 +62,26 @@ interface DomainTableProps {
     domain: ProfileDomain;
     appId: string;
     onTabChange?: (tab: string) => void;
+    enableBulkAttestation?: boolean;
 }
 
-function FieldRow({ field, appId, onTabChange }: { field: ProfileField; appId: string; onTabChange?: (tab: string) => void }) {
+function FieldRow({ 
+    field, 
+    appId, 
+    onTabChange,
+    isSelectable = false,
+    isSelected = false,
+    onSelectionChange,
+    showCheckboxColumn = false,
+}: { 
+    field: ProfileField; 
+    appId: string; 
+    onTabChange?: (tab: string) => void;
+    isSelectable?: boolean;
+    isSelected?: boolean;
+    onSelectionChange?: (fieldId: string, selected: boolean) => void;
+    showCheckboxColumn?: boolean;
+}) {
     const { label, policyRequirement, evidence, approvalStatus, freshnessStatus, risks, attestations, fieldKey, profileFieldId } = field as any;
     const activeEvidence = evidence.find((e) => e.status === 'active');
     const [attachModalOpen, setAttachModalOpen] = useState(false);
@@ -177,9 +202,26 @@ function FieldRow({ field, appId, onTabChange }: { field: ProfileField; appId: s
         return `Evidence valid for ${ttl}`;
     };
 
+    const handleSelectionChange = () => {
+        if (onSelectionChange && isSelectable) {
+            onSelectionChange(profileFieldId, !isSelected);
+        }
+    };
+
     return (
         <>
-            <TableRow hover>
+            <TableRow hover sx={{ bgcolor: isSelected ? 'action.selected' : 'inherit' }}>
+                {showCheckboxColumn && (
+                    <TableCell padding="checkbox">
+                        {isSelectable ? (
+                            <Checkbox
+                                checked={isSelected}
+                                onChange={handleSelectionChange}
+                                size="small"
+                            />
+                        ) : null}
+                    </TableCell>
+                )}
                 <TableCell>
                     <Typography variant="body2" fontWeight={600}>{label}</Typography>
                 </TableCell>
@@ -208,7 +250,7 @@ function FieldRow({ field, appId, onTabChange }: { field: ProfileField; appId: s
                 <TableCell>
                     <Chip
                         size="small"
-                        color={approvalStatus === 'approved' ? 'success' : approvalStatus === 'pending' ? 'warning' : 'error'}
+                        color={approvalStatus === 'approved' || approvalStatus === 'user_attested' ? 'success' : approvalStatus === 'pending' ? 'warning' : 'error'}
                         variant="outlined"
                         label={approvalStatus ? approvalStatus.charAt(0).toUpperCase() + approvalStatus.slice(1) : '—'}
                     />
@@ -422,45 +464,182 @@ function FieldRow({ field, appId, onTabChange }: { field: ProfileField; appId: s
                 fieldLabel={label}
                 attestations={attestations || []}
                 profileFieldId={profileFieldId}
+                appId={appId}
             />
         </>
     );
 }
 
-export default function DomainTable({ domain, appId, onTabChange }: DomainTableProps) {
-    const { title, icon, driverLabel, driverValue, fields } = domain;
+export default function DomainTable({ domain, appId, onTabChange, enableBulkAttestation = true }: DomainTableProps) {
+    const { title, icon, driverLabel, driverValue, fields, domainKey, bulkAttestationEnabled } = domain;
+    
+    // Filter state for status filtering
+    const [filterStatus, setFilterStatus] = useState<'all' | 'pending' | 'approved' | 'rejected'>('all');
+    
+    // Bulk attestation modal state
+    const [bulkAttestationModalOpen, setBulkAttestationModalOpen] = useState(false);
+
+    // API hook for bulk attestation
+    const bulkAttestationMutation = useBulkAttestationApi(appId);
+
+    // Filter fields based on status
+    const filteredFields = useMemo(() => {
+        if (filterStatus === 'all') return fields;
+        return fields.filter((field: any) => field.approvalStatus === filterStatus);
+    }, [fields, filterStatus]);
+    
+    // Bulk attestation hook for UI state
+    const bulkAttestation = useBulkAttestation(filteredFields);
+
+    // Handlers for bulk attestation
+    const handleBulkAttest = () => {
+        setBulkAttestationModalOpen(true);
+    };
+
+    const handleBulkAttestationSubmit = async (attestationData: {
+        fields: { profileFieldId: string; fieldKey: string }[];
+        comments: string;
+    }) => {
+        try {
+            await bulkAttestationMutation.mutateAsync({
+                fields: attestationData.fields,
+                attestationComments: attestationData.comments,
+                attestationType: 'compliance',
+                attestedBy: 'current-user', // TODO: Get from auth context
+            });
+            
+            setBulkAttestationModalOpen(false);
+            bulkAttestation.reset();
+        } catch (error) {
+            console.error('Bulk attestation failed:', error);
+            // Show user-friendly error message
+            const errorMessage = error instanceof Error ? error.message : 'Failed to submit bulk attestation';
+            alert(`Bulk attestation failed: ${errorMessage}`);
+            // Error handling - in real app, show error toast/notification
+        }
+    };
+
+    const handleFieldSelectionChange = (fieldId: string, selected: boolean) => {
+        if (selected) {
+            bulkAttestation.selectField(fieldId);
+        } else {
+            bulkAttestation.deselectField(fieldId);
+        }
+    };
 
     const coverage = useMemo(() => {
-        let cur = 0, exp = 0, expd = 0, miss = 0;
-        fields.forEach((field: any) => {
-            if (field.freshnessStatus === 'current') cur++;
-            else if (field.freshnessStatus === 'expiring') exp++;
-            else if (field.freshnessStatus === 'expired') expd++;
-            else miss++;
+        let approved = 0, pending = 0, rejected = 0;
+        filteredFields.forEach((field: any) => {
+            if (field.approvalStatus === 'approved' || field.approvalStatus === 'user_attested') approved++;
+            else if (field.approvalStatus === 'pending') pending++;
+            else rejected++;
         });
-        const total = fields.length || 1;
-        const readiness = Math.round((cur / total) * 100);
-        return { Current: cur, Expiring: exp, Expired: expd, Missing: miss, readiness };
-    }, [fields]);
+        const total = filteredFields.length || 1;
+        const readiness = Math.round((approved / total) * 100);
+        return { Approved: approved, Pending: pending, Rejected: rejected, readiness };
+    }, [filteredFields]);
 
     return (
         <Stack spacing={1.5}>
-            {/* Coverage Summary */}
+            {/* Coverage Summary with Inline Bulk Attestation Controls */}
             <Stack direction="row" spacing={2} alignItems="center" justifyContent="space-between">
                 <Stack direction="row" spacing={1} alignItems="center">
-                    <Tooltip title="Current coverage across this domain">
+                    {/* Bulk selection checkbox when enabled by backend */}
+                    {enableBulkAttestation && bulkAttestationEnabled && (
+                        <Checkbox
+                            size="small"
+                            checked={bulkAttestation.isAllSelected}
+                            indeterminate={bulkAttestation.isSomeSelected && !bulkAttestation.isAllSelected}
+                            onChange={() => {
+                                if (bulkAttestation.isAllSelected) {
+                                    bulkAttestation.selectNone();
+                                } else {
+                                    bulkAttestation.selectAll();
+                                }
+                            }}
+                            sx={{ mr: 0.5 }}
+                        />
+                    )}
+                    
+                    <Tooltip title="Approval coverage across this domain">
                         <FactCheckIcon fontSize="small" />
                     </Tooltip>
                     <Typography variant="caption" color="text.secondary">
-                        Current {coverage.Current} • Expiring {coverage.Expiring} • Expired {coverage.Expired} • Missing {coverage.Missing}
+                        Approved {coverage.Approved} • Pending {coverage.Pending} • Rejected {coverage.Rejected}
                     </Typography>
+                    
+                    {/* Selection status when bulk attestation is enabled */}
+                    {enableBulkAttestation && bulkAttestationEnabled && bulkAttestation.selectedCount > 0 && (
+                        <Typography variant="caption" color="primary" sx={{ fontWeight: 600 }}>
+                            ({bulkAttestation.selectedCount} selected)
+                        </Typography>
+                    )}
                 </Stack>
-                <Stack direction="row" spacing={2} alignItems="center" sx={{ minWidth: 120 }}>
+                
+                <Stack direction="row" spacing={1} alignItems="center">
+                    {/* Filter dropdown when bulk attestation is enabled by backend */}
+                    {enableBulkAttestation && bulkAttestationEnabled && (
+                        <FormControl size="small" sx={{ minWidth: 100 }}>
+                            <Select
+                                value={filterStatus}
+                                onChange={(e) => setFilterStatus(e.target.value as any)}
+                                displayEmpty
+                                variant="outlined"
+                                sx={{ 
+                                    '& .MuiSelect-select': { 
+                                        py: 0.5,
+                                        fontSize: '0.75rem'
+                                    }
+                                }}
+                            >
+                                <MenuItem value="all">All</MenuItem>
+                                <MenuItem value="pending">Pending</MenuItem>
+                                <MenuItem value="approved">Approved</MenuItem>
+                                <MenuItem value="rejected">Rejected</MenuItem>
+                            </Select>
+                        </FormControl>
+                    )}
+                    
+                    {/* Bulk action buttons when bulk attestation is enabled and items are selected */}
+                    {enableBulkAttestation && bulkAttestationEnabled && bulkAttestation.selectedCount > 0 && (
+                        <>
+                            <Button
+                                size="small"
+                                variant="outlined"
+                                startIcon={<SelectAllIcon />}
+                                onClick={bulkAttestation.selectNone}
+                                sx={{ 
+                                    minWidth: 'auto',
+                                    px: 1,
+                                    fontSize: '0.6875rem'
+                                }}
+                            >
+                                Clear
+                            </Button>
+                            
+                            <Button
+                                size="small"
+                                variant="contained"
+                                startIcon={<AttestationIcon />}
+                                onClick={handleBulkAttest}
+                                color="primary"
+                                sx={{ 
+                                    fontSize: '0.6875rem'
+                                }}
+                            >
+                                Attest ({bulkAttestation.selectedCount})
+                            </Button>
+                        </>
+                    )}
+                    
+                    {/* Coverage progress bar */}
                     <Typography variant="caption" color="text.secondary">Coverage</Typography>
-                    <Box sx={{ flex: 1, minWidth: 60 }}>
+                    <Box sx={{ width: 60 }}>
                         <LinearProgress variant="determinate" value={coverage.readiness} sx={{ height: 6, borderRadius: 4 }} />
                     </Box>
-                    <Typography variant="caption" fontWeight={700}>{coverage.readiness}%</Typography>
+                    <Typography variant="caption" fontWeight={700} sx={{ minWidth: '35px', textAlign: 'right' }}>
+                        {coverage.readiness}%
+                    </Typography>
                 </Stack>
             </Stack>
 
@@ -471,6 +650,22 @@ export default function DomainTable({ domain, appId, onTabChange }: DomainTableP
                 <Table size="small" sx={{ minWidth: 650 }}>
                     <TableHead>
                         <TableRow>
+                            {enableBulkAttestation && bulkAttestationEnabled && (
+                                <TableCell padding="checkbox">
+                                    <Checkbox
+                                        checked={bulkAttestation.isAllSelected}
+                                        indeterminate={bulkAttestation.isSomeSelected && !bulkAttestation.isAllSelected}
+                                        onChange={() => {
+                                            if (bulkAttestation.isAllSelected) {
+                                                bulkAttestation.selectNone();
+                                            } else {
+                                                bulkAttestation.selectAll();
+                                            }
+                                        }}
+                                        size="small"
+                                    />
+                                </TableCell>
+                            )}
                             <TableCell sx={{ minWidth: 140 }}>Property</TableCell>
                             <TableCell sx={{ minWidth: 120 }}>Requirement</TableCell>
                             <TableCell sx={{ minWidth: 100 }}>Approval</TableCell>
@@ -481,12 +676,32 @@ export default function DomainTable({ domain, appId, onTabChange }: DomainTableP
                         </TableRow>
                     </TableHead>
                     <TableBody>
-                        {fields.map((field) => (
-                            <FieldRow key={field.fieldKey} field={field} appId={appId} onTabChange={onTabChange} />
+                        {filteredFields.map((field) => (
+                            <FieldRow 
+                                key={field.fieldKey} 
+                                field={field} 
+                                appId={appId} 
+                                onTabChange={onTabChange}
+                                showCheckboxColumn={enableBulkAttestation && bulkAttestationEnabled}
+                                isSelectable={enableBulkAttestation && bulkAttestationEnabled && bulkAttestation.canFieldBeSelected(field)}
+                                isSelected={bulkAttestation.isFieldSelected(field.profileFieldId)}
+                                onSelectionChange={handleFieldSelectionChange}
+                            />
                         ))}
                     </TableBody>
                 </Table>
             </TableContainer>
+
+            {/* Bulk Attestation Modal */}
+            {enableBulkAttestation && (
+                <BulkAttestationModal
+                    open={bulkAttestationModalOpen}
+                    onClose={() => setBulkAttestationModalOpen(false)}
+                    selectedFields={bulkAttestation.selectedFields}
+                    domainName={title}
+                    onSubmit={handleBulkAttestationSubmit}
+                />
+            )}
         </Stack>
     );
 }

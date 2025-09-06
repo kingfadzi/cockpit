@@ -166,7 +166,7 @@ export default function SecuritySmeView() {
 
 
     // Sort by severity, then by assigned date
-    const sortedDomainQueue = [...domainQueue].sort((a, b) => {
+    const sortedDomainQueue = (domainQueue || []).slice().sort((a, b) => {
         const severityOrder = { critical: 0, high: 1, medium: 2, low: 3 };
         if (a.severity !== b.severity) {
             return severityOrder[a.severity] - severityOrder[b.severity];
@@ -174,7 +174,7 @@ export default function SecuritySmeView() {
         return new Date(b.assignedAt).getTime() - new Date(a.assignedAt).getTime();
     });
     
-    const sortedCrossDomain = [...crossDomainIssues].sort((a, b) => {
+    const sortedCrossDomain = (crossDomainIssues || []).slice().sort((a, b) => {
         const severityOrder = { critical: 0, high: 1, medium: 2, low: 3 };
         if (a.severity !== b.severity) {
             return severityOrder[a.severity] - severityOrder[b.severity];

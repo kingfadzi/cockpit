@@ -8,12 +8,27 @@ import type {
     PortfolioKpis,
     ProfileResponse,
     AppKpis,
+    AppsWithKpis,
+    BulkAttestationRequest,
+    BulkAttestationResponse,
+    AttestationRequest,
+    AttestationResponse,
 } from './types';
 
 const commonQuery = { staleTime: 60_000, refetchOnWindowFocus: false as const };
 
-export const useApps = () =>
-    useQuery<AppSummary[]>({ queryKey: ['apps'], queryFn: () => endpoints.listApps(), ...commonQuery });
+export const useApps = (filters?: {
+    search?: string;
+    criticality?: string;
+    applicationType?: string;
+    architectureType?: string;
+    installType?: string;
+}) =>
+    useQuery<AppsWithKpis>({ 
+        queryKey: ['apps', filters], 
+        queryFn: () => endpoints.listApps(filters), 
+        ...commonQuery 
+    });
 
 export const useApp = (appId: string) =>
     useQuery<AppSummary>({ queryKey: ['apps', appId], queryFn: () => endpoints.getApp(appId), enabled: !!appId, ...commonQuery });
@@ -38,8 +53,6 @@ export const useRequirements = (appId: string, params?: Record<string, string>) 
 export const useReleases = (appId: string) =>
     useQuery<ReleaseItem[]>({ queryKey: ['releases', appId], queryFn: () => endpoints.getReleases(appId), enabled: !!appId, ...commonQuery });
 
-export const usePortfolioKpis = () =>
-    useQuery<PortfolioKpis>({ queryKey: ['kpis', 'portfolio'], queryFn: () => endpoints.getPortfolioKpis(), ...commonQuery });
 
 export const useAppKpis = (appId: string) =>
     useQuery<AppKpis>({ queryKey: ['kpis', 'app', appId], queryFn: () => endpoints.getAppKpis(appId), enabled: !!appId, ...commonQuery });
@@ -258,11 +271,11 @@ export const useSmeReviewQueue = (smeId: string) =>
     });
 
 export const useSmeSecurityDomainRisks = (smeId: string) =>
-    useQuery<any[]>({ 
-        queryKey: ['sme', 'security-domain', smeId], 
-        queryFn: () => endpoints.getSmeSecurityDomainRisks(smeId), 
-        enabled: !!smeId, 
-        ...commonQuery 
+    useQuery<any[]>({
+        queryKey: ['sme', 'security-domain', smeId],
+        queryFn: () => endpoints.getSmeSecurityDomainRisks(smeId),
+        enabled: !!smeId,
+        ...commonQuery
     });
 
 export const useSmeCrossDomainRisks = (smeId: string) =>
@@ -291,6 +304,38 @@ export const useSubmitSmeReview = () => {
             qc.invalidateQueries({ queryKey: ['sme'] });
             qc.invalidateQueries({ queryKey: ['risk', variables.riskId] });
             qc.invalidateQueries({ queryKey: ['risks'] });
+        },
+    });
+};
+
+export const useBulkAttestation = (appId: string) => {
+    const qc = useQueryClient();
+    return useMutation<BulkAttestationResponse, Error, BulkAttestationRequest>({
+        mutationFn: (request: BulkAttestationRequest) => endpoints.submitBulkAttestation(appId, request),
+        onSuccess: () => {
+            // Invalidate relevant queries after successful bulk attestation
+            qc.invalidateQueries({ queryKey: ['profile', appId] });
+            qc.invalidateQueries({ queryKey: ['apps'] }); // Refresh apps data with updated KPIs
+            qc.invalidateQueries({ queryKey: ['kpis'] }); // Refresh KPIs
+        },
+    });
+};
+
+export const useSubmitAttestation = (appId: string, profileFieldId?: string) => {
+    const qc = useQueryClient();
+    return useMutation<AttestationResponse, Error, AttestationRequest>({
+        mutationFn: (request: AttestationRequest) => endpoints.submitAttestation(appId, request),
+        onSuccess: () => {
+            // Invalidate relevant queries after successful attestation
+            qc.invalidateQueries({ queryKey: ['profile', appId] });
+            qc.invalidateQueries({ queryKey: ['apps'] }); // Refresh apps data with updated KPIs
+            qc.invalidateQueries({ queryKey: ['kpis'] }); // Refresh KPIs
+            
+            // Refresh audit count for the specific field
+            if (profileFieldId) {
+                qc.invalidateQueries({ queryKey: ['auditCount', appId, profileFieldId] });
+                qc.invalidateQueries({ queryKey: ['auditEvents', appId, profileFieldId] });
+            }
         },
     });
 };

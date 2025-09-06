@@ -4,13 +4,9 @@ import {
     Typography, 
     CircularProgress, 
     Alert, 
-    Box,
-    Button 
+    Button,
+    Box
 } from '@mui/material';
-import { 
-    Launch as LaunchIcon,
-    Settings as ProfileIcon 
-} from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { useApp, useAppKpis } from '../../../api/hooks';
 import EnhancedBusinessInfoCard from '../components/EnhancedBusinessInfoCard';
@@ -46,11 +42,6 @@ export default function OverviewTab({ appId, onTabChange }: OverviewTabProps) {
         }
     };
 
-    const handleViewProfileDetails = () => {
-        if (onTabChange) {
-            onTabChange('profile');
-        }
-    };
 
     if (appLoading || kpisLoading) {
         return (
@@ -120,6 +111,17 @@ export default function OverviewTab({ appId, onTabChange }: OverviewTabProps) {
                 </Alert>
             )}
 
+            {/* Combined Compliance Status and KPIs */}
+            <ComplianceOverview 
+                kpis={kpis} 
+                onKpiClick={handleKpiClick}
+                onTabChange={onTabChange}
+                appId={appId}
+                useMockData={!kpis}
+                criticality={app?.criticality}
+                appName={app?.name}
+            />
+
             {/* Enhanced Business Information Card */}
             <EnhancedBusinessInfoCard 
                 app={app}
@@ -132,27 +134,6 @@ export default function OverviewTab({ appId, onTabChange }: OverviewTabProps) {
                 parentAppName={app?.parentAppName}
                 hasChildren={app?.hasChildren || false}
             />
-
-            {/* Combined Compliance Status and KPIs */}
-            <ComplianceOverview 
-                kpis={kpis} 
-                onKpiClick={handleKpiClick}
-                appId={appId}
-                useMockData={!kpis}
-                criticality={app?.criticality}
-                appName={app?.name}
-            />
-
-            {/* Quick Navigation Actions */}
-            <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-                <Button
-                    variant="outlined"
-                    startIcon={<ProfileIcon fontSize="small" />}
-                    onClick={handleViewProfileDetails}
-                >
-                    View Full Compliance Profile
-                </Button>
-            </Box>
         </Stack>
     );
 }

@@ -24,6 +24,7 @@ import {
     OpenInNew as OpenInNewIcon,
     CheckCircle as CheckIcon,
 } from '@mui/icons-material';
+import { useSubmitAttestation } from '../../../api/hooks';
 
 interface Attestation {
     evidenceId: string;
@@ -41,6 +42,7 @@ interface AttestationPageProps {
     fieldLabel: string;
     attestation: Attestation;
     profileFieldId: string;
+    appId: string;
 }
 
 export default function AttestationPage({ 
@@ -48,7 +50,8 @@ export default function AttestationPage({
     onClose, 
     fieldLabel, 
     attestation,
-    profileFieldId 
+    profileFieldId,
+    appId
 }: AttestationPageProps) {
     const [checklist, setChecklist] = useState({
         accurate: false,
@@ -58,8 +61,10 @@ export default function AttestationPage({
     });
     const [comments, setComments] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [error, setError] = useState<string | null>(null);
 
     const allChecked = Object.values(checklist).every(Boolean);
+    const submitAttestationMutation = useSubmitAttestation(appId, profileFieldId);
 
     const handleChecklistChange = (key: keyof typeof checklist) => {
         setChecklist(prev => ({ ...prev, [key]: !prev[key] }));
@@ -69,24 +74,22 @@ export default function AttestationPage({
         if (!allChecked) return;
         
         setIsSubmitting(true);
+        setError(null);
         try {
-            // TODO: Make API call to submit attestation
-            console.log('Submitting attestation:', {
+            await submitAttestationMutation.mutateAsync({
                 profileFieldId,
                 evidenceId: attestation.evidenceId,
-                checklist,
-                comments,
+                attestationType: 'compliance',
+                attestationComments: comments.trim() || undefined,
                 attestedBy: 'current-user', // TODO: Get from auth context
-                attestedAt: new Date().toISOString()
             });
-            
-            // Simulate API call
-            await new Promise(resolve => setTimeout(resolve, 1000));
             
             // Close modal and refresh data
             onClose();
         } catch (error) {
             console.error('Failed to submit attestation:', error);
+            const errorMessage = error instanceof Error ? error.message : 'Failed to submit attestation. Please try again.';
+            setError(errorMessage);
         } finally {
             setIsSubmitting(false);
         }
@@ -259,6 +262,12 @@ export default function AttestationPage({
                     {!allChecked && (
                         <Alert severity="info">
                             Please complete all required confirmations above to proceed with your attestation.
+                        </Alert>
+                    )}
+
+                    {error && (
+                        <Alert severity="error">
+                            {error}
                         </Alert>
                     )}
                 </Stack>

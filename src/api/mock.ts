@@ -291,10 +291,30 @@ const generateProfileForApp = (appId: string) => {
   const appData = appProfiles[appId as keyof typeof appProfiles];
   if (!appData) return null;
 
-  const domains = Object.entries(BASE_DOMAINS).map(([domainKey, domainDef]) => ({
-    ...domainDef,
-    driverValue: appData.driverValues[domainKey as keyof typeof appData.driverValues],
-    fields: domainDef.fields.map((baseField, index) => {
+  const domains = Object.entries(BASE_DOMAINS).map(([domainKey, domainDef]) => {
+    const driverValue = appData.driverValues[domainKey as keyof typeof appData.driverValues];
+    
+    // Determine bulk attestation eligibility based on domain and rating
+    const bulkAttestationEnabled = (() => {
+      if (!driverValue) return true;
+      
+      switch (domainKey) {
+        case 'app_criticality_assessment':
+          return driverValue !== 'A';
+        case 'security_rating':
+          return !['A1', 'A2', 'B'].includes(driverValue);
+        case 'resilience_rating':
+          return !['0', '1'].includes(driverValue);
+        default:
+          return true;
+      }
+    })();
+    
+    return {
+      ...domainDef,
+      driverValue,
+      bulkAttestationEnabled,
+      fields: domainDef.fields.map((baseField, index) => {
       const profileFieldId = appId === 'APM100001' ? 
         // Use real IDs for APM100001
         (baseField.fieldKey === 'backup_policy' ? 'pf_1fb7289f29892c53b0be97bbb0e88db3' :
@@ -365,7 +385,8 @@ const generateProfileForApp = (appId: string) => {
         }] : []
       };
     })
-  }));
+    }
+  });
 
   return {
     appId,

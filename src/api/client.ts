@@ -11,6 +11,11 @@ import type {
     AppKpis,
     AttachDocumentResponse,
     RiskStory,
+    AppsWithKpis,
+    BulkAttestationRequest,
+    BulkAttestationResponse,
+    AttestationRequest,
+    AttestationResponse,
 } from './types';
 
 export const API_BASE = import.meta.env.VITE_API_BASE || '';
@@ -154,13 +159,41 @@ function coerceArray<T = unknown>(payload: any): T[] {
 
 /** ------- Endpoints ------- */
 export const endpoints = {
-    /** Apps (grid) */
-    listApps: async (): Promise<AppSummary[]> => {
-        if (USE_MOCK) return mockApi.listApps();
-        const res = await api.get<any>('/api/apps');
+    /** Apps (grid) with KPIs */
+    listApps: async (filters?: {
+        search?: string;
+        criticality?: string;
+        applicationType?: string;
+        architectureType?: string;
+        installType?: string;
+    }): Promise<AppsWithKpis> => {
+        if (USE_MOCK) {
+            const apps = await mockApi.listApps();
+            const kpis = await mockApi.getPortfolioKpis();
+            return { apps, kpis, totalCount: apps.length, filteredCount: apps.length };
+        }
+        
+        const params = new URLSearchParams();
+        if (filters?.search) params.set('search', filters.search);
+        if (filters?.criticality) params.set('criticality', filters.criticality);
+        if (filters?.applicationType) params.set('applicationType', filters.applicationType);
+        if (filters?.architectureType) params.set('architectureType', filters.architectureType);
+        if (filters?.installType) params.set('installType', filters.installType);
+        
+        const queryString = params.toString() ? `?${params.toString()}` : '';
+        const res = await api.get<AppsWithKpis>(`/api/apps${queryString}`);
+        
         if (API_DEBUG) console.debug('[api] /api/apps raw:', res.data);
-        const arr = coerceArray<ServerApp>(res.data);
-        return arr.map(toClient);
+        
+        return {
+            apps: res.data.apps.map((app: any) => ({
+                ...app,
+                criticality: normalizeCriticality(app.appCriticalityAssessment)
+            })),
+            kpis: res.data.kpis,
+            totalCount: res.data.totalCount,
+            filteredCount: res.data.filteredCount
+        };
     },
 
     /** Single app (details) */
@@ -196,9 +229,6 @@ export const endpoints = {
     getReleases: async (appId: string): Promise<ReleaseItem[]> =>
         USE_MOCK ? mockApi.getReleases(appId) : (await api.get<ReleaseItem[]>(`/api/apps/${appId}/releases`)).data,
 
-    /** Portfolio‑level KPIs (your backend path is /api/apps/kpis) */
-    getPortfolioKpis: async (): Promise<PortfolioKpis> =>
-        USE_MOCK ? mockApi.getPortfolioKpis() : (await api.get<PortfolioKpis>(`/api/apps/kpis`)).data,
 
     /** App-specific KPIs */
     getAppKpis: async (appId: string): Promise<AppKpis> =>
@@ -713,7 +743,7 @@ export const endpoints = {
                     appName: "Authentication Service"
                 }
             ]
-            : (await api.get<any[]>(`/api/risks/search?assignedSme=${smeId}&status=PENDING_SME_REVIEW`)).data,
+            : coerceArray((await api.get<any[]>(`/api/risks/search?assignedSme=${smeId}&status=PENDING_SME_REVIEW`)).data),
 
     /** Get all security-related risks assigned to this SME across all apps */
     getSmeSecurityDomainRisks: async (smeId: string): Promise<any[]> =>
@@ -774,7 +804,7 @@ export const endpoints = {
                     appName: "File Sharing Service"
                 }
             ]
-            : (await api.get<any[]>(`/api/risks/search?assignedSme=${smeId}&domain=security`)).data,
+            : coerceArray((await api.get<any[]>(`/api/risks/search?assignedSme=${smeId}&domain=security`)).data),
 
     /** Get risks from other domains assigned to this SME */
     getSmeCrossDomainRisks: async (smeId: string): Promise<any[]> =>
@@ -814,7 +844,7 @@ export const endpoints = {
                     appName: "Data Lake Platform"
                 }
             ]
-            : (await api.get<any[]>(`/api/risks/search?assignedSme=${smeId}&domain=availability,integrity,compliance`)).data,
+            : coerceArray((await api.get<any[]>(`/api/risks/search?assignedSme=${smeId}&domain=availability,integrity,compliance`)).data),
 
     /** Get all open risks assigned to SME (for Open Risks table) */
     getSmeAllOpenRisks: async (smeId: string): Promise<any[]> =>
@@ -877,7 +907,7 @@ export const endpoints = {
                     appName: "Backup System"
                 }
             ]
-            : (await api.get<any[]>(`/api/risks/search?assignedSme=${smeId}&status=PENDING_SME_REVIEW,UNDER_REVIEW`)).data,
+            : coerceArray((await api.get<any[]>(`/api/risks/search?assignedSme=${smeId}&status=PENDING_SME_REVIEW,UNDER_REVIEW`)).data),
 
     /** SME approves or rejects a risk */
     submitSmeReview: async (riskId: string, payload: { action: 'approve' | 'reject'; comments: string; smeId: string }): Promise<any> =>
@@ -889,4 +919,45 @@ export const endpoints = {
                 reviewedAt: new Date().toISOString()
             }
             : (await api.put<any>(`/api/risks/${riskId}/sme-review`, payload)).data,
+
+    /** Bulk Attestation */
+    submitBulkAttestation: async (appId: string, request: BulkAttestationRequest): Promise<BulkAttestationResponse> => {
+        if (USE_MOCK) {
+            // Mock implementation
+            await new Promise(resolve => setTimeout(resolve, 2000)); // Simulate API delay
+            
+            return {
+                successful: request.fields.map(field => ({
+                    profileFieldId: field.profileFieldId,
+                    fieldKey: field.fieldKey,
+                    attestationId: `att_${Math.random().toString(36).slice(2, 11)}`,
+                })),
+                failed: [],
+                summary: {
+                    total: request.fields.length,
+                    successful: request.fields.length,
+                    failed: 0,
+                }
+            };
+        }
+        
+        return (await api.post<BulkAttestationResponse>(`/api/apps/${appId}/attestations/bulk`, request)).data;
+    },
+
+    /** Individual Attestation */
+    submitAttestation: async (appId: string, request: AttestationRequest): Promise<AttestationResponse> => {
+        if (USE_MOCK) {
+            // Mock implementation
+            await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API delay
+            
+            return {
+                attestationId: `att_${Math.random().toString(36).slice(2, 11)}`,
+                profileFieldId: request.profileFieldId,
+                status: 'success',
+                attestedAt: new Date().toISOString(),
+            };
+        }
+        
+        return (await api.post<AttestationResponse>(`/api/apps/${appId}/attestations`, request)).data;
+    },
 };

@@ -40,6 +40,7 @@ interface AttestationListModalProps {
     fieldLabel: string;
     attestations: Attestation[];
     profileFieldId: string;
+    appId: string;
 }
 
 export default function AttestationListModal({ 
@@ -47,7 +48,8 @@ export default function AttestationListModal({
     onClose, 
     fieldLabel, 
     attestations,
-    profileFieldId 
+    profileFieldId,
+    appId
 }: AttestationListModalProps) {
     const [selectedAttestation, setSelectedAttestation] = useState<Attestation | null>(null);
 
@@ -175,6 +177,7 @@ export default function AttestationListModal({
                     fieldLabel={fieldLabel}
                     attestation={selectedAttestation}
                     profileFieldId={profileFieldId}
+                    appId={appId}
                 />
             )}
         </>
