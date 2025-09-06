@@ -3,11 +3,13 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    env_file:
+      - .env.mars  # Load environment variables from .env.mars
     environment:
-      # Point this at your backend. If your backend is reachable on the same host:
-      #   http://mars.butterflycluster.com:8080
-      # If your backend is another compose service (e.g., "backend:8080"), set that instead.
-      BACKEND_BASE_URL: "http://192.168.1.218:8080"
+      # Backend API URL for main API (/api/* proxying)
+      BACKEND_BASE_URL: "${BACKEND_BASE_URL:-http://mars.butterflycluster.com:8080}"
+      # Audit API URL for audit endpoints (/audit/* proxying)  
+      AUDIT_API_BASE_URL: "${AUDIT_API_BASE_URL:-http://mars.butterflycluster.com:8081}"
     ports:
       - "80:80"
     healthcheck:

@@ -1,0 +1,12 @@
+# Docker Compose override for local development
+# This file is automatically loaded alongside docker-compose.yaml
+# Use this to override settings for local development
+
+services:
+  frontend:
+    env_file:
+      - .env.local  # Use local environment configuration instead of .env.dev
+    environment:
+      # Override for local development (use localhost instead of mars.butterflycluster.com)
+      BACKEND_BASE_URL: "${BACKEND_BASE_URL:-http://localhost:8080}"
+      AUDIT_API_BASE_URL: "${AUDIT_API_BASE_URL:-http://localhost:8081}"

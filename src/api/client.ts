@@ -19,7 +19,7 @@ import type {
 } from './types';
 
 export const API_BASE = import.meta.env.VITE_API_BASE || '';
-export const AUDIT_API_BASE = 'http://localhost:8081';
+export const AUDIT_API_BASE = import.meta.env.VITE_AUDIT_API_BASE || '';
 const USE_MOCK = (import.meta.env.VITE_USE_MOCK || '1') === '1';
 
 /** ------- Debug toggle (can flip at runtime from DevTools) ------- */

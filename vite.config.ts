@@ -4,10 +4,18 @@ import react from '@vitejs/plugin-react';
 export default defineConfig({
   plugins: [react()],
   server: {
+    host: '0.0.0.0', // Allow external access
+    port: 5173,
     proxy: {
       '/api': {
-        target: 'http://localhost:8080',
+        target: process.env.VITE_API_TARGET || 'http://localhost:8080',
         changeOrigin: true,
+        secure: false,
+      },
+      '/audit': {
+        target: process.env.VITE_AUDIT_API_TARGET || 'http://localhost:8081',
+        changeOrigin: true,
+        secure: false,
       },
     },
   },
