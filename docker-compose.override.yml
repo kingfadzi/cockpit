@@ -8,5 +8,7 @@ services:
       - .env.local  # Use local environment configuration instead of .env.dev
     environment:
       # Override for local development (use localhost instead of mars.butterflycluster.com)
+      VITE_API_BASE: "${VITE_API_BASE:-http://localhost:8080}"
+      VITE_AUDIT_API_BASE: "${VITE_AUDIT_API_BASE:-http://localhost:8081}"
       VITE_API_TARGET: "${VITE_API_TARGET:-http://localhost:8080}"
       VITE_AUDIT_API_TARGET: "${VITE_AUDIT_API_TARGET:-http://localhost:8081}"
