@@ -3,13 +3,15 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    env_file:
-      - .env.mars  # Load environment variables from .env.mars
+      args:
+        # Pass build-time environment variables
+        VITE_API_BASE: "http://192.168.1.218:8080"
+        VITE_AUDIT_API_BASE: "http://192.168.1.218:8081"
+        VITE_USE_MOCK: "0"
     environment:
-      # Unified environment variables
+      # Runtime environment variables for entrypoint script
       VITE_API_BASE: "http://192.168.1.218:8080"
       VITE_AUDIT_API_BASE: "http://192.168.1.218:8081"
-      VITE_USE_MOCK: "0"
     ports:
       - "80:80"
     healthcheck:

@@ -2,13 +2,22 @@
 FROM node:20-alpine AS build
 WORKDIR /app
 
+# Build arguments for environment variables
+ARG VITE_API_BASE
+ARG VITE_AUDIT_API_BASE  
+ARG VITE_USE_MOCK
+
+# Set environment variables for build
+ENV VITE_API_BASE=$VITE_API_BASE
+ENV VITE_AUDIT_API_BASE=$VITE_AUDIT_API_BASE
+ENV VITE_USE_MOCK=$VITE_USE_MOCK
+
 # Install deps
 COPY package*.json ./
 RUN npm ci
 
 # Build app
 COPY . .
-# If you use env-based API URLs at build time, set VITE_* here via --build-arg or env
 RUN npm run build
 
 # ---------- Runtime stage ----------
