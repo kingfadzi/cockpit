@@ -7,7 +7,7 @@ services:
     env_file:
       - .env.local  # Use local environment configuration instead of .env.dev
     environment:
-      # API endpoints - hardcoded for local development
+      # Unified environment variables for local development
       VITE_API_BASE: "http://localhost:8080"
       VITE_AUDIT_API_BASE: "http://localhost:8081"
       VITE_USE_MOCK: "0"

@@ -1,4 +1,4 @@
-# Rendered at container start with BACKEND_BASE_URL from env
+# Rendered at container start with VITE_API_BASE and VITE_AUDIT_API_BASE from env
 # Serves the SPA and proxies /api to your backend (keeps one browser origin)
 
 server {
@@ -23,7 +23,7 @@ try_files $uri =404;
 # API reverse proxy → your main backend
 location /api/ {
 # Important: preserve the incoming path. $request_uri includes query string.
-proxy_pass ${BACKEND_BASE_URL}$request_uri;
+proxy_pass ${VITE_API_BASE}$request_uri;
 
 proxy_set_header Host $host;
 proxy_set_header X-Real-IP $remote_addr;
@@ -39,7 +39,7 @@ proxy_set_header Connection "upgrade";
 # Audit API reverse proxy → your audit backend
 location /audit/ {
 # Important: preserve the incoming path. $request_uri includes query string.
-proxy_pass ${AUDIT_API_BASE_URL}$request_uri;
+proxy_pass ${VITE_AUDIT_API_BASE}$request_uri;
 
 proxy_set_header Host $host;
 proxy_set_header X-Real-IP $remote_addr;
