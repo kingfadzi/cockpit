@@ -7,7 +7,7 @@ services:
     env_file:
       - .env.local  # Use local environment configuration instead of .env.dev
     environment:
-      # API endpoints - needed at build time to be baked into the bundle
-      VITE_API_BASE: "${VITE_API_BASE:-http://localhost:8080}"
-      VITE_AUDIT_API_BASE: "${VITE_AUDIT_API_BASE:-http://localhost:8081}"
-      VITE_USE_MOCK: "${VITE_USE_MOCK:-0}"
+      # API endpoints - hardcoded for local development
+      VITE_API_BASE: "http://localhost:8080"
+      VITE_AUDIT_API_BASE: "http://localhost:8081"
+      VITE_USE_MOCK: "0"

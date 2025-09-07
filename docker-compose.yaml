@@ -6,10 +6,10 @@ services:
     env_file:
       - .env.mars  # Load environment variables from .env.mars
     environment:
-      # API endpoints - needed at build time to be baked into the bundle
-      VITE_API_BASE: "${VITE_API_BASE}"
-      VITE_AUDIT_API_BASE: "${VITE_AUDIT_API_BASE}"
-      VITE_USE_MOCK: "${VITE_USE_MOCK}"
+      # API endpoints - hardcoded for mars environment
+      VITE_API_BASE: "http://192.168.1.218:8080"
+      VITE_AUDIT_API_BASE: "http://192.168.1.218:8081"
+      VITE_USE_MOCK: "0"
     ports:
       - "80:80"
     healthcheck:
