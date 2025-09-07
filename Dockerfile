@@ -2,34 +2,30 @@
 FROM node:20-alpine AS build
 WORKDIR /app
 
-# Build arguments for environment variables
+# Build args (optional — only if you want to bake values into the bundle)
 ARG VITE_API_BASE
-ARG VITE_AUDIT_API_BASE  
+ARG VITE_AUDIT_API_BASE
 ARG VITE_USE_MOCK
 
-# Set environment variables for build
+# Expose to Vite build (optional)
 ENV VITE_API_BASE=$VITE_API_BASE
 ENV VITE_AUDIT_API_BASE=$VITE_AUDIT_API_BASE
 ENV VITE_USE_MOCK=$VITE_USE_MOCK
 
-# Install deps
 COPY package*.json ./
 RUN npm ci
 
-# Build app
 COPY . .
 RUN npm run build
 
 # ---------- Runtime stage ----------
 FROM nginx:1.27-alpine
-
-# For envsubst
 RUN apk add --no-cache bash gettext
 
-# Copy built assets
+# Static files
 COPY --from=build /app/dist /usr/share/nginx/html
 
-# Nginx config template + entrypoint
+# Nginx template + entrypoint
 COPY deploy/nginx.conf.template /etc/nginx/templates/default.conf.template
 COPY deploy/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh

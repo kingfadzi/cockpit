@@ -1,59 +1,59 @@
 # Rendered at container start with VITE_API_BASE and VITE_AUDIT_API_BASE from env
-# Serves the SPA and proxies /api to your backend (keeps one browser origin)
+# Serves the SPA and proxies /api and /audit (prefixes kept)
 
 server {
-listen 80;
-server_name _;
+  listen 80;
+  server_name _;
 
-# Serve static files from the Vite build
-root /usr/share/nginx/html;
-index index.html;
+  # Serve static files from the Vite build
+  root /usr/share/nginx/html;
+  index index.html;
 
-# Gzip for better perf
-gzip on;
-gzip_types text/plain text/css application/javascript application/json image/svg+xml;
-gzip_min_length 1024;
+  # Gzip for better perf
+  gzip on;
+  gzip_types text/plain text/css application/javascript application/json image/svg+xml;
+  gzip_min_length 1024;
 
-# Cache static assets (adjust as you prefer)
-location ~* \.(css|js|woff2?|ttf|eot|otf|png|jpg|jpeg|gif|svg)$ {
-add_header Cache-Control "public, max-age=31536000, immutable";
-try_files $uri =404;
-}
+  # Cache static assets (adjust as you prefer)
+  location ~* \.(css|js|woff2?|ttf|eot|otf|png|jpg|jpeg|gif|svg)$ {
+    add_header Cache-Control "public, max-age=31536000, immutable";
+    try_files $uri =404;
+  }
 
-# API reverse proxy → your main backend
-location /api/ {
-# Important: preserve the incoming path. $request_uri includes query string.
-proxy_pass ${VITE_API_BASE}$request_uri;
+  # API reverse proxy → your main backend
+  location /api/ {
+    # Preserve incoming path + query
+    proxy_pass ${VITE_API_BASE}$request_uri;
 
-proxy_set_header Host $host;
-proxy_set_header X-Real-IP $remote_addr;
-proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
 
-# WebSocket support (if your API uses it)
-proxy_http_version 1.1;
-proxy_set_header Upgrade $http_upgrade;
-proxy_set_header Connection "upgrade";
-}
+    # WebSocket support
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection "upgrade";
+  }
 
-# Audit API reverse proxy → your audit backend
-location /audit/ {
-# Important: preserve the incoming path. $request_uri includes query string.
-proxy_pass ${VITE_AUDIT_API_BASE}$request_uri;
+  # Audit API reverse proxy → your audit backend
+  location /audit/ {
+    # Preserve incoming path + query
+    proxy_pass ${VITE_AUDIT_API_BASE}$request_uri;
 
-proxy_set_header Host $host;
-proxy_set_header X-Real-IP $remote_addr;
-proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
 
-# WebSocket support (if your API uses it)
-proxy_http_version 1.1;
-proxy_set_header Upgrade $http_upgrade;
-proxy_set_header Connection "upgrade";
-}
+    # WebSocket support
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection "upgrade";
+  }
 
-# SPA fallback — send all unmatched routes to index.html
-location / {
-try_files $uri /index.html;
-}
+  # SPA fallback — send all unmatched routes to index.html
+  location / {
+    try_files $uri /index.html;
+  }
 }

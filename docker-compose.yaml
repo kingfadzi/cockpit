@@ -3,20 +3,24 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      # Build-time args are optional:
       args:
-        # Pass build-time environment variables
         VITE_API_BASE: "http://192.168.1.218:8080"
         VITE_AUDIT_API_BASE: "http://192.168.1.218:8081"
         VITE_USE_MOCK: "0"
+
+    # RUNTIME envs (these drive Nginx proxies)
     environment:
-      # Runtime environment variables for entrypoint script
       VITE_API_BASE: "http://192.168.1.218:8080"
       VITE_AUDIT_API_BASE: "http://192.168.1.218:8081"
+
     ports:
       - "80:80"
+
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost"]
       interval: 30s
       timeout: 3s
       retries: 3
+
     restart: unless-stopped
