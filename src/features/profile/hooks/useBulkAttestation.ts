@@ -23,9 +23,9 @@ export function useBulkAttestation(
     fields: ProfileField[],
     eligibleForAttestation?: (field: ProfileField) => boolean
 ) {
-    // Default eligibility function - simple check for pending status with evidence
+    // Default eligibility function - check for statuses that can be attested
     const defaultEligibilityFn = useCallback((field: ProfileField) => {
-        return field.approvalStatus === 'pending' && (field.evidence?.length || 0) > 0;
+        return (field.approvalStatus === 'pending_review' || field.approvalStatus === 'no_evidence') && (field.evidence?.length || 0) > 0;
     }, []);
     
     const eligibilityFn = eligibleForAttestation || defaultEligibilityFn;

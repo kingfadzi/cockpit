@@ -250,17 +250,43 @@ function FieldRow({
                 <TableCell>
                     <Chip
                         size="small"
-                        color={approvalStatus === 'approved' || approvalStatus === 'user_attested' ? 'success' : approvalStatus === 'pending' ? 'warning' : 'error'}
+                        color={
+                            approvalStatus === 'approved' ? 'success' :
+                            approvalStatus === 'user_attested' ? 'info' :
+                            approvalStatus === 'partially_approved' ? 'warning' :
+                            approvalStatus === 'pending_review' ? 'warning' :
+                            approvalStatus === 'rejected' ? 'error' :
+                            'default' // no_evidence fallback
+                        }
                         variant="outlined"
-                        label={approvalStatus ? approvalStatus.charAt(0).toUpperCase() + approvalStatus.slice(1) : '—'}
+                        label={
+                            approvalStatus ? 
+                                approvalStatus.replace('_', ' ').split(' ').map(word => 
+                                    word.charAt(0).toUpperCase() + word.slice(1)
+                                ).join(' ') : 
+                                '—'
+                        }
                     />
                 </TableCell>
                 <TableCell>
                     <Chip
                         size="small"
-                        color={freshnessStatus === 'current' ? 'success' : freshnessStatus === 'expiring' ? 'warning' : 'error'}
+                        color={
+                            freshnessStatus === 'current' ? 'success' :
+                            freshnessStatus === 'expiring' ? 'warning' :
+                            freshnessStatus === 'expired' ? 'error' :
+                            freshnessStatus === 'broken' ? 'error' :
+                            freshnessStatus === 'invalid_evidence' ? 'error' :
+                            'default'
+                        }
                         variant="outlined"
-                        label={freshnessStatus ? freshnessStatus.charAt(0).toUpperCase() + freshnessStatus.slice(1) : '—'}
+                        label={
+                            freshnessStatus ? 
+                                freshnessStatus.replace('_', ' ').split(' ').map(word => 
+                                    word.charAt(0).toUpperCase() + word.slice(1)
+                                ).join(' ') : 
+                                '—'
+                        }
                     />
                 </TableCell>
                 <TableCell>
@@ -474,7 +500,7 @@ export default function DomainTable({ domain, appId, onTabChange, enableBulkAtte
     const { title, icon, driverLabel, driverValue, fields, domainKey, bulkAttestationEnabled } = domain;
     
     // Filter state for status filtering
-    const [filterStatus, setFilterStatus] = useState<'all' | 'pending' | 'approved' | 'rejected'>('all');
+    const [filterStatus, setFilterStatus] = useState<'all' | 'pending_review' | 'approved' | 'rejected' | 'user_attested' | 'partially_approved' | 'no_evidence'>('all');
     
     // Bulk attestation modal state
     const [bulkAttestationModalOpen, setBulkAttestationModalOpen] = useState(false);
@@ -528,15 +554,24 @@ export default function DomainTable({ domain, appId, onTabChange, enableBulkAtte
     };
 
     const coverage = useMemo(() => {
-        let approved = 0, pending = 0, rejected = 0;
+        let approved = 0, pending = 0, rejected = 0, partiallyApproved = 0, userAttested = 0, noEvidence = 0;
         filteredFields.forEach((field: any) => {
-            if (field.approvalStatus === 'approved' || field.approvalStatus === 'user_attested') approved++;
-            else if (field.approvalStatus === 'pending') pending++;
-            else rejected++;
+            if (field.approvalStatus === 'approved') approved++;
+            else if (field.approvalStatus === 'user_attested') userAttested++;
+            else if (field.approvalStatus === 'partially_approved') partiallyApproved++;
+            else if (field.approvalStatus === 'pending_review') pending++;
+            else if (field.approvalStatus === 'rejected') rejected++;
+            else if (field.approvalStatus === 'no_evidence') noEvidence++;
         });
         const total = filteredFields.length || 1;
-        const readiness = Math.round((approved / total) * 100);
-        return { Approved: approved, Pending: pending, Rejected: rejected, readiness };
+        const compliant = approved + userAttested + partiallyApproved; // Count all positive statuses as compliant
+        const readiness = Math.round((compliant / total) * 100);
+        return { 
+            Approved: approved, 
+            Pending: pending + noEvidence, // Group pending items together
+            Rejected: rejected, 
+            readiness 
+        };
     }, [filteredFields]);
 
     return (
@@ -593,9 +628,12 @@ export default function DomainTable({ domain, appId, onTabChange, enableBulkAtte
                                 }}
                             >
                                 <MenuItem value="all">All</MenuItem>
-                                <MenuItem value="pending">Pending</MenuItem>
                                 <MenuItem value="approved">Approved</MenuItem>
+                                <MenuItem value="user_attested">User Attested</MenuItem>
+                                <MenuItem value="partially_approved">Partially Approved</MenuItem>
+                                <MenuItem value="pending_review">Pending Review</MenuItem>
                                 <MenuItem value="rejected">Rejected</MenuItem>
+                                <MenuItem value="no_evidence">No Evidence</MenuItem>
                             </Select>
                         </FormControl>
                     )}

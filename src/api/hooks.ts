@@ -113,9 +113,12 @@ export const useCreateEvidenceWithDocument = (appId: string) => {
     const qc = useQueryClient();
     return useMutation({
         mutationFn: (payload: any) => endpoints.createEvidenceWithDocument(appId, payload),
-        onSuccess: () => {
+        onSuccess: (data, variables) => {
             qc.invalidateQueries({ queryKey: ['evidence', appId] });
             qc.invalidateQueries({ queryKey: ['profile', appId] });
+            if (variables.profileFieldId) {
+                qc.invalidateQueries({ queryKey: ['profileFieldEvidence', variables.profileFieldId] });
+            }
         },
     });
 };
@@ -168,6 +171,7 @@ export const useAttachDocument = (appId: string, profileFieldId: string) => {
         mutationFn: (documentId: string) => endpoints.attachDocumentToField(appId, profileFieldId, documentId),
         onSuccess: () => {
             qc.invalidateQueries({ queryKey: ['attachedDocuments', appId, profileFieldId] });
+            qc.invalidateQueries({ queryKey: ['profileFieldEvidence', profileFieldId] });
             qc.invalidateQueries({ queryKey: ['profile', appId] });
             qc.invalidateQueries({ queryKey: ['auditCount', appId, profileFieldId] });
         },
@@ -180,6 +184,7 @@ export const useDetachDocument = (appId: string, profileFieldId: string) => {
         mutationFn: (documentId: string) => endpoints.detachDocumentFromField(appId, profileFieldId, documentId),
         onSuccess: () => {
             qc.invalidateQueries({ queryKey: ['attachedDocuments', appId, profileFieldId] });
+            qc.invalidateQueries({ queryKey: ['profileFieldEvidence', profileFieldId] });
             qc.invalidateQueries({ queryKey: ['profile', appId] });
             qc.invalidateQueries({ queryKey: ['auditCount', appId, profileFieldId] });
         },
@@ -317,6 +322,7 @@ export const useBulkAttestation = (appId: string) => {
             qc.invalidateQueries({ queryKey: ['profile', appId] });
             qc.invalidateQueries({ queryKey: ['apps'] }); // Refresh apps data with updated KPIs
             qc.invalidateQueries({ queryKey: ['kpis'] }); // Refresh KPIs
+            qc.invalidateQueries({ queryKey: ['profileFieldEvidence'] }); // Refresh evidence modal data
         },
     });
 };
@@ -330,6 +336,7 @@ export const useSubmitAttestation = (appId: string, profileFieldId?: string) => 
             qc.invalidateQueries({ queryKey: ['profile', appId] });
             qc.invalidateQueries({ queryKey: ['apps'] }); // Refresh apps data with updated KPIs
             qc.invalidateQueries({ queryKey: ['kpis'] }); // Refresh KPIs
+            qc.invalidateQueries({ queryKey: ['profileFieldEvidence'] }); // Refresh evidence modal data
             
             // Refresh audit count for the specific field
             if (profileFieldId) {

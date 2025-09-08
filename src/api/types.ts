@@ -128,8 +128,8 @@ export type ProfileField = {
   label: string;
   policyRequirement: PolicyRequirement;
   evidence: Evidence[];
-  approvalStatus: 'approved' | 'pending' | 'rejected';
-  freshnessStatus: 'current' | 'expiring' | 'expired' | 'missing';
+  approvalStatus: 'approved' | 'pending_review' | 'rejected' | 'partially_approved' | 'user_attested' | 'no_evidence';
+  freshnessStatus: 'current' | 'expiring' | 'expired' | 'broken' | 'invalid_evidence';
   risks: Risk[];
 };
 

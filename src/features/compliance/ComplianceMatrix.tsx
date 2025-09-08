@@ -14,7 +14,7 @@ export default function ComplianceMatrix({ appId }: { appId: string }) {
     return acc;
   }, {});
 
-  const statuses = ['met', 'missing', 'expiring', 'rejected'];
+  const statuses = ['met', 'missing', 'expiring', 'rejected', 'current', 'expired', 'broken', 'invalid_evidence'];
 
   return (
     <Grid container spacing={2}>
