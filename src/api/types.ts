@@ -272,3 +272,63 @@ export type AttestationResponse = {
 };
 
 export type ReleaseItem = any;          // unchanged for now
+
+// Evidence search parameters for workbench
+export interface EvidenceSearchParams {
+  // Status filters
+  status?: 'missing' | 'pending' | 'expired' | 'rejected' | 'approved' | 'compliant';
+  freshnessStatus?: 'current' | 'expiring' | 'expired' | 'broken';
+  approvalStatus?: 'approved' | 'pending_review' | 'rejected' | 'no_evidence' | 'user_attested';
+
+  // App filters
+  appId?: string;
+  criticality?: 'A' | 'B' | 'C' | 'D';
+  applicationType?: string;
+  architectureType?: string;
+  installType?: string;
+  search?: string;
+
+  // Field filters
+  domain?: string;                    // "security", "integrity"
+  fieldKey?: string;                  // "encryption_at_rest"
+
+  // Time filters
+  dueWithin?: string;                 // "7days", "30days"
+  overdueSince?: string;              // "2024-01-01"
+
+  // People filters
+  assignedReviewer?: string;
+  submittedBy?: string;
+
+  // Pagination
+  limit?: number;
+  offset?: number;
+}
+
+// Enriched evidence item for workbench display
+export interface WorkbenchEvidenceItem {
+  evidenceId: string;
+  appId: string;
+  appName: string;
+  appCriticality: 'A' | 'B' | 'C' | 'D';
+  applicationType?: string;
+  architectureType?: string;
+  installType?: string;
+  applicationTier?: string;
+  domainTitle: string;              // "Security", "Integrity", "Availability"
+  fieldKey: string;                 // "encryption_at_rest"
+  fieldLabel: string;               // "Encryption at Rest"
+  policyRequirement: string;        // "Required for A-rated apps"
+  status: 'missing' | 'pending' | 'expired' | 'rejected' | 'approved' | 'compliant';
+  approvalStatus: 'approved' | 'pending_review' | 'rejected' | 'no_evidence' | 'user_attested';
+  freshnessStatus: 'current' | 'expiring' | 'expired' | 'broken';
+  dueDate?: string;                 // When evidence is due
+  submittedDate?: string;           // When submitted (for pending)
+  reviewedDate?: string;            // When reviewed
+  rejectionReason?: string;         // Why rejected
+  assignedReviewer?: string;        // Who's reviewing
+  submittedBy?: string;             // Who submitted
+  daysOverdue?: number;             // How many days overdue
+  riskCount?: number;               // Number of associated risks
+  uri?: string;                     // Evidence URL/link
+}

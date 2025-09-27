@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     Alert,
     Box,
@@ -13,6 +13,7 @@ import {
     Bolt as ResilienceIcon,
     Assessment as CriticalityIcon,
 } from '@mui/icons-material';
+import { useSearchParams } from 'react-router-dom';
 import type { ProfileResponse, ProfileDomain } from '../../../api/types';
 import DomainTable from '../components/DomainTable';
 
@@ -34,21 +35,39 @@ interface ProfileTabProps {
 }
 
 export default function ProfileTab({ profile, appId = '', onTabChange }: ProfileTabProps) {
+    const [searchParams, setSearchParams] = useSearchParams();
+
     // Get all available domains
     const availableDomains = profile.domains;
 
     // Find the Summary domain first, then fallback to first available domain
     const summaryDomain = availableDomains.find(domain => domain.domainKey === 'app_criticality_assessment');
-    const firstAvailableDomain = availableDomains.find(domain => 
+    const firstAvailableDomain = availableDomains.find(domain =>
         DOMAIN_TAB_CONFIG.some(config => config.value === domain.domainKey)
     );
 
+    // Get subtab from URL params, default to summary/first available
+    const subtabFromUrl = searchParams.get('subtab') as DomainTabValue;
+    const defaultSubtab = summaryDomain ? 'app_criticality_assessment' : (firstAvailableDomain?.domainKey as DomainTabValue || 'app_criticality_assessment');
+
     const [activeDomainTab, setActiveDomainTab] = useState<DomainTabValue>(
-        summaryDomain ? 'app_criticality_assessment' : (firstAvailableDomain?.domainKey as DomainTabValue || 'app_criticality_assessment')
+        (subtabFromUrl && DOMAIN_TAB_CONFIG.some(config => config.value === subtabFromUrl)) ? subtabFromUrl : defaultSubtab
     );
+
+    // Sync with URL params on mount/change
+    useEffect(() => {
+        const urlSubtab = searchParams.get('subtab') as DomainTabValue;
+        if (urlSubtab && DOMAIN_TAB_CONFIG.some(config => config.value === urlSubtab) && urlSubtab !== activeDomainTab) {
+            setActiveDomainTab(urlSubtab);
+        }
+    }, [searchParams, activeDomainTab]);
 
     const handleDomainTabChange = (_event: React.SyntheticEvent, newTab: DomainTabValue) => {
         setActiveDomainTab(newTab);
+        // Update URL to include subtab parameter
+        const currentParams = new URLSearchParams(searchParams);
+        currentParams.set('subtab', newTab);
+        setSearchParams(currentParams);
     };
 
     const renderDomainTabContent = () => {

@@ -6,6 +6,8 @@ import {
   PortfolioKpis,
   ProfileResponse,
   AppKpis,
+  WorkbenchEvidenceItem,
+  EvidenceSearchParams,
 } from './types';
 import { realApps, realAppKpis, realProfiles, realPortfolioKpis } from './realMockData';
 
@@ -148,6 +150,179 @@ export const evidence: Record<string, EvidenceItem[]> = {
     },
   ],
 };
+
+// Mock workbench evidence data for realistic evidence-centric workbench
+export const mockWorkbenchEvidence: WorkbenchEvidenceItem[] = [
+  // Missing Evidence Items
+  {
+    evidenceId: 'ev_missing_001',
+    appId: 'CORR-12356',
+    appName: 'Payment Processing',
+    appCriticality: 'A',
+    domainTitle: 'Security',
+    fieldKey: 'encryption_at_rest',
+    fieldLabel: 'Encryption at Rest',
+    policyRequirement: 'Required for A-rated applications',
+    status: 'missing',
+    approvalStatus: 'no_evidence',
+    freshnessStatus: 'expired',
+    dueDate: '2024-01-15',
+    daysOverdue: 12,
+    riskCount: 1,
+  },
+  {
+    evidenceId: 'ev_missing_002',
+    appId: 'APM100001',
+    appName: 'crimson-beacon-210',
+    appCriticality: 'C',
+    domainTitle: 'Integrity',
+    fieldKey: 'audit_logging',
+    fieldLabel: 'Audit Logging',
+    policyRequirement: 'Logging enabled with sampled review',
+    status: 'missing',
+    approvalStatus: 'no_evidence',
+    freshnessStatus: 'current',
+    dueDate: '2024-02-01',
+    daysOverdue: 0,
+    riskCount: 0,
+  },
+  {
+    evidenceId: 'ev_missing_003',
+    appId: 'DEVTOOLS',
+    appName: 'Dev Tools',
+    appCriticality: 'D',
+    domainTitle: 'Security',
+    fieldKey: 'vuln_scan',
+    fieldLabel: 'Vulnerability Scanning',
+    policyRequirement: 'Quarterly security scans',
+    status: 'missing',
+    approvalStatus: 'no_evidence',
+    freshnessStatus: 'expired',
+    dueDate: '2024-01-01',
+    daysOverdue: 26,
+    riskCount: 2,
+  },
+
+  // Pending Review Items
+  {
+    evidenceId: 'ev_pending_001',
+    appId: 'CORR-12356',
+    appName: 'Payment Processing',
+    appCriticality: 'A',
+    domainTitle: 'Security',
+    fieldKey: 'backup_policy',
+    fieldLabel: 'Backup Policy',
+    policyRequirement: 'Encrypted with tested restores',
+    status: 'pending',
+    approvalStatus: 'pending_review',
+    freshnessStatus: 'current',
+    submittedDate: '2024-01-20',
+    assignedReviewer: 'Security SME',
+    submittedBy: 'po_user_001',
+    uri: 'https://confluence.com/backup-policy.pdf',
+    riskCount: 0,
+  },
+  {
+    evidenceId: 'ev_pending_002',
+    appId: 'APM100001',
+    appName: 'crimson-beacon-210',
+    appCriticality: 'C',
+    domainTitle: 'Availability',
+    fieldKey: 'monitoring_slos',
+    fieldLabel: 'Monitoring SLOs',
+    policyRequirement: '≥99.5% uptime with alerting',
+    status: 'pending',
+    approvalStatus: 'pending_review',
+    freshnessStatus: 'current',
+    submittedDate: '2024-01-18',
+    assignedReviewer: 'Service Reliability SME',
+    submittedBy: 'po_user_002',
+    uri: 'https://grafana.com/dashboard/slos',
+    riskCount: 0,
+  },
+
+  // Rejected Items
+  {
+    evidenceId: 'ev_rejected_001',
+    appId: 'DEVTOOLS',
+    appName: 'Dev Tools',
+    appCriticality: 'D',
+    domainTitle: 'Security',
+    fieldKey: 'security_testing',
+    fieldLabel: 'Security Testing',
+    policyRequirement: 'SAST on every release',
+    status: 'rejected',
+    approvalStatus: 'rejected',
+    freshnessStatus: 'broken',
+    submittedDate: '2024-01-10',
+    reviewedDate: '2024-01-12',
+    rejectionReason: 'Evidence shows manual testing only, not automated SAST',
+    assignedReviewer: 'Security SME',
+    submittedBy: 'po_user_003',
+    uri: 'https://jira.com/test-results-manual',
+    riskCount: 1,
+  },
+  {
+    evidenceId: 'ev_rejected_002',
+    appId: 'CORR-12356',
+    appName: 'Payment Processing',
+    appCriticality: 'A',
+    domainTitle: 'Confidentiality',
+    fieldKey: 'data_retention_policy',
+    fieldLabel: 'Data Retention Policy',
+    policyRequirement: 'Policy must be documented and current',
+    status: 'rejected',
+    approvalStatus: 'rejected',
+    freshnessStatus: 'expired',
+    submittedDate: '2024-01-08',
+    reviewedDate: '2024-01-10',
+    rejectionReason: 'Policy document is from 2022, needs to be updated',
+    assignedReviewer: 'Data Protection SME',
+    submittedBy: 'po_user_001',
+    uri: 'https://confluence.com/old-retention-policy-2022',
+    riskCount: 0,
+  },
+
+  // Approved/Compliant Items
+  {
+    evidenceId: 'ev_approved_001',
+    appId: 'CORR-12356',
+    appName: 'Payment Processing',
+    appCriticality: 'A',
+    domainTitle: 'Security',
+    fieldKey: 'encryption_in_transit',
+    fieldLabel: 'Encryption in Transit',
+    policyRequirement: 'TLS 1.2+ for all communications',
+    status: 'compliant',
+    approvalStatus: 'approved',
+    freshnessStatus: 'current',
+    submittedDate: '2024-01-05',
+    reviewedDate: '2024-01-07',
+    assignedReviewer: 'Security SME',
+    submittedBy: 'po_user_001',
+    uri: 'https://ssl-test.com/payment-app-tls',
+    riskCount: 0,
+  },
+  {
+    evidenceId: 'ev_approved_002',
+    appId: 'APM100001',
+    appName: 'crimson-beacon-210',
+    appCriticality: 'C',
+    domainTitle: 'Integrity',
+    fieldKey: 'change_control',
+    fieldLabel: 'Change Control',
+    policyRequirement: 'Peer review plus unit tests',
+    status: 'compliant',
+    approvalStatus: 'approved',
+    freshnessStatus: 'current',
+    submittedDate: '2024-01-03',
+    reviewedDate: '2024-01-05',
+    assignedReviewer: 'Engineering SME',
+    submittedBy: 'po_user_002',
+    uri: 'https://github.com/beacon/pull-request-template',
+    riskCount: 0,
+  }
+];
 
 export const requirements: Record<string, RequirementsResponse> = {
   'CORR-12356': {
@@ -398,9 +573,16 @@ const generateProfileForApp = (appId: string) => {
 };
 
 export const mockApi = {
-  listApps: async () => {
+  listApps: async (filters?: {
+    search?: string;
+    criticality?: string;
+    applicationType?: string;
+    architectureType?: string;
+    installType?: string;
+    kpiType?: string;
+  }) => {
     await delay(150);
-    return realApps.map(app => ({
+    let apps = realApps.map(app => ({
       appId: app.appId,
       name: app.name,
       businessServiceName: app.businessServiceName,
@@ -427,6 +609,56 @@ export const mockApi = {
       parentAppId: app.parentAppId,
       parentAppName: app.parentAppName,
     }));
+
+    // Apply filters
+    if (filters) {
+      if (filters.search) {
+        const searchLower = filters.search.toLowerCase();
+        apps = apps.filter(app =>
+          app.name?.toLowerCase().includes(searchLower) ||
+          app.appId.toLowerCase().includes(searchLower) ||
+          app.businessServiceName?.toLowerCase().includes(searchLower)
+        );
+      }
+      if (filters.criticality) {
+        apps = apps.filter(app => app.criticality === filters.criticality);
+      }
+      if (filters.applicationType) {
+        apps = apps.filter(app => app.applicationType === filters.applicationType);
+      }
+      if (filters.architectureType) {
+        apps = apps.filter(app => app.architecture_type === filters.architectureType);
+      }
+      if (filters.installType) {
+        apps = apps.filter(app => app.install_type === filters.installType);
+      }
+      if (filters.kpiType) {
+        // Filter based on KPI type - this is mock logic for demo purposes
+        switch (filters.kpiType) {
+          case 'compliant':
+            // Show apps with A or B criticality as "compliant"
+            apps = apps.filter(app => ['A', 'B'].includes(app.criticality || 'D'));
+            break;
+          case 'missingEvidence':
+            // Show apps with C criticality as "missing evidence"
+            apps = apps.filter(app => app.criticality === 'C');
+            break;
+          case 'pendingReview':
+            // Show apps with specific application types as "pending review"
+            apps = apps.filter(app => app.applicationType?.includes('application component'));
+            break;
+          case 'riskBlocked':
+            // Show apps with D criticality as "risk blocked"
+            apps = apps.filter(app => app.criticality === 'D');
+            break;
+          default:
+            // Unknown KPI type, return empty
+            apps = [];
+        }
+      }
+    }
+
+    return apps;
   },
   getApp: async (appId: string) => {
     await delay(100);
@@ -1330,18 +1562,35 @@ export const mockApi = {
     await delay(150);
     return Object.values(evidence).flat();
   },
-  getPortfolioKpis: async (): Promise<PortfolioKpis> => {
+  getPortfolioKpis: async (filters?: {
+    search?: string;
+    criticality?: string;
+    applicationType?: string;
+    architectureType?: string;
+    installType?: string;
+    kpiType?: string;
+  }): Promise<PortfolioKpis> => {
     await delay(120);
-    // Use real portfolio KPIs if available
-    if (realPortfolioKpis) {
+
+    // If no filters, return static KPIs (optimization)
+    if (!filters || Object.keys(filters).length === 0) {
       return realPortfolioKpis;
     }
-    // Fallback to calculated from all apps
-    return { 
-      compliant: 0, 
-      missingEvidence: 0, 
-      pendingReview: 645, // 15 apps * 43 fields
-      riskBlocked: 331 
+
+    // Get filtered apps and calculate KPIs dynamically
+    const filteredApps = await mockApi.listApps(filters);
+
+    // Calculate KPIs based on filtered apps
+    // For demo purposes, we'll scale the base KPIs proportionally
+    const totalApps = realApps.length;
+    const filteredCount = filteredApps.length;
+    const ratio = filteredCount / totalApps;
+
+    return {
+      compliant: Math.round(realPortfolioKpis.compliant * ratio),
+      missingEvidence: Math.round(realPortfolioKpis.missingEvidence * ratio),
+      pendingReview: Math.round(realPortfolioKpis.pendingReview * ratio),
+      riskBlocked: Math.round(realPortfolioKpis.riskBlocked * ratio)
     };
   },
   getAppKpis: async (appId: string): Promise<AppKpis> => {
@@ -1480,5 +1729,99 @@ export const mockApi = {
     };
     
     return childAppsData[parentAppId] || [];
+  },
+
+  // Evidence search for workbench
+  searchEvidence: async (params: EvidenceSearchParams): Promise<WorkbenchEvidenceItem[]> => {
+    await delay(150);
+
+    // Enrich evidence items with app details from realApps
+    let results = mockWorkbenchEvidence.map(item => {
+      const appData = realApps.find(app => app.appId === item.appId);
+      return {
+        ...item,
+        applicationType: appData?.applicationType || undefined,
+        architectureType: appData?.architectureType || undefined,
+        installType: appData?.installType || undefined,
+        applicationTier: appData?.applicationTier || undefined,
+      };
+    });
+
+    // Filter by status
+    if (params.status) {
+      results = results.filter(item => item.status === params.status);
+    }
+
+    // Filter by approval status
+    if (params.approvalStatus) {
+      results = results.filter(item => item.approvalStatus === params.approvalStatus);
+    }
+
+    // Filter by freshness status
+    if (params.freshnessStatus) {
+      results = results.filter(item => item.freshnessStatus === params.freshnessStatus);
+    }
+
+    // Filter by app criticality
+    if (params.criticality) {
+      results = results.filter(item => item.appCriticality === params.criticality);
+    }
+
+    // Filter by domain
+    if (params.domain) {
+      results = results.filter(item =>
+        item.domainTitle.toLowerCase().includes(params.domain!.toLowerCase())
+      );
+    }
+
+    // Filter by field key
+    if (params.fieldKey) {
+      results = results.filter(item => item.fieldKey === params.fieldKey);
+    }
+
+    // Filter by assigned reviewer
+    if (params.assignedReviewer) {
+      results = results.filter(item => item.assignedReviewer === params.assignedReviewer);
+    }
+
+    // Filter by submitted by
+    if (params.submittedBy) {
+      results = results.filter(item => item.submittedBy === params.submittedBy);
+    }
+
+    // Filter by search term (app name, field label, etc.)
+    if (params.search) {
+      const searchTerm = params.search.toLowerCase();
+      results = results.filter(item =>
+        item.appName.toLowerCase().includes(searchTerm) ||
+        item.fieldLabel.toLowerCase().includes(searchTerm) ||
+        item.domainTitle.toLowerCase().includes(searchTerm) ||
+        item.policyRequirement?.toLowerCase().includes(searchTerm)
+      );
+    }
+
+    // Filter by application type
+    if (params.applicationType) {
+      results = results.filter(item => item.applicationType === params.applicationType);
+    }
+
+    // Filter by architecture type
+    if (params.architectureType) {
+      results = results.filter(item => item.architectureType === params.architectureType);
+    }
+
+    // Filter by install type
+    if (params.installType) {
+      results = results.filter(item => item.installType === params.installType);
+    }
+
+    // Apply pagination
+    if (params.offset || params.limit) {
+      const offset = params.offset || 0;
+      const limit = params.limit || 50;
+      results = results.slice(offset, offset + limit);
+    }
+
+    return results;
   },
 };

@@ -150,38 +150,39 @@ export default function POHome() {
   };
 
   // KPI tile definitions with backend-calculated counts and URLs
+  const filterQuery = getFilterParams();
   const tiles: Tile[] = [
     {
-      label: 'Compliant',
+      label: 'Compliant Evidence',
       severity: 'success',
       count: kpis?.compliant ?? 0,
-      tooltip: 'Approved evidence and passing controls',
-      to: `/po/evidence?status=approved${getFilterParams() ? '&' + getFilterParams() : ''}`,
-      subtext: 'Review latest approvals',
+      tooltip: 'Evidence items that have been approved and are meeting requirements',
+      to: `/po/kpis/compliant${filterQuery ? `?${filterQuery}` : ''}`,
+      subtext: 'Review approved items',
     },
     {
       label: 'Missing Evidence',
       severity: 'error',
       count: kpis?.missingEvidence ?? 0,
-      tooltip: 'Controls missing required evidence',
-      to: `/po/evidence?status=missing${getFilterParams() ? '&' + getFilterParams() : ''}`,
-      subtext: 'Click to upload',
+      tooltip: 'Evidence items that need to be uploaded or submitted',
+      to: `/po/kpis/missing${filterQuery ? `?${filterQuery}` : ''}`,
+      subtext: 'Upload required evidence',
     },
     {
       label: 'Pending Review',
       severity: 'warning',
       count: kpis?.pendingReview ?? 0,
-      tooltip: 'Evidence awaiting SME review',
-      to: `/po/evidence?status=submitted${getFilterParams() ? '&' + getFilterParams() : ''}`,
-      subtext: 'See what\'s waiting',
+      tooltip: 'Evidence items submitted and awaiting SME review',
+      to: `/po/kpis/pending${filterQuery ? `?${filterQuery}` : ''}`,
+      subtext: 'Follow up on reviews',
     },
     {
-      label: 'Risk Blocked',
+      label: 'Risk Blocked Evidence',
       severity: 'info',
       count: kpis?.riskBlocked ?? 0,
-      tooltip: 'Controls blocked by risk/exception',
-      to: `/po/evidence?status=rejected${getFilterParams() ? '&' + getFilterParams() : ''}`,
-      subtext: 'Resolve before release',
+      tooltip: 'Evidence items that are blocked due to risks and need remediation',
+      to: `/po/kpis/riskBlocked${filterQuery ? `?${filterQuery}` : ''}`,
+      subtext: 'Fix and resubmit',
     },
   ];
 

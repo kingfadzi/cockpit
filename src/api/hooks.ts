@@ -13,6 +13,8 @@ import type {
     BulkAttestationResponse,
     AttestationRequest,
     AttestationResponse,
+    WorkbenchEvidenceItem,
+    EvidenceSearchParams,
 } from './types';
 
 const commonQuery = { staleTime: 60_000, refetchOnWindowFocus: false as const };
@@ -23,6 +25,7 @@ export const useApps = (filters?: {
     applicationType?: string;
     architectureType?: string;
     installType?: string;
+    kpiType?: string;
 }) =>
     useQuery<AppsWithKpis>({ 
         queryKey: ['apps', filters], 
@@ -59,6 +62,13 @@ export const useAppKpis = (appId: string) =>
 
 export const useChildApps = (appId: string) =>
     useQuery<AppSummary[]>({ queryKey: ['childApps', appId], queryFn: () => endpoints.getChildApps(appId), enabled: !!appId, ...commonQuery });
+
+export const useEvidenceSearch = (params: EvidenceSearchParams) =>
+    useQuery<WorkbenchEvidenceItem[]>({
+        queryKey: ['evidence', 'search', params],
+        queryFn: () => endpoints.searchEvidence(params),
+        ...commonQuery
+    });
 
 export const useCreateEvidence = (appId: string) => {
     const qc = useQueryClient();

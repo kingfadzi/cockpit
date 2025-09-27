@@ -16,6 +16,8 @@ import type {
     BulkAttestationResponse,
     AttestationRequest,
     AttestationResponse,
+    WorkbenchEvidenceItem,
+    EvidenceSearchParams,
 } from './types';
 
 // For production builds, use relative URLs that work with nginx proxy
@@ -167,10 +169,11 @@ export const endpoints = {
         applicationType?: string;
         architectureType?: string;
         installType?: string;
+        kpiType?: string;
     }): Promise<AppsWithKpis> => {
         if (USE_MOCK) {
-            const apps = await mockApi.listApps();
-            const kpis = await mockApi.getPortfolioKpis();
+            const apps = await mockApi.listApps(filters);
+            const kpis = await mockApi.getPortfolioKpis(filters);
             return { apps, kpis, totalCount: apps.length, filteredCount: apps.length };
         }
         
@@ -180,6 +183,7 @@ export const endpoints = {
         if (filters?.applicationType) params.set('applicationType', filters.applicationType);
         if (filters?.architectureType) params.set('architectureType', filters.architectureType);
         if (filters?.installType) params.set('installType', filters.installType);
+        if (filters?.kpiType) params.set('kpiType', filters.kpiType);
         
         const queryString = params.toString() ? `?${params.toString()}` : '';
         const res = await api.get<AppsWithKpis>(`/api/apps${queryString}`);
@@ -243,9 +247,15 @@ export const endpoints = {
 
     /** Get child apps */
     getChildApps: async (appId: string): Promise<AppSummary[]> =>
-        USE_MOCK 
+        USE_MOCK
             ? mockApi.getChildApps(appId)
             : (await api.get<ServerApp[]>(`/api/apps/${appId}/children`)).data.map(toClient),
+
+    /** Evidence search for workbench */
+    searchEvidence: async (params: EvidenceSearchParams): Promise<WorkbenchEvidenceItem[]> =>
+        USE_MOCK
+            ? mockApi.searchEvidence(params)
+            : (await api.get<WorkbenchEvidenceItem[]>('/api/evidence/search', { params })).data,
 
     /** Documents (paginated) */
     getDocs: async (appId: string, params?: Record<string, string>): Promise<any> =>

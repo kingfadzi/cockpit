@@ -17557,8 +17557,8 @@ export const realProfiles: Record<string, ProfileResponse> = {
 
 // Real portfolio KPIs
 export const realPortfolioKpis: PortfolioKpis = {
-  "title" : "Internal Server Error",
-  "detail" : "No static resource api/portfolio/kpis.",
-  "type" : "about:blank",
-  "status" : 500
+  compliant: 23,
+  missingEvidence: 8,
+  pendingReview: 34,
+  riskBlocked: 12
 };
