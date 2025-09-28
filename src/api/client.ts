@@ -17,11 +17,14 @@ import type {
     AttestationResponse,
     WorkbenchEvidenceItem,
     EvidenceSearchParams,
+    EvidenceSearchResult,
     EnhancedEvidenceSummary,
     MissingEvidenceSummary,
     RiskBlockedSummary,
     EvidenceStateKey,
     EvidenceStateSlug,
+    PaginatedResponse,
+    PaginationMetadata,
 } from './types';
 
 // For production builds, use relative URLs that work with nginx proxy
@@ -155,13 +158,59 @@ const toClient = (a: ServerApp): AppSummary => ({
     parentAppName: a.parentAppName ?? null,
 });
 
-/** Extract an array from either [] or {items:[...]} or [[]] */
+/** Extract paginated response with metadata */
+function extractPaginatedResponse<T = unknown>(payload: unknown): PaginatedResponse<T> {
+    // Handle new API format with pagination metadata
+    if (payload && typeof payload === 'object' && payload !== null) {
+        const p = payload as any;
+        if (typeof p.page === 'number' && typeof p.pageSize === 'number' && typeof p.total === 'number' && Array.isArray(p.items)) {
+            return {
+                page: p.page,
+                pageSize: p.pageSize,
+                total: p.total,
+                items: p.items as T[]
+            };
+        }
+        // Legacy format: just items array
+        if (Array.isArray(p.items)) {
+            return {
+                page: 1,
+                pageSize: p.items.length,
+                total: p.items.length,
+                items: p.items as T[]
+            };
+        }
+        // Some backends wrap again: { data: { items: [...] } }
+        if (p.data && Array.isArray(p.data.items)) {
+            return {
+                page: 1,
+                pageSize: p.data.items.length,
+                total: p.data.items.length,
+                items: p.data.items as T[]
+            };
+        }
+    }
+    // Fallback for direct array
+    if (Array.isArray(payload)) {
+        return {
+            page: 1,
+            pageSize: payload.length,
+            total: payload.length,
+            items: payload as T[]
+        };
+    }
+    // Empty result
+    return {
+        page: 1,
+        pageSize: 0,
+        total: 0,
+        items: []
+    };
+}
+
+/** Legacy function for backward compatibility */
 function coerceArray<T = unknown>(payload: unknown): T[] {
-    if (Array.isArray(payload)) return payload as T[];
-    if (payload && Array.isArray((payload as { items: T[] }).items)) return (payload as { items: T[] }).items as T[];
-    // Some backends wrap again: { data: { items: [...] } }
-    if ((payload as { data?: { items?: T[] } })?.data && Array.isArray((payload as { data: { items: T[] } }).data.items)) return (payload as { data: { items: T[] } }).data.items as T[];
-    return [];
+    return extractPaginatedResponse<T>(payload).items;
 }
 
 const stateKeyToSlug: Record<EvidenceStateKey, EvidenceStateSlug> = {
@@ -334,30 +383,31 @@ function normalizeMissingSummary(item: MissingEvidenceSummary): WorkbenchEvidenc
 }
 
 function normalizeRiskSummary(item: RiskBlockedSummary): WorkbenchEvidenceItem {
-    const fieldKey = safeString(item.field_key ?? 'unknown_field', 'unknown_field');
-    const domainRaw = item.domain_title ?? item.domain ?? item.domain_key ?? item.derived_from;
+    // Handle both camelCase (new API) and snake_case (legacy) fields
+    const fieldKey = safeString(item.fieldKey ?? item.field_key ?? item.controlField ?? 'unknown_field', 'unknown_field');
+    const domainRaw = item.domain ?? item.domain_title ?? item.domain_key ?? item.derivedFrom ?? item.derived_from;
     const domainTitle = resolveDomainTitle(domainRaw);
     return {
-        evidenceId: item.risk_id || `risk-${fieldKey}`,
-        appId: safeString(item.app_id, 'UNKNOWN_APP'),
-        appName: safeString(item.app_name, 'Unknown Application'),
-        appCriticality: item.app_criticality ?? 'D',
+        evidenceId: item.riskId ?? item.risk_id ?? `risk-${fieldKey}`,
+        appId: safeString(item.appId ?? item.app_id, 'UNKNOWN_APP'),
+        appName: safeString(item.appName ?? item.app_name, 'Unknown Application'),
+        appCriticality: item.appCriticality ?? item.app_criticality ?? 'D',
         applicationType: item.application_type ?? undefined,
-        architectureType: item.architecture_type ?? undefined,
-        installType: item.install_type ?? undefined,
-        applicationTier: item.application_tier ?? undefined,
+        architectureType: item.architectureType ?? item.architecture_type ?? undefined,
+        installType: item.installType ?? item.install_type ?? undefined,
+        applicationTier: item.applicationTier ?? item.application_tier ?? undefined,
         domainTitle: domainTitle ?? '—',
         fieldKey,
-        fieldLabel: safeString(item.field_label ?? item.title, fieldKey),
+        fieldLabel: safeString(item.field_label ?? titleCase(item.controlField ?? item.fieldKey ?? item.field_key ?? fieldKey), fieldKey),
         policyRequirement: safeString(item.hypothesis, '—'),
         status: 'risk_blocked',
         approvalStatus: 'pending_review',
         freshnessStatus: 'broken',
         dueDate: undefined,
-        submittedDate: item.created_at ?? undefined,
-        reviewedDate: item.updated_at ?? undefined,
-        rejectionReason: undefined,
-        assignedReviewer: item.assigned_sme ?? undefined,
+        submittedDate: item.createdAt ?? item.created_at ?? undefined,
+        reviewedDate: item.updatedAt ?? item.updated_at ?? undefined,
+        rejectionReason: item.hypothesis ?? undefined,
+        assignedReviewer: item.assignedSme ?? item.assigned_sme ?? undefined,
         submittedBy: undefined,
         daysOverdue: undefined,
         riskCount: undefined,
@@ -377,43 +427,80 @@ function normalizeRiskSummary(item: RiskBlockedSummary): WorkbenchEvidenceItem {
         claimId: null,
         validFrom: null,
         validUntil: null,
-        productOwner: item.product_owner ?? null,
-        riskId: item.risk_id,
-        riskStatus: item.risk_status,
-        assignedSme: item.assigned_sme,
+        productOwner: item.productOwner ?? item.product_owner ?? null,
+        riskId: item.riskId ?? item.risk_id,
+        riskStatus: item.riskStatus ?? item.risk_status,
+        assignedSme: item.assignedSme ?? item.assigned_sme,
     };
 }
 
-function normalizeStateResponse(state: EvidenceStateKey, payload: unknown): WorkbenchEvidenceItem[] {
+function normalizeStateResponse(state: EvidenceStateKey, payload: unknown): EvidenceSearchResult {
+    const paginatedData = extractPaginatedResponse(payload);
+
+    let normalizedItems: WorkbenchEvidenceItem[];
+
     switch (state) {
         case 'compliant':
         case 'pendingReview': {
-            const items = coerceArray<EnhancedEvidenceSummary>(payload);
-            return items.map((item) => normalizeEvidenceSummary(item, state));
+            normalizedItems = paginatedData.items.map((item) => normalizeEvidenceSummary(item as EnhancedEvidenceSummary, state));
+            break;
         }
         case 'missingEvidence': {
-            const items = coerceArray<MissingEvidenceSummary>(payload);
-            return items.map(normalizeMissingSummary);
+            normalizedItems = paginatedData.items.map((item) => normalizeMissingSummary(item as MissingEvidenceSummary));
+            break;
         }
         case 'riskBlocked': {
-            const items = coerceArray<RiskBlockedSummary>(payload);
-            return items.map(normalizeRiskSummary);
+            normalizedItems = paginatedData.items.map((item) => normalizeRiskSummary(item as RiskBlockedSummary));
+            break;
         }
         default:
-            return [];
+            normalizedItems = [];
     }
+
+    return {
+        page: paginatedData.page,
+        pageSize: paginatedData.pageSize,
+        total: paginatedData.total,
+        items: normalizedItems
+    };
 }
 
-function normalizeCombinedResponse(payload: Record<string, unknown>): WorkbenchEvidenceItem[] {
-    const result: WorkbenchEvidenceItem[] = [];
+function normalizeCombinedResponse(payload: Record<string, unknown>): EvidenceSearchResult {
+    const allItems: WorkbenchEvidenceItem[] = [];
+    let totalAcrossStates = 0;
+    let combinedPage = 1;
+    let combinedPageSize = 0;
+
     (Object.keys(payload) as Array<keyof typeof payload>).forEach((key) => {
-        const slug = key.replace(/[A-Z]/g, (match) => `-${match.toLowerCase()}`) as EvidenceStateSlug; // e.g. pendingReview -> pending-review
-        const state = slugToStateKey[slug];
+        // Handle both camelCase (pendingReview) and kebab-case (pending-review) keys
+        let slug: EvidenceStateSlug;
+        let state: EvidenceStateKey | undefined;
+
+        // Try direct mapping first (for kebab-case keys from API)
+        if (typeof key === 'string' && key in slugToStateKey) {
+            slug = key as EvidenceStateSlug;
+            state = slugToStateKey[slug];
+        } else {
+            // Convert camelCase to kebab-case (for legacy support)
+            slug = key.replace(/[A-Z]/g, (match) => `-${match.toLowerCase()}`) as EvidenceStateSlug;
+            state = slugToStateKey[slug];
+        }
+
         if (state) {
-            result.push(...normalizeStateResponse(state, payload[key]));
+            const stateResult = normalizeStateResponse(state, payload[key]);
+            allItems.push(...stateResult.items);
+            totalAcrossStates += stateResult.total;
+            combinedPage = stateResult.page; // Use the page from one of the states
+            combinedPageSize += stateResult.pageSize;
         }
     });
-    return result;
+
+    return {
+        page: combinedPage,
+        pageSize: combinedPageSize,
+        total: totalAcrossStates,
+        items: allItems
+    };
 }
 
 function resolveStateKey(state?: EvidenceStateKey, status?: EvidenceSearchParams['status']): EvidenceStateKey | undefined {
@@ -517,26 +604,53 @@ export const endpoints = {
             : (await api.get<ServerApp[]>(`/api/apps/${appId}/children`)).data.map(toClient),
 
     /** Evidence search for portfolio/workbench views */
-    searchEvidence: async (params: EvidenceSearchParams = {}): Promise<WorkbenchEvidenceItem[]> => {
-        const { state, status, ...rest } = params ?? {};
+    searchEvidence: async (params: EvidenceSearchParams = {}): Promise<EvidenceSearchResult> => {
+        const {
+            state,
+            status,
+            limit,
+            offset,
+            page,
+            pageSize,
+            size,
+            ...rest
+        } = params ?? {};
+
         const resolvedState = resolveStateKey(state, status);
-        const normalizedParams: EvidenceSearchParams = {
+        const effectivePageSize = size ?? pageSize ?? limit ?? 10;
+        const effectivePage = page ?? (offset !== undefined ? Math.floor(offset / effectivePageSize) + 1 : 1);
+
+        const queryParams = {
             ...rest,
+            page: effectivePage,
+            size: effectivePageSize, // Use 'size' parameter for API
             ...(resolvedState ? { state: resolvedState } : {}),
             ...(!resolvedState && status ? { status } : {}),
-        };
+        } as Record<string, unknown>;
 
         if (USE_MOCK) {
-            return mockApi.searchEvidence(normalizedParams);
+            const mockResult = mockApi.searchEvidence({
+                ...params,
+                state: resolvedState ?? params.state,
+                page: effectivePage,
+                pageSize: effectivePageSize, // Mock still uses pageSize internally
+            });
+            // Wrap mock result in pagination metadata
+            return {
+                page: effectivePage,
+                pageSize: effectivePageSize,
+                total: mockResult.length,
+                items: mockResult
+            };
         }
 
         if (resolvedState) {
             const slug = stateKeyToSlug[resolvedState];
-            const res = await api.get<unknown>(`/api/evidence/by-state/${slug}`, { params: rest });
+            const res = await api.get<unknown>(`/api/evidence/by-state/${slug}`, { params: queryParams });
             return normalizeStateResponse(resolvedState, res.data);
         }
 
-        const res = await api.get<Record<string, unknown>>('/api/evidence/by-state', { params: rest });
+        const res = await api.get<Record<string, unknown>>('/api/evidence/by-state', { params: queryParams });
         return normalizeCombinedResponse(res.data ?? {});
     },
 

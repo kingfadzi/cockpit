@@ -14,6 +14,7 @@ import type {
     AttestationResponse,
     WorkbenchEvidenceItem,
     EvidenceSearchParams,
+    EvidenceSearchResult,
 } from './types';
 
 const commonQuery = { staleTime: 60_000, refetchOnWindowFocus: false as const };
@@ -61,7 +62,7 @@ export const useChildApps = (appId: string) =>
     useQuery<AppSummary[]>({ queryKey: ['childApps', appId], queryFn: () => endpoints.getChildApps(appId), enabled: !!appId, ...commonQuery });
 
 export const useEvidenceSearch = (params: EvidenceSearchParams) =>
-    useQuery<WorkbenchEvidenceItem[]>({
+    useQuery<EvidenceSearchResult>({
         queryKey: ['evidence', 'search', params],
         queryFn: () => endpoints.searchEvidence(params),
         ...commonQuery

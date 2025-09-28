@@ -47,69 +47,66 @@ export default function KpiDetailPage() {
 
   const evidenceState = stateMap[kpiType];
 
-  // Local search and filter state
+  // Server-side pagination and filter state
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10); // Default page size
   const [localSearch, setLocalSearch] = useState('');
   const [criticalityFilter, setCriticalityFilter] = useState('');
   const [domainFilter, setDomainFilter] = useState('');
   const [controlFieldFilter, setControlFieldFilter] = useState('');
 
-  // Build search parameters from URL
+  // Build search parameters from URL and local filters
   const searchFilters: EvidenceSearchParams = {
     ...(evidenceState ? { state: evidenceState } : {}),
-    search: searchParams.get('search') || undefined,
-    criticality: searchParams.get('criticality') as 'A' | 'B' | 'C' | 'D' | undefined,
+    search: searchParams.get('search') || localSearch || undefined,
+    criticality: (searchParams.get('criticality') as 'A' | 'B' | 'C' | 'D') || (criticalityFilter as 'A' | 'B' | 'C' | 'D') || undefined,
     applicationType: searchParams.get('appType') || undefined,
     architectureType: searchParams.get('archType') || undefined,
     installType: searchParams.get('installType') || undefined,
+    domain: domainFilter || undefined,
+    fieldKey: controlFieldFilter || undefined,
+    page,
+    size: pageSize, // API expects 'size' not 'pageSize'
   };
 
   // Use the useEvidenceSearch hook with KPI-derived evidence state and URL filters
-  const { data: evidenceItems, isLoading, error } = useEvidenceSearch(searchFilters);
+  const { data: evidenceSearchResult, isLoading, error } = useEvidenceSearch(searchFilters);
 
-  // Apply local filters to the evidence items
-  const filteredEvidence = useMemo(() => {
-    if (!evidenceItems) return [];
+  // Extract items and pagination info from the search result
+  const evidenceItems = evidenceSearchResult?.items || [];
+  const totalItems = evidenceSearchResult?.total || 0;
+  const currentPage = evidenceSearchResult?.page || 1;
+  const currentPageSize = evidenceSearchResult?.pageSize || pageSize;
 
-    return evidenceItems.filter(item => {
-      // Local search filter (includes control field)
-      if (localSearch) {
-        const searchTerm = localSearch.toLowerCase();
-        if (!item.appName.toLowerCase().includes(searchTerm) &&
-            !item.fieldLabel.toLowerCase().includes(searchTerm) &&
-            !item.domainTitle.toLowerCase().includes(searchTerm) &&
-            !item.appId.toLowerCase().includes(searchTerm)) {
-          return false;
-        }
-      }
+  // Handle filter changes (reset to page 1)
+  const handleFilterChange = (filterType: string, value: string) => {
+    setPage(1); // Reset to first page when filtering
 
-      // Criticality filter
-      if (criticalityFilter && item.appCriticality !== criticalityFilter) return false;
+    switch (filterType) {
+      case 'search':
+        setLocalSearch(value);
+        break;
+      case 'criticality':
+        setCriticalityFilter(value);
+        break;
+      case 'domain':
+        setDomainFilter(value);
+        break;
+      case 'controlField':
+        setControlFieldFilter(value);
+        break;
+    }
+  };
 
-      // Domain filter
-      if (domainFilter && item.domainTitle !== domainFilter) return false;
+  // Handle pagination changes
+  const handlePageChange = (newPage: number) => {
+    setPage(newPage);
+  };
 
-      // Control field filter
-      if (controlFieldFilter && item.fieldLabel !== controlFieldFilter) return false;
-
-      return true;
-    });
-  }, [evidenceItems, localSearch, criticalityFilter, domainFilter, controlFieldFilter]);
-
-  // Get unique values for filter dropdowns
-  const uniqueCriticalities = useMemo(() => {
-    if (!evidenceItems) return [];
-    return [...new Set(evidenceItems.map(item => item.appCriticality))].sort();
-  }, [evidenceItems]);
-
-  const uniqueDomains = useMemo(() => {
-    if (!evidenceItems) return [];
-    return [...new Set(evidenceItems.map(item => item.domainTitle))];
-  }, [evidenceItems]);
-
-  const uniqueControlFields = useMemo(() => {
-    if (!evidenceItems) return [];
-    return [...new Set(evidenceItems.map(item => item.fieldLabel))].sort();
-  }, [evidenceItems]);
+  const handlePageSizeChange = (newPageSize: number) => {
+    setPageSize(newPageSize);
+    setPage(1); // Reset to first page when changing page size
+  };
 
   // If no config is found for the kpiType, show an error.
   if (!config) {
@@ -183,7 +180,7 @@ export default function KpiDetailPage() {
             variant="outlined"
             size="small"
             value={localSearch}
-            onChange={(e) => setLocalSearch(e.target.value)}
+            onChange={(e) => handleFilterChange('search', e.target.value)}
             placeholder="Search apps, control fields, domains..."
             sx={{ minWidth: 250 }}
           />
@@ -193,14 +190,13 @@ export default function KpiDetailPage() {
             <Select
               value={criticalityFilter}
               label="Criticality"
-              onChange={(e) => setCriticalityFilter(e.target.value)}
+              onChange={(e) => handleFilterChange('criticality', e.target.value)}
             >
               <MenuItem value="">All</MenuItem>
-              {uniqueCriticalities.map((crit) => (
-                <MenuItem key={crit} value={crit}>
-                  {crit}
-                </MenuItem>
-              ))}
+              <MenuItem value="A">A</MenuItem>
+              <MenuItem value="B">B</MenuItem>
+              <MenuItem value="C">C</MenuItem>
+              <MenuItem value="D">D</MenuItem>
             </Select>
           </FormControl>
 
@@ -209,14 +205,14 @@ export default function KpiDetailPage() {
             <Select
               value={domainFilter}
               label="Domain"
-              onChange={(e) => setDomainFilter(e.target.value)}
+              onChange={(e) => handleFilterChange('domain', e.target.value)}
             >
               <MenuItem value="">All</MenuItem>
-              {uniqueDomains.map((domain) => (
-                <MenuItem key={domain} value={domain}>
-                  {domain}
-                </MenuItem>
-              ))}
+              <MenuItem value="Security">Security</MenuItem>
+              <MenuItem value="Integrity">Integrity</MenuItem>
+              <MenuItem value="Availability">Availability</MenuItem>
+              <MenuItem value="Confidentiality">Confidentiality</MenuItem>
+              <MenuItem value="Resilience">Resilience</MenuItem>
             </Select>
           </FormControl>
 
@@ -225,14 +221,17 @@ export default function KpiDetailPage() {
             <Select
               value={controlFieldFilter}
               label="Control Field"
-              onChange={(e) => setControlFieldFilter(e.target.value)}
+              onChange={(e) => handleFilterChange('controlField', e.target.value)}
             >
               <MenuItem value="">All</MenuItem>
-              {uniqueControlFields.map((field) => (
-                <MenuItem key={field} value={field}>
-                  {field}
-                </MenuItem>
-              ))}
+              <MenuItem value="encryption_at_rest">Encryption At Rest</MenuItem>
+              <MenuItem value="dependency_management">Dependency Management</MenuItem>
+              <MenuItem value="secrets_management">Secrets Management</MenuItem>
+              <MenuItem value="vulnerability_scan_report">Vulnerability Scan Report</MenuItem>
+              <MenuItem value="backup_recovery_policy">Backup Recovery Policy</MenuItem>
+              <MenuItem value="disaster_recovery_plan">Disaster Recovery Plan</MenuItem>
+              <MenuItem value="incident_response_procedure">Incident Response Procedure</MenuItem>
+              <MenuItem value="api_rate_limiting">API Rate Limiting</MenuItem>
             </Select>
           </FormControl>
 
@@ -244,6 +243,7 @@ export default function KpiDetailPage() {
               setCriticalityFilter('');
               setDomainFilter('');
               setControlFieldFilter('');
+              setPage(1);
             }}
           >
             Clear Filters
@@ -268,24 +268,32 @@ export default function KpiDetailPage() {
         )}
         {!isLoading && !error && (
           <DataGrid
-            rows={filteredEvidence}
+            rows={evidenceItems}
             columns={columns}
             getRowId={(row) => row.evidenceId}
-            initialState={{
-              pagination: {
-                paginationModel: { pageSize: 25 },
-              },
+            pagination
+            paginationMode="server"
+            paginationModel={{
+              page: page - 1, // DataGrid uses 0-based pages, API uses 1-based
+              pageSize: pageSize, // Use local state, not API response
             }}
+            onPaginationModelChange={(model) => {
+              handlePageChange(model.page + 1); // Convert back to 1-based for API
+              if (model.pageSize !== pageSize) {
+                handlePageSizeChange(model.pageSize);
+              }
+            }}
+            rowCount={totalItems}
             pageSizeOptions={[10, 25, 50, 100]}
             disableRowSelectionOnClick
             autoHeight={false}
-            filterMode="client"
+            loading={isLoading}
             sortingOrder={['desc', 'asc']}
             slots={{
               toolbar: () => (
                 <Toolbar sx={{ justifyContent: 'space-between', minHeight: '48px !important' }}>
                   <Typography variant="body2" color="text.secondary">
-                    Showing {filteredEvidence.length} of {evidenceItems?.length || 0} items
+                    Showing {evidenceItems.length} of {totalItems} items (Page {page} • Page Size: {pageSize})
                   </Typography>
                 </Toolbar>
               ),

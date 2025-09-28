@@ -278,6 +278,23 @@ export type EvidenceStateKey = 'compliant' | 'pendingReview' | 'missingEvidence'
 
 export type EvidenceStateSlug = 'compliant' | 'pending-review' | 'missing-evidence' | 'risk-blocked';
 
+// Pagination metadata returned by API
+export interface PaginationMetadata {
+  page: number;
+  pageSize: number;
+  total: number;
+}
+
+// Generic paginated response
+export interface PaginatedResponse<T> extends PaginationMetadata {
+  items: T[];
+}
+
+// Evidence search result with pagination
+export interface EvidenceSearchResult extends PaginationMetadata {
+  items: WorkbenchEvidenceItem[];
+}
+
 export interface EvidenceSearchParams {
   // Evidence state (new backend endpoints)
   state?: EvidenceStateKey;
@@ -306,6 +323,9 @@ export interface EvidenceSearchParams {
   // Pagination
   limit?: number;
   offset?: number;
+  page?: number;
+  pageSize?: number; // Legacy - for internal use
+  size?: number;     // API parameter name
 }
 
 // Enriched evidence item for workbench display
@@ -383,6 +403,7 @@ export interface EnhancedEvidenceSummary {
   documentLinkHealth: number | null;
   fieldKey: string;
   productOwner: string | null;
+  profileVersion?: number;
   appName?: string | null;
   domain?: string | null;
   domainTitle?: string | null;
@@ -418,23 +439,39 @@ export interface MissingEvidenceSummary {
 }
 
 export interface RiskBlockedSummary {
-  risk_id: string;
-  app_id: string;
-  field_key: string | null;
-  risk_status: string;
-  assigned_sme: string | null;
-  created_at: string;
-  updated_at: string;
-  triggering_evidence_id: string | null;
+  riskId: string;
+  appId: string;
+  fieldKey: string | null;
+  riskStatus: string;
+  assignedSme: string | null;
+  createdAt: string;
+  updatedAt: string;
+  triggeringEvidenceId: string | null;
   title: string;
   hypothesis: string | null;
-  app_name: string;
-  product_owner: string | null;
+  appName: string;
+  productOwner: string | null;
+  applicationTier?: string;
+  architectureType?: string;
+  installType?: string;
+  appCriticality?: 'A' | 'B' | 'C' | 'D';
+  controlField?: string; // Same as fieldKey, appears in API
+  derivedFrom?: string;
   domain?: string;
+  // Legacy snake_case fields for backward compatibility
+  risk_id?: string;
+  app_id?: string;
+  field_key?: string;
+  risk_status?: string;
+  assigned_sme?: string;
+  created_at?: string;
+  updated_at?: string;
+  triggering_evidence_id?: string;
+  app_name?: string;
+  product_owner?: string;
   domain_title?: string;
   domain_key?: string;
   field_label?: string;
-  app_criticality?: 'A' | 'B' | 'C' | 'D';
   application_type?: string;
   architecture_type?: string;
   install_type?: string;

@@ -1823,12 +1823,10 @@ export const mockApi = {
       results = results.filter(item => item.installType === params.installType);
     }
 
-    // Apply pagination
-    if (params.offset || params.limit) {
-      const offset = params.offset || 0;
-      const limit = params.limit || 50;
-      results = results.slice(offset, offset + limit);
-    }
+    const mockPageSize = params.pageSize ?? params.limit ?? 10;
+    const mockPage = params.page ?? (params.offset !== undefined && params.limit ? Math.floor(params.offset / params.limit) + 1 : 1);
+    const start = ((mockPage ?? 1) - 1) * mockPageSize;
+    results = results.slice(start, start + mockPageSize);
 
     return results;
   },

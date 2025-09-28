@@ -7,6 +7,8 @@ import {
   MenuItem,
   Grid,
   Button,
+  Pagination,
+  Box,
 } from '@mui/material';
 import Section from '../../components/Section';
 import StatusChip from '../../components/StatusChip';
@@ -59,8 +61,8 @@ export default function PortfolioEvidence() {
     fieldKey: query.get('fieldKey') || undefined,
     assignedReviewer: query.get('assignedReviewer') || undefined,
     submittedBy: query.get('submittedBy') || undefined,
-    limit: 50,
-    offset: 0,
+    page: 1,
+    size: 10,
   });
 
   const { data, isLoading } = useEvidenceSearch(filters);
@@ -70,16 +72,26 @@ export default function PortfolioEvidence() {
     setFilters({
       ...filters,
       [field]: (value === '' ? undefined : value) as EvidenceSearchParams[K],
+      page: 1, // Reset to first page when filtering
+    });
+  };
+
+  const handlePageChange = (_event: React.ChangeEvent<unknown>, page: number) => {
+    setFilters({
+      ...filters,
+      page,
     });
   };
 
   const handleReset = () => {
     setFilters({
       state: undefined,
-      limit: 50,
-      offset: 0,
+      page: 1,
+      size: 10,
     });
   };
+
+  const totalPages = data ? Math.ceil(data.total / data.pageSize) : 0;
 
   return (
     <Stack spacing={2}>
@@ -221,36 +233,64 @@ export default function PortfolioEvidence() {
       {isLoading ? (
         <Typography>Loading…</Typography>
       ) : (
-        <Stack spacing={1}>
-          {data?.map((e) => (
-            <Section
-              key={e.evidenceId}
-              padded={true}
-              onClick={() => setSelected(e)}
-              style={{ cursor: 'pointer' }}
-            >
-              <Stack
-                direction="row"
-                spacing={2}
-                alignItems="center"
-                justifyContent="space-between"
-              >
-                <Stack>
-                  <Typography variant="subtitle1">
-                    {e.appName} ({e.appId}) • {e.fieldLabel}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    {e.domainTitle} • {e.uri || '—'}
-                  </Typography>
-                </Stack>
-                <StatusChip status={e.status || 'submitted'} />
-              </Stack>
-            </Section>
-          ))}
-          {!data?.length && (
-            <Typography color="text.secondary">
-              No evidence found for this filter.
+        <Stack spacing={2}>
+          <Box display="flex" justifyContent="space-between" alignItems="center">
+            <Typography variant="body2" color="text.secondary">
+              {data ? `Showing ${data.items.length} of ${data.total} results` : 'No results'}
             </Typography>
+            {totalPages > 1 && (
+              <Pagination
+                count={totalPages}
+                page={data?.page || 1}
+                onChange={handlePageChange}
+                color="primary"
+                size="small"
+              />
+            )}
+          </Box>
+
+          <Stack spacing={1}>
+            {data?.items.map((e) => (
+              <Section
+                key={e.evidenceId}
+                padded={true}
+                onClick={() => setSelected(e)}
+                style={{ cursor: 'pointer' }}
+              >
+                <Stack
+                  direction="row"
+                  spacing={2}
+                  alignItems="center"
+                  justifyContent="space-between"
+                >
+                  <Stack>
+                    <Typography variant="subtitle1">
+                      {e.appName} ({e.appId}) • {e.fieldLabel}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      {e.domainTitle} • {e.uri || '—'}
+                    </Typography>
+                  </Stack>
+                  <StatusChip status={e.status || 'submitted'} />
+                </Stack>
+              </Section>
+            ))}
+            {!data?.items.length && (
+              <Typography color="text.secondary">
+                No evidence found for this filter.
+              </Typography>
+            )}
+          </Stack>
+
+          {totalPages > 1 && (
+            <Box display="flex" justifyContent="center">
+              <Pagination
+                count={totalPages}
+                page={data?.page || 1}
+                onChange={handlePageChange}
+                color="primary"
+              />
+            </Box>
           )}
         </Stack>
       )}
