@@ -354,3 +354,19 @@ export const useSubmitAttestation = (appId: string, profileFieldId?: string) => 
         },
     });
 };
+
+export const useDomains = () =>
+    useQuery<string[]> ({
+        queryKey: ['domains'],
+        queryFn: () => endpoints.getDomains(),
+        ...commonQuery,
+    });
+
+export const useControls = (domain: string) =>
+    useQuery<string[]> ({
+        queryKey: ['controls', domain],
+        queryFn: () => endpoints.getControls(domain),
+        enabled: !!domain,
+        ...commonQuery,
+    });
+

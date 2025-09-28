@@ -290,6 +290,16 @@ function normalizeEvidenceSummary(item: EnhancedEvidenceSummary, state: Evidence
     const domainRaw = item.domainTitle ?? item.domain ?? item.domainKey ?? item.derivedFrom ?? item.derived_from ?? item.domain_key;
     const domainTitle = resolveDomainTitle(domainRaw);
 
+    // Debug logging for domainRating
+    if (!item.domainRating) {
+        console.log('Missing domainRating in API response:', {
+            fieldKey,
+            domainRating: item.domainRating,
+            availableFields: Object.keys(item),
+            fullItem: item
+        });
+    }
+
     return {
         evidenceId: item.evidenceId || `${state}-${fieldKey}`,
         appId: safeString(item.appId, 'UNKNOWN_APP'),
@@ -300,6 +310,7 @@ function normalizeEvidenceSummary(item: EnhancedEvidenceSummary, state: Evidence
         installType: item.installType ?? undefined,
         applicationTier: item.applicationTier ?? undefined,
         domainTitle: domainTitle ?? '—',
+        domainRating: item.domainRating ?? undefined,
         fieldKey,
         fieldLabel: safeString(item.fieldLabel ?? item.documentTitle ?? fieldKey, fieldKey),
         policyRequirement: safeString(item.reviewComment, '—'),
@@ -338,6 +349,16 @@ function normalizeMissingSummary(item: MissingEvidenceSummary): WorkbenchEvidenc
     const fieldKey = safeString(item.field_key, 'unknown_field');
     const domainRaw = item.domain_title ?? item.domain ?? item.domain_key ?? item.derived_from;
     const domainTitle = resolveDomainTitle(domainRaw);
+
+    // Debug logging for domainRating
+    if (!item.domainRating) {
+        console.log('Missing domainRating in MissingEvidence API response:', {
+            fieldKey,
+            domainRating: item.domainRating,
+            availableFields: Object.keys(item),
+            fullItem: item
+        });
+    }
     return {
         evidenceId: item.profile_field_id || `missing-${fieldKey}`,
         appId: safeString(item.app_id, 'UNKNOWN_APP'),
@@ -348,6 +369,7 @@ function normalizeMissingSummary(item: MissingEvidenceSummary): WorkbenchEvidenc
         installType: item.install_type ?? undefined,
         applicationTier: item.application_tier ?? undefined,
         domainTitle: domainTitle ?? '—',
+        domainRating: item.domainRating ?? undefined,
         fieldKey,
         fieldLabel: safeString(item.field_label ?? fieldKey, fieldKey),
         policyRequirement: '—',
@@ -387,6 +409,16 @@ function normalizeRiskSummary(item: RiskBlockedSummary): WorkbenchEvidenceItem {
     const fieldKey = safeString(item.fieldKey ?? item.field_key ?? item.controlField ?? 'unknown_field', 'unknown_field');
     const domainRaw = item.domain ?? item.domain_title ?? item.domain_key ?? item.derivedFrom ?? item.derived_from;
     const domainTitle = resolveDomainTitle(domainRaw);
+
+    // Debug logging for domainRating
+    if (!item.domainRating) {
+        console.log('Missing domainRating in RiskBlocked API response:', {
+            fieldKey,
+            domainRating: item.domainRating,
+            availableFields: Object.keys(item),
+            fullItem: item
+        });
+    }
     return {
         evidenceId: item.riskId ?? item.risk_id ?? `risk-${fieldKey}`,
         appId: safeString(item.appId ?? item.app_id, 'UNKNOWN_APP'),
@@ -397,6 +429,7 @@ function normalizeRiskSummary(item: RiskBlockedSummary): WorkbenchEvidenceItem {
         installType: item.installType ?? item.install_type ?? undefined,
         applicationTier: item.applicationTier ?? item.application_tier ?? undefined,
         domainTitle: domainTitle ?? '—',
+        domainRating: item.domainRating ?? undefined,
         fieldKey,
         fieldLabel: safeString(item.field_label ?? titleCase(item.controlField ?? item.fieldKey ?? item.field_key ?? fieldKey), fieldKey),
         policyRequirement: safeString(item.hypothesis, '—'),
@@ -1368,4 +1401,16 @@ export const endpoints = {
         
         return (await api.post<AttestationResponse>(`/api/apps/${appId}/attestations`, request)).data;
     },
+
+    /** Get all unique domains */
+    getDomains: async (): Promise<string[]> =>
+        USE_MOCK
+            ? mockApi.getDomains()
+            : (await api.get<string[]>('/internal/profile-fields-registry/domains')).data,
+
+    /** Get all controls for a specific domain */
+    getControls: async (domain: string): Promise<string[]> =>
+        USE_MOCK
+            ? mockApi.getControls(domain)
+            : (await api.get<string[]>(`/internal/profile-fields-registry/domains/${domain}/controls`)).data,
 };

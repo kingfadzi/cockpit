@@ -339,6 +339,7 @@ export interface WorkbenchEvidenceItem {
   installType?: string;
   applicationTier?: string;
   domainTitle: string;              // "Security", "Integrity", "Availability"
+  domainRating?: string;            // Domain rating value from API
   fieldKey: string;                 // "encryption_at_rest"
   fieldLabel: string;               // "Encryption at Rest"
   policyRequirement: string;        // "Required for A-rated apps"
@@ -407,6 +408,7 @@ export interface EnhancedEvidenceSummary {
   appName?: string | null;
   domain?: string | null;
   domainTitle?: string | null;
+  domainRating?: string | null;
   domainKey?: string | null;
   fieldLabel?: string | null;
   appCriticality?: 'A' | 'B' | 'C' | 'D' | null;
@@ -428,6 +430,7 @@ export interface MissingEvidenceSummary {
   version?: number;
   domain?: string;
   domain_title?: string;
+  domainRating?: string;
   domain_key?: string;
   field_label?: string;
   app_criticality?: 'A' | 'B' | 'C' | 'D';
@@ -458,6 +461,7 @@ export interface RiskBlockedSummary {
   controlField?: string; // Same as fieldKey, appears in API
   derivedFrom?: string;
   domain?: string;
+  domainRating?: string;
   // Legacy snake_case fields for backward compatibility
   risk_id?: string;
   app_id?: string;

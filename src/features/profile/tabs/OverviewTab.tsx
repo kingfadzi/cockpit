@@ -30,15 +30,24 @@ export default function OverviewTab({ appId, onTabChange }: OverviewTabProps) {
     };
 
     const handleKpiClick = (kpiType: string) => {
-        if (kpiType === 'pendingReview') {
-            // Navigate to the redesigned pending review page
-            navigate(`/po/apps/${appId}/pending-review`);
+        // Map KPI types to URL slugs for the detail pages
+        const kpiTypeToUrlSlug: Record<string, string> = {
+            'compliant': 'compliant',
+            'missingEvidence': 'missing',
+            'pendingReview': 'pending',
+            'blocked': 'riskBlocked'
+        };
+
+        const urlSlug = kpiTypeToUrlSlug[kpiType];
+        if (urlSlug) {
+            // Navigate to KPI detail page with appId filter
+            navigate(`/po/kpis/${urlSlug}?appId=${appId}`);
         } else {
-            // Navigate to Profile tab with focus on relevant domains for other KPIs
+            // Fallback to profile tab for unmapped KPI types
             if (onTabChange) {
                 onTabChange('profile');
             }
-            console.log('Navigate to profile for KPI:', kpiType);
+            console.log('Navigate to profile for unmapped KPI:', kpiType);
         }
     };
 

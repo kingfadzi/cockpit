@@ -17,16 +17,26 @@ import {
   FormControl,
   InputLabel,
   Toolbar,
+  Chip,
 } from '@mui/material';
 import { DataGrid, GridColDef } from '@mui/x-data-grid';
 import {
   ArrowBack as BackIcon,
-  Home as HomeIcon
+  Home as HomeIcon,
+  FilterList as FilterIcon,
+  Close as CloseIcon
 } from '@mui/icons-material';
 
-import { useEvidenceSearch } from '../../api/hooks';
+import { useEvidenceSearch, useDomains, useControls } from '../../api/hooks';
 import { EvidenceSearchParams, EvidenceStateKey, WorkbenchEvidenceItem } from '../../api/types';
 import { kpiConfigMap, KpiColumn } from './kpiConfig';
+
+// Helper to format machine-readable keys into human-readable text
+const titleCase = (str: string) => {
+  return str
+    .replace(/_/g, ' ')
+    .replace(/\w\S*/g, (txt) => txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase());
+};
 
 /**
  * A generic page that displays a list of evidence items based on a KPI type from the URL.
@@ -55,9 +65,17 @@ export default function KpiDetailPage() {
   const [domainFilter, setDomainFilter] = useState('');
   const [controlFieldFilter, setControlFieldFilter] = useState('');
 
+  // Fetch dynamic domains and controls
+  const { data: domains, isLoading: domainsLoading } = useDomains();
+  const { data: controls, isLoading: controlsLoading } = useControls(domainFilter);
+
+  // Extract appId filter from URL params
+  const filteredAppId = searchParams.get('appId');
+
   // Build search parameters from URL and local filters
   const searchFilters: EvidenceSearchParams = {
     ...(evidenceState ? { state: evidenceState } : {}),
+    appId: filteredAppId || undefined, // Add appId filter from URL
     search: searchParams.get('search') || localSearch || undefined,
     criticality: (searchParams.get('criticality') as 'A' | 'B' | 'C' | 'D') || (criticalityFilter as 'A' | 'B' | 'C' | 'D') || undefined,
     applicationType: searchParams.get('appType') || undefined,
@@ -69,8 +87,29 @@ export default function KpiDetailPage() {
     size: pageSize, // API expects 'size' not 'pageSize'
   };
 
+  // Function to remove app filter and navigate to unfiltered view
+  const handleRemoveAppFilter = () => {
+    const newSearchParams = new URLSearchParams(searchParams);
+    newSearchParams.delete('appId');
+    navigate(`/po/kpis/${kpiType}?${newSearchParams.toString()}`);
+  };
+
   // Use the useEvidenceSearch hook with KPI-derived evidence state and URL filters
   const { data: evidenceSearchResult, isLoading, error } = useEvidenceSearch(searchFilters);
+
+  // Debug logging for pagination issue
+  React.useEffect(() => {
+    if (evidenceSearchResult && filteredAppId) {
+      console.log('KPI Detail Debug - Filtered by appId:', filteredAppId);
+      console.log('KPI Detail Debug - API Response:', {
+        page: evidenceSearchResult.page,
+        pageSize: evidenceSearchResult.pageSize,
+        total: evidenceSearchResult.total,
+        itemsLength: evidenceSearchResult.items.length
+      });
+      console.log('KPI Detail Debug - Search Filters Sent:', searchFilters);
+    }
+  }, [evidenceSearchResult, filteredAppId, searchFilters]);
 
   // Extract items and pagination info from the search result
   const evidenceItems = evidenceSearchResult?.items || [];
@@ -91,6 +130,7 @@ export default function KpiDetailPage() {
         break;
       case 'domain':
         setDomainFilter(value);
+        setControlFieldFilter(''); // Reset control field when domain changes
         break;
       case 'controlField':
         setControlFieldFilter(value);
@@ -158,11 +198,47 @@ export default function KpiDetailPage() {
             <HomeIcon sx={{ mr: 0.5 }} fontSize="inherit" />
             Portfolio
           </Link>
+          {filteredAppId && (
+            <Link
+              underline="hover"
+              color="inherit"
+              onClick={() => navigate(`/po/apps/${filteredAppId}`)}
+              sx={{
+                cursor: 'pointer',
+                '&:hover': { color: 'primary.main' }
+              }}
+            >
+              {filteredAppId}
+            </Link>
+          )}
           <Typography color="text.primary" sx={{ display: 'flex', alignItems: 'center' }}>
             {config.pageTitle}
           </Typography>
         </Breadcrumbs>
       </Stack>
+
+      {/* App Filter Indicator */}
+      {filteredAppId && (
+        <Box sx={{ mb: 1 }}>
+          <Chip
+            icon={<FilterIcon />}
+            label={`Filtered by Application: ${filteredAppId}`}
+            onDelete={handleRemoveAppFilter}
+            deleteIcon={<CloseIcon />}
+            color="primary"
+            variant="outlined"
+            sx={{ mr: 1 }}
+          />
+          <Button
+            variant="text"
+            size="small"
+            onClick={handleRemoveAppFilter}
+            sx={{ textTransform: 'none' }}
+          >
+            View All {config.pageTitle}
+          </Button>
+        </Box>
+      )}
 
       {/* Page Header */}
       <Box>
@@ -206,13 +282,14 @@ export default function KpiDetailPage() {
               value={domainFilter}
               label="Domain"
               onChange={(e) => handleFilterChange('domain', e.target.value)}
+              disabled={domainsLoading}
             >
               <MenuItem value="">All</MenuItem>
-              <MenuItem value="Security">Security</MenuItem>
-              <MenuItem value="Integrity">Integrity</MenuItem>
-              <MenuItem value="Availability">Availability</MenuItem>
-              <MenuItem value="Confidentiality">Confidentiality</MenuItem>
-              <MenuItem value="Resilience">Resilience</MenuItem>
+              {domains?.map((domain) => (
+                <MenuItem key={domain} value={domain}>
+                  {titleCase(domain)}
+                </MenuItem>
+              ))}
             </Select>
           </FormControl>
 
@@ -222,16 +299,14 @@ export default function KpiDetailPage() {
               value={controlFieldFilter}
               label="Control Field"
               onChange={(e) => handleFilterChange('controlField', e.target.value)}
+              disabled={!domainFilter || controlsLoading}
             >
               <MenuItem value="">All</MenuItem>
-              <MenuItem value="encryption_at_rest">Encryption At Rest</MenuItem>
-              <MenuItem value="dependency_management">Dependency Management</MenuItem>
-              <MenuItem value="secrets_management">Secrets Management</MenuItem>
-              <MenuItem value="vulnerability_scan_report">Vulnerability Scan Report</MenuItem>
-              <MenuItem value="backup_recovery_policy">Backup Recovery Policy</MenuItem>
-              <MenuItem value="disaster_recovery_plan">Disaster Recovery Plan</MenuItem>
-              <MenuItem value="incident_response_procedure">Incident Response Procedure</MenuItem>
-              <MenuItem value="api_rate_limiting">API Rate Limiting</MenuItem>
+              {controls?.map((control) => (
+                <MenuItem key={control} value={control}>
+                  {titleCase(control)}
+                </MenuItem>
+              ))}
             </Select>
           </FormControl>
 

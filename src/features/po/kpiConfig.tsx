@@ -109,6 +109,12 @@ export const kpiConfigMap: Record<string, KpiConfig> = {
         renderCell: (evidence) => <Chip size="small" label={evidence.domainTitle} color="primary" />,
       },
       {
+        field: 'domainRating',
+        headerName: 'Domain Rating',
+        flex: 1,
+        renderCell: (evidence) => evidence.domainRating || '—',
+      },
+      {
         field: 'fieldLabel',
         headerName: 'Control Field',
         flex: 3,
@@ -132,6 +138,12 @@ export const kpiConfigMap: Record<string, KpiConfig> = {
         headerName: 'Domain',
         flex: 1,
         renderCell: (evidence) => <Chip size="small" label={evidence.domainTitle} color="error" />,
+      },
+      {
+        field: 'domainRating',
+        headerName: 'Domain Rating',
+        flex: 1,
+        renderCell: (evidence) => evidence.domainRating || '—',
       },
       {
         field: 'fieldLabel',
@@ -169,6 +181,12 @@ export const kpiConfigMap: Record<string, KpiConfig> = {
         renderCell: (evidence) => <Chip size="small" label={evidence.domainTitle} color="warning" />,
       },
       {
+        field: 'domainRating',
+        headerName: 'Domain Rating',
+        flex: 1,
+        renderCell: (evidence) => evidence.domainRating || '—',
+      },
+      {
         field: 'fieldLabel',
         headerName: 'Control Field',
         flex: 3,
@@ -198,6 +216,12 @@ export const kpiConfigMap: Record<string, KpiConfig> = {
         headerName: 'Domain',
         flex: 1,
         renderCell: (evidence) => <Chip size="small" label={evidence.domainTitle} color="error" />,
+      },
+      {
+        field: 'domainRating',
+        headerName: 'Domain Rating',
+        flex: 1,
+        renderCell: (evidence) => evidence.domainRating || '—',
       },
       {
         field: 'fieldLabel',

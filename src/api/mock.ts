@@ -1830,4 +1830,42 @@ export const mockApi = {
 
     return results;
   },
+
+  getDomains: async (): Promise<string[]> => {
+    await delay(100);
+    return [
+      "confidentiality_rating",
+      "security_rating",
+      "integrity_rating",
+      "availability_rating",
+      "resilience_rating",
+      "app_criticality_assessment"
+    ];
+  },
+
+  getControls: async (domain: string): Promise<string[]> => {
+    await delay(100);
+    const controlsMap: Record<string, string[]> = {
+      "security_rating": [
+        "encryption_at_rest",
+        "encryption_in_transit",
+        "security_testing",
+        "secrets_management",
+        "key_rotation_max",
+        "mfa_enforcement",
+        "privileged_access_mgmt",
+        "patching_sla",
+        "dependency_management",
+        "network_segmentation",
+        "waf_protection",
+        "siem_integration"
+      ],
+      "confidentiality_rating": [],
+      "integrity_rating": [],
+      "availability_rating": [],
+      "resilience_rating": [],
+      "app_criticality_assessment": []
+    };
+    return controlsMap[domain] || [];
+  },
 };
