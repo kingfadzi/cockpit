@@ -5,7 +5,6 @@ import type {
     EvidenceItem,
     RequirementsResponse,
     ReleaseItem,
-    PortfolioKpis,
     ServerApp,
     ProfileResponse,
     AppKpis,
@@ -18,6 +17,11 @@ import type {
     AttestationResponse,
     WorkbenchEvidenceItem,
     EvidenceSearchParams,
+    EnhancedEvidenceSummary,
+    MissingEvidenceSummary,
+    RiskBlockedSummary,
+    EvidenceStateKey,
+    EvidenceStateSlug,
 } from './types';
 
 // For production builds, use relative URLs that work with nginx proxy
@@ -74,7 +78,7 @@ api.interceptors.request.use((config: AxiosRequestConfig) => {
 /** Response timing + logging */
 api.interceptors.response.use(
     (res: AxiosResponse) => {
-        const meta = (res.config as any).meta || {};
+        const meta = (res.config as unknown as { meta: { rid: string, startedAt: number } }).meta || {};
         const ms = (performance.now() - (meta.startedAt || performance.now())).toFixed(1);
         if (API_DEBUG) {
             console.groupCollapsed(
@@ -89,11 +93,11 @@ api.interceptors.response.use(
     },
     (err: AxiosError) => {
         const cfg = err.config || {};
-        const meta = (cfg as any).meta || {};
+        const meta = (cfg as unknown as { meta: { rid: string, startedAt: number } }).meta || {};
         const ms = (performance.now() - (meta.startedAt || performance.now())).toFixed(1);
         const status = err.response?.status;
-        const title = (err.response?.data as any)?.title;
-        const detail = (err.response?.data as any)?.detail;
+        const title = (err.response?.data as { title: string })?.title;
+        const detail = (err.response?.data as { detail: string })?.detail;
 
         console.groupCollapsed(
             `%c[api][${meta.rid}] ✖ ${status ?? 'ERR'} ${cfg.method?.toUpperCase()} ${cfg.url} (${ms}ms)`,
@@ -152,12 +156,273 @@ const toClient = (a: ServerApp): AppSummary => ({
 });
 
 /** Extract an array from either [] or {items:[...]} or [[]] */
-function coerceArray<T = unknown>(payload: any): T[] {
+function coerceArray<T = unknown>(payload: unknown): T[] {
     if (Array.isArray(payload)) return payload as T[];
-    if (payload && Array.isArray(payload.items)) return payload.items as T[];
+    if (payload && Array.isArray((payload as { items: T[] }).items)) return (payload as { items: T[] }).items as T[];
     // Some backends wrap again: { data: { items: [...] } }
-    if (payload?.data && Array.isArray(payload.data.items)) return payload.data.items as T[];
+    if ((payload as { data?: { items?: T[] } })?.data && Array.isArray((payload as { data: { items: T[] } }).data.items)) return (payload as { data: { items: T[] } }).data.items as T[];
     return [];
+}
+
+const stateKeyToSlug: Record<EvidenceStateKey, EvidenceStateSlug> = {
+    compliant: 'compliant',
+    pendingReview: 'pending-review',
+    missingEvidence: 'missing-evidence',
+    riskBlocked: 'risk-blocked',
+};
+
+const legacyStatusToState: Record<string, EvidenceStateKey> = {
+    compliant: 'compliant',
+    approved: 'compliant',
+    pending: 'pendingReview',
+    submitted: 'pendingReview',
+    pendingReview: 'pendingReview',
+    pending_review: 'pendingReview',
+    missing: 'missingEvidence',
+    missingEvidence: 'missingEvidence',
+    no_evidence: 'missingEvidence',
+    riskBlocked: 'riskBlocked',
+    risk_blocked: 'riskBlocked',
+};
+
+const slugToStateKey: Record<EvidenceStateSlug, EvidenceStateKey> = Object.entries(stateKeyToSlug).reduce((acc, [key, slug]) => {
+    acc[slug] = key as EvidenceStateKey;
+    return acc;
+}, {} as Record<EvidenceStateSlug, EvidenceStateKey>);
+
+const defaultCriticality: Record<EvidenceStateKey, 'A' | 'B' | 'C' | 'D'> = {
+    compliant: 'D',
+    pendingReview: 'D',
+    missingEvidence: 'D',
+    riskBlocked: 'D',
+};
+
+function safeString(value: unknown, fallback = '—'): string {
+    return (value ?? fallback) as string;
+}
+
+const DOMAIN_TITLE_LOOKUP: Record<string, string> = {
+    security_rating: 'Security',
+    security: 'Security',
+    integrity_rating: 'Integrity',
+    integrity: 'Integrity',
+    availability_rating: 'Availability',
+    availability: 'Availability',
+    confidentiality_rating: 'Confidentiality',
+    confidentiality: 'Confidentiality',
+    resilience_rating: 'Resilience',
+    resilience: 'Resilience',
+    app_criticality_assessment: 'Criticality',
+    criticality: 'Criticality',
+};
+
+function titleCase(value: string): string {
+    return value
+        .toLowerCase()
+        .split(/[_\s-]+/)
+        .filter(Boolean)
+        .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+        .join(' ');
+}
+
+function resolveDomainTitle(raw?: string | null): string | undefined {
+    if (!raw) return undefined;
+    const normalized = raw.toString().trim();
+    if (!normalized) return undefined;
+    const key = normalized.replace(/[-\s]/g, '_').toLowerCase();
+    if (DOMAIN_TITLE_LOOKUP[key]) return DOMAIN_TITLE_LOOKUP[key];
+    return titleCase(normalized.replace(/_/g, ' '));
+}
+
+function normalizeEvidenceSummary(item: EnhancedEvidenceSummary, state: EvidenceStateKey): WorkbenchEvidenceItem {
+    const fieldKey = item.fieldKey ?? 'unknown_field';
+    const status = state === 'compliant' ? 'compliant' : 'pending';
+    const approvalStatus = state === 'compliant' ? 'approved' : 'pending_review';
+    const domainRaw = item.domainTitle ?? item.domain ?? item.domainKey ?? item.derivedFrom ?? item.derived_from ?? item.domain_key;
+    const domainTitle = resolveDomainTitle(domainRaw);
+
+    return {
+        evidenceId: item.evidenceId || `${state}-${fieldKey}`,
+        appId: safeString(item.appId, 'UNKNOWN_APP'),
+        appName: safeString(item.appName ?? item.appId, 'Unknown Application'),
+        appCriticality: item.appCriticality ?? defaultCriticality[state],
+        applicationType: item.applicationType ?? undefined,
+        architectureType: item.architectureType ?? undefined,
+        installType: item.installType ?? undefined,
+        applicationTier: item.applicationTier ?? undefined,
+        domainTitle: domainTitle ?? '—',
+        fieldKey,
+        fieldLabel: safeString(item.fieldLabel ?? item.documentTitle ?? fieldKey, fieldKey),
+        policyRequirement: safeString(item.reviewComment, '—'),
+        status,
+        approvalStatus,
+        freshnessStatus: 'current',
+        dueDate: undefined,
+        submittedDate: item.createdAt ?? undefined,
+        reviewedDate: item.reviewedAt ?? undefined,
+        rejectionReason: undefined,
+        assignedReviewer: item.reviewedBy ?? undefined,
+        submittedBy: item.submittedBy ?? undefined,
+        daysOverdue: undefined,
+        riskCount: undefined,
+        uri: item.uri ?? undefined,
+        linkStatus: item.linkStatus ?? undefined,
+        linkedBy: item.linkedBy ?? null,
+        linkedAt: item.linkedAt ?? null,
+        reviewedBy: item.reviewedBy ?? null,
+        reviewComment: item.reviewComment ?? null,
+        documentTitle: item.documentTitle ?? null,
+        documentSourceType: item.documentSourceType ?? null,
+        documentOwners: item.documentOwners ?? null,
+        documentLinkHealth: item.documentLinkHealth ?? null,
+        trackId: item.trackId ?? null,
+        documentId: item.documentId ?? null,
+        docVersionId: item.docVersionId ?? null,
+        claimId: item.claimId ?? null,
+        validFrom: item.validFrom ?? null,
+        validUntil: item.validUntil ?? null,
+        productOwner: item.productOwner ?? null,
+    };
+}
+
+function normalizeMissingSummary(item: MissingEvidenceSummary): WorkbenchEvidenceItem {
+    const fieldKey = safeString(item.field_key, 'unknown_field');
+    const domainRaw = item.domain_title ?? item.domain ?? item.domain_key ?? item.derived_from;
+    const domainTitle = resolveDomainTitle(domainRaw);
+    return {
+        evidenceId: item.profile_field_id || `missing-${fieldKey}`,
+        appId: safeString(item.app_id, 'UNKNOWN_APP'),
+        appName: safeString(item.app_name, 'Unknown Application'),
+        appCriticality: item.app_criticality ?? 'D',
+        applicationType: item.application_type ?? undefined,
+        architectureType: item.architecture_type ?? undefined,
+        installType: item.install_type ?? undefined,
+        applicationTier: item.application_tier ?? undefined,
+        domainTitle: domainTitle ?? '—',
+        fieldKey,
+        fieldLabel: safeString(item.field_label ?? fieldKey, fieldKey),
+        policyRequirement: '—',
+        status: 'missing',
+        approvalStatus: 'no_evidence',
+        freshnessStatus: 'expired',
+        dueDate: undefined,
+        submittedDate: undefined,
+        reviewedDate: undefined,
+        rejectionReason: item.hypothesis ?? undefined,
+        assignedReviewer: undefined,
+        submittedBy: undefined,
+        daysOverdue: undefined,
+        riskCount: undefined,
+        uri: undefined,
+        linkStatus: undefined,
+        linkedBy: null,
+        linkedAt: null,
+        reviewedBy: null,
+        reviewComment: null,
+        documentTitle: null,
+        documentSourceType: null,
+        documentOwners: null,
+        documentLinkHealth: null,
+        trackId: null,
+        documentId: null,
+        docVersionId: null,
+        claimId: null,
+        validFrom: null,
+        validUntil: null,
+        productOwner: item.product_owner ?? null,
+    };
+}
+
+function normalizeRiskSummary(item: RiskBlockedSummary): WorkbenchEvidenceItem {
+    const fieldKey = safeString(item.field_key ?? 'unknown_field', 'unknown_field');
+    const domainRaw = item.domain_title ?? item.domain ?? item.domain_key ?? item.derived_from;
+    const domainTitle = resolveDomainTitle(domainRaw);
+    return {
+        evidenceId: item.risk_id || `risk-${fieldKey}`,
+        appId: safeString(item.app_id, 'UNKNOWN_APP'),
+        appName: safeString(item.app_name, 'Unknown Application'),
+        appCriticality: item.app_criticality ?? 'D',
+        applicationType: item.application_type ?? undefined,
+        architectureType: item.architecture_type ?? undefined,
+        installType: item.install_type ?? undefined,
+        applicationTier: item.application_tier ?? undefined,
+        domainTitle: domainTitle ?? '—',
+        fieldKey,
+        fieldLabel: safeString(item.field_label ?? item.title, fieldKey),
+        policyRequirement: safeString(item.hypothesis, '—'),
+        status: 'risk_blocked',
+        approvalStatus: 'pending_review',
+        freshnessStatus: 'broken',
+        dueDate: undefined,
+        submittedDate: item.created_at ?? undefined,
+        reviewedDate: item.updated_at ?? undefined,
+        rejectionReason: undefined,
+        assignedReviewer: item.assigned_sme ?? undefined,
+        submittedBy: undefined,
+        daysOverdue: undefined,
+        riskCount: undefined,
+        uri: undefined,
+        linkStatus: undefined,
+        linkedBy: null,
+        linkedAt: null,
+        reviewedBy: null,
+        reviewComment: item.hypothesis ?? null,
+        documentTitle: null,
+        documentSourceType: null,
+        documentOwners: null,
+        documentLinkHealth: null,
+        trackId: null,
+        documentId: null,
+        docVersionId: null,
+        claimId: null,
+        validFrom: null,
+        validUntil: null,
+        productOwner: item.product_owner ?? null,
+        riskId: item.risk_id,
+        riskStatus: item.risk_status,
+        assignedSme: item.assigned_sme,
+    };
+}
+
+function normalizeStateResponse(state: EvidenceStateKey, payload: unknown): WorkbenchEvidenceItem[] {
+    switch (state) {
+        case 'compliant':
+        case 'pendingReview': {
+            const items = coerceArray<EnhancedEvidenceSummary>(payload);
+            return items.map((item) => normalizeEvidenceSummary(item, state));
+        }
+        case 'missingEvidence': {
+            const items = coerceArray<MissingEvidenceSummary>(payload);
+            return items.map(normalizeMissingSummary);
+        }
+        case 'riskBlocked': {
+            const items = coerceArray<RiskBlockedSummary>(payload);
+            return items.map(normalizeRiskSummary);
+        }
+        default:
+            return [];
+    }
+}
+
+function normalizeCombinedResponse(payload: Record<string, unknown>): WorkbenchEvidenceItem[] {
+    const result: WorkbenchEvidenceItem[] = [];
+    (Object.keys(payload) as Array<keyof typeof payload>).forEach((key) => {
+        const slug = key.replace(/[A-Z]/g, (match) => `-${match.toLowerCase()}`) as EvidenceStateSlug; // e.g. pendingReview -> pending-review
+        const state = slugToStateKey[slug];
+        if (state) {
+            result.push(...normalizeStateResponse(state, payload[key]));
+        }
+    });
+    return result;
+}
+
+function resolveStateKey(state?: EvidenceStateKey, status?: EvidenceSearchParams['status']): EvidenceStateKey | undefined {
+    if (state && stateKeyToSlug[state]) return state;
+    if (status) {
+        const mapped = legacyStatusToState[status];
+        if (mapped) return mapped;
+    }
+    return undefined;
 }
 
 /** ------- Endpoints ------- */
@@ -191,7 +456,7 @@ export const endpoints = {
         if (API_DEBUG) console.debug('[api] /api/apps raw:', res.data);
         
         return {
-            apps: res.data.apps.map((app: any) => ({
+            apps: res.data.apps.map((app: AppSummary) => ({
                 ...app,
                 criticality: normalizeCriticality(app.appCriticalityAssessment)
             })),
@@ -204,7 +469,7 @@ export const endpoints = {
     /** Single app (details) */
     getApp: async (appId: string): Promise<AppSummary> => {
         if (USE_MOCK) return mockApi.getApp(appId);
-        const res = await api.get<any>(`/api/apps/${appId}`);
+        const res = await api.get<{ data: ServerApp }>(`/api/apps/${appId}`);
         const raw = (res.data?.data ?? res.data) as ServerApp;
         if (API_DEBUG) console.debug(`[api] /api/apps/${appId} raw:`, raw);
         return toClient(raw);
@@ -221,7 +486,7 @@ export const endpoints = {
             : (await api.get<EvidenceItem[]>(`/api/apps/${appId}/evidence`)).data,
 
     /** Create/link evidence */
-    createEvidence: async (appId: string, payload: any): Promise<any> =>
+    createEvidence: async (appId: string, payload: unknown): Promise<unknown> =>
         USE_MOCK ? mockApi.createEvidence(appId, payload) : (await api.post(`/api/apps/${appId}/evidence`, payload)).data,
 
     /** Requirements */
@@ -251,14 +516,32 @@ export const endpoints = {
             ? mockApi.getChildApps(appId)
             : (await api.get<ServerApp[]>(`/api/apps/${appId}/children`)).data.map(toClient),
 
-    /** Evidence search for workbench */
-    searchEvidence: async (params: EvidenceSearchParams): Promise<WorkbenchEvidenceItem[]> =>
-        USE_MOCK
-            ? mockApi.searchEvidence(params)
-            : (await api.get<WorkbenchEvidenceItem[]>('/api/evidence/search', { params })).data,
+    /** Evidence search for portfolio/workbench views */
+    searchEvidence: async (params: EvidenceSearchParams = {}): Promise<WorkbenchEvidenceItem[]> => {
+        const { state, status, ...rest } = params ?? {};
+        const resolvedState = resolveStateKey(state, status);
+        const normalizedParams: EvidenceSearchParams = {
+            ...rest,
+            ...(resolvedState ? { state: resolvedState } : {}),
+            ...(!resolvedState && status ? { status } : {}),
+        };
+
+        if (USE_MOCK) {
+            return mockApi.searchEvidence(normalizedParams);
+        }
+
+        if (resolvedState) {
+            const slug = stateKeyToSlug[resolvedState];
+            const res = await api.get<unknown>(`/api/evidence/by-state/${slug}`, { params: rest });
+            return normalizeStateResponse(resolvedState, res.data);
+        }
+
+        const res = await api.get<Record<string, unknown>>('/api/evidence/by-state', { params: rest });
+        return normalizeCombinedResponse(res.data ?? {});
+    },
 
     /** Documents (paginated) */
-    getDocs: async (appId: string, params?: Record<string, string>): Promise<any> =>
+    getDocs: async (appId: string, params?: Record<string, string>): Promise<unknown> =>
         USE_MOCK 
             ? { 
                 page: 1, 
@@ -312,43 +595,43 @@ export const endpoints = {
                     }
                 ]
             }
-            : (await api.get<any>(`/api/apps/${appId}/documents`, { params })).data,
+            : (await api.get<unknown>(`/api/apps/${appId}/documents`, { params })).data,
 
     /** Create document */
-    createDoc: async (appId: string, payload: any): Promise<any> =>
+    createDoc: async (appId: string, payload: unknown): Promise<unknown> =>
         USE_MOCK 
             ? { documentId: 'mock-doc-id', ...payload }
-            : (await api.post<any>(`/api/apps/${appId}/documents`, payload)).data,
+            : (await api.post<unknown>(`/api/apps/${appId}/documents`, payload)).data,
 
     /** Get suggested evidence for a field */
-    getSuggestedEvidence: async (appId: string, fieldKey: string): Promise<any> =>
+    getSuggestedEvidence: async (appId: string, fieldKey: string): Promise<unknown> =>
         USE_MOCK
             ? { fieldKey, fieldLabel: fieldKey, profileFieldId: 'mock-field-id', suggestedDocuments: [] }
-            : (await api.get<any>(`/api/apps/${appId}/profile/field/${fieldKey}/suggested-evidence`)).data,
+            : (await api.get<unknown>(`/api/apps/${appId}/profile/field/${fieldKey}/suggested-evidence`)).data,
 
     /** Create evidence with document */
-    createEvidenceWithDocument: async (appId: string, payload: any): Promise<any> =>
+    createEvidenceWithDocument: async (appId: string, payload: unknown): Promise<unknown> =>
         USE_MOCK
             ? { claimId: 'mock-claim-id', evidenceId: 'mock-evidence-id', ...payload }
-            : (await api.post<any>(`/api/apps/${appId}/evidence/with-document`, payload)).data,
+            : (await api.post<unknown>(`/api/apps/${appId}/evidence/with-document`, payload)).data,
 
     /** Attach evidence */
-    attachEvidence: async (claimId: string, evidenceId: string, payload: any): Promise<any> =>
+    attachEvidence: async (claimId: string, evidenceId: string, payload: unknown): Promise<unknown> =>
         USE_MOCK
             ? { success: true }
-            : (await api.post<any>(`/api/claims/${claimId}/evidence/${evidenceId}/attach`, payload)).data,
+            : (await api.post<unknown>(`/api/claims/${claimId}/evidence/${evidenceId}/attach`, payload)).data,
 
     /** Create track */
-    createTrack: async (appId: string, payload: any): Promise<any> =>
+    createTrack: async (appId: string, payload: unknown): Promise<unknown> =>
         USE_MOCK
             ? { trackId: 'track_mock_id_' + Date.now() }
-            : (await api.post<any>(`/api/apps/${appId}/tracks`, payload)).data,
+            : (await api.post<unknown>(`/api/apps/${appId}/tracks`, payload)).data,
 
     /** Get audit events for profile field */
-    getAuditEvents: async (appId: string, subjectId: string, page: number = 0, size: number = 10): Promise<any> =>
+    getAuditEvents: async (appId: string, subjectId: string, page: number = 0, size: number = 10): Promise<unknown> =>
         USE_MOCK
             ? { content: [], totalElements: 0, totalPages: 0 }
-            : (await auditApi.get<any>('/audit/events/search', {
+            : (await auditApi.get<unknown>('/audit/events/search', {
                 params: {
                     appId,
                     subjectId,
@@ -363,7 +646,7 @@ export const endpoints = {
     getAuditCount: async (appId: string, subjectId: string): Promise<number> =>
         USE_MOCK
             ? 5
-            : (await auditApi.get<any>('/audit/events/search', {
+            : (await auditApi.get<unknown>('/audit/events/search', {
                 params: {
                     appId,
                     subjectId,
@@ -375,7 +658,7 @@ export const endpoints = {
             })).data.totalElements,
 
     /** Get currently attached documents for a profile field */
-    getAttachedDocuments: async (appId: string, profileFieldId: string): Promise<any> =>
+    getAttachedDocuments: async (appId: string, profileFieldId: string): Promise<unknown> =>
         USE_MOCK
             ? { 
                 documents: profileFieldId.includes('security') || profileFieldId.includes('encryption') ? [
@@ -396,7 +679,7 @@ export const endpoints = {
                     }
                 ] : []
             }
-            : (await api.get<any>(`/api/apps/${appId}/profile/field/${profileFieldId}/attached-documents`)).data,
+            : (await api.get<unknown>(`/api/apps/${appId}/profile/field/${profileFieldId}/attached-documents`)).data,
 
     /** Attach existing document to profile field */
     attachDocumentToField: async (appId: string, profileFieldId: string, documentId: string): Promise<AttachDocumentResponse> =>
@@ -413,13 +696,13 @@ export const endpoints = {
             : (await api.post<AttachDocumentResponse>(`/api/apps/${appId}/profile/field/${profileFieldId}/attach-document/${documentId}`)).data,
 
     /** Detach document from profile field */
-    detachDocumentFromField: async (appId: string, profileFieldId: string, documentId: string): Promise<any> =>
+    detachDocumentFromField: async (appId: string, profileFieldId: string, documentId: string): Promise<unknown> =>
         USE_MOCK
             ? { success: true }
-            : (await api.delete<any>(`/api/apps/${appId}/profile/field/${profileFieldId}/detach-document/${documentId}`)).data,
+            : (await api.delete<unknown>(`/api/apps/${appId}/profile/field/${profileFieldId}/detach-document/${documentId}`)).data,
 
     /** Get evidence for profile field */
-    getProfileFieldEvidence: async (profileFieldId: string): Promise<any> =>
+    getProfileFieldEvidence: async (profileFieldId: string): Promise<unknown> =>
         USE_MOCK
             ? {
                 page: 1,
@@ -476,7 +759,7 @@ export const endpoints = {
                     }
                 ]
             }
-            : (await api.get<any>(`/api/profile-fields/${profileFieldId}/evidence`)).data,
+            : (await api.get<unknown>(`/api/profile-fields/${profileFieldId}/evidence`)).data,
 
     // Risk Management Endpoints
 
@@ -501,7 +784,7 @@ export const endpoints = {
             : (await api.get<RiskStory>(`/api/risks/${riskId}`)).data,
 
     /** Get all risks for application */
-    getAppRisks: async (appId: string, page?: number, size?: number, filters?: { status?: string; severity?: string; assignedSme?: string; search?: string }): Promise<any> => {
+    getAppRisks: async (appId: string, page?: number, size?: number, filters?: { status?: string; severity?: string; assignedSme?: string; search?: string }): Promise<unknown> => {
         if (USE_MOCK) {
             const allRisks = [
                 {
@@ -653,7 +936,7 @@ export const endpoints = {
             if (filters.search) params.search = filters.search;
         }
         
-        return (await api.get<any>(`/api/risks/search`, { params })).data;
+        return (await api.get<unknown>(`/api/risks/search`, { params })).data;
     },
 
     /** Get risks by field key */
@@ -685,39 +968,39 @@ export const endpoints = {
             : (await api.get<RiskStory[]>(`/api/profile-fields/${profileFieldId}/risks`)).data,
 
     /** Create new risk story */
-    createRisk: async (appId: string, fieldKey: string, payload: any): Promise<RiskStory> =>
+    createRisk: async (appId: string, fieldKey: string, payload: unknown): Promise<RiskStory> =>
         USE_MOCK
             ? {
                 riskId: 'risk_new_' + Date.now(),
                 appId,
                 fieldKey,
-                title: payload.title,
-                description: payload.description,
+                title: (payload as { title: string }).title,
+                description: (payload as { description: string }).description,
                 status: 'open',
-                severity: payload.severity || 'medium',
+                severity: (payload as { severity: RiskSeverity }).severity || 'medium',
                 createdBy: 'current_user',
                 createdAt: new Date().toISOString(),
                 updatedAt: new Date().toISOString(),
                 evidenceCount: 0,
-                ...payload
+                ...(payload as object),
             }
             : (await api.post<RiskStory>(`/api/apps/${appId}/fields/${fieldKey}/risks`, payload)).data,
 
     /** Attach evidence to risk */
-    attachEvidenceToRisk: async (riskId: string, payload: any): Promise<any> =>
+    attachEvidenceToRisk: async (riskId: string, payload: unknown): Promise<unknown> =>
         USE_MOCK
             ? { success: true, evidenceId: 'ev_' + Date.now() }
-            : (await api.post<any>(`/api/risks/${riskId}/evidence`, payload)).data,
+            : (await api.post<unknown>(`/api/risks/${riskId}/evidence`, payload)).data,
 
     /** Detach evidence from risk */
-    detachEvidenceFromRisk: async (riskId: string, evidenceId: string): Promise<any> =>
+    detachEvidenceFromRisk: async (riskId: string, evidenceId: string): Promise<unknown> =>
         USE_MOCK
             ? { success: true }
-            : (await api.delete<any>(`/api/risks/${riskId}/evidence/${evidenceId}`)).data,
+            : (await api.delete<unknown>(`/api/risks/${riskId}/evidence/${evidenceId}`)).data,
 
     // SME Endpoints using unified search
     /** Get risks pending SME review assigned to current user */
-    getSmeReviewQueue: async (smeId: string): Promise<any[]> =>
+    getSmeReviewQueue: async (smeId: string): Promise<unknown[]> =>
         USE_MOCK
             ? [
                 {
@@ -754,10 +1037,10 @@ export const endpoints = {
                     appName: "Authentication Service"
                 }
             ]
-            : coerceArray((await api.get<any[]>(`/api/risks/search?assignedSme=${smeId}&status=PENDING_SME_REVIEW`)).data),
+            : coerceArray((await api.get<unknown[]>(`/api/risks/search?assignedSme=${smeId}&status=PENDING_SME_REVIEW`)).data),
 
     /** Get all security-related risks assigned to this SME across all apps */
-    getSmeSecurityDomainRisks: async (smeId: string): Promise<any[]> =>
+    getSmeSecurityDomainRisks: async (smeId: string): Promise<unknown[]> =>
         USE_MOCK
             ? [
                 {
@@ -815,10 +1098,10 @@ export const endpoints = {
                     appName: "File Sharing Service"
                 }
             ]
-            : coerceArray((await api.get<any[]>(`/api/risks/search?assignedSme=${smeId}&domain=security`)).data),
+            : coerceArray((await api.get<unknown[]>(`/api/risks/search?assignedSme=${smeId}&domain=security`)).data),
 
     /** Get risks from other domains assigned to this SME */
-    getSmeCrossDomainRisks: async (smeId: string): Promise<any[]> =>
+    getSmeCrossDomainRisks: async (smeId: string): Promise<unknown[]> =>
         USE_MOCK
             ? [
                 {
@@ -855,10 +1138,10 @@ export const endpoints = {
                     appName: "Data Lake Platform"
                 }
             ]
-            : coerceArray((await api.get<any[]>(`/api/risks/search?assignedSme=${smeId}&domain=availability,integrity,compliance`)).data),
+            : coerceArray((await api.get<unknown[]>(`/api/risks/search?assignedSme=${smeId}&domain=availability,integrity,compliance`)).data),
 
     /** Get all open risks assigned to SME (for Open Risks table) */
-    getSmeAllOpenRisks: async (smeId: string): Promise<any[]> =>
+    getSmeAllOpenRisks: async (smeId: string): Promise<unknown[]> =>
         USE_MOCK
             ? [
                 // Combined mock data from all tables for Open Risks
@@ -918,10 +1201,10 @@ export const endpoints = {
                     appName: "Backup System"
                 }
             ]
-            : coerceArray((await api.get<any[]>(`/api/risks/search?assignedSme=${smeId}&status=PENDING_SME_REVIEW,UNDER_REVIEW`)).data),
+            : coerceArray((await api.get<unknown[]>(`/api/risks/search?assignedSme=${smeId}&status=PENDING_SME_REVIEW,UNDER_REVIEW`)).data),
 
     /** SME approves or rejects a risk */
-    submitSmeReview: async (riskId: string, payload: { action: 'approve' | 'reject'; comments: string; smeId: string }): Promise<any> =>
+    submitSmeReview: async (riskId: string, payload: { action: 'approve' | 'reject'; comments: string; smeId: string }): Promise<unknown> =>
         USE_MOCK
             ? {
                 riskId,
@@ -929,7 +1212,7 @@ export const endpoints = {
                 reviewedBy: payload.smeId,
                 reviewedAt: new Date().toISOString()
             }
-            : (await api.put<any>(`/api/risks/${riskId}/sme-review`, payload)).data,
+            : (await api.put<unknown>(`/api/risks/${riskId}/sme-review`, payload)).data,
 
     /** Bulk Attestation */
     submitBulkAttestation: async (appId: string, request: BulkAttestationRequest): Promise<BulkAttestationResponse> => {

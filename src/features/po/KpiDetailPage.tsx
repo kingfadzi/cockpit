@@ -25,7 +25,7 @@ import {
 } from '@mui/icons-material';
 
 import { useEvidenceSearch } from '../../api/hooks';
-import { WorkbenchEvidenceItem } from '../../api/types';
+import { EvidenceSearchParams, EvidenceStateKey, WorkbenchEvidenceItem } from '../../api/types';
 import { kpiConfigMap, KpiColumn } from './kpiConfig';
 
 /**
@@ -38,6 +38,15 @@ export default function KpiDetailPage() {
   const [searchParams] = useSearchParams();
   const config = kpiConfigMap[kpiType];
 
+  const stateMap: Record<string, EvidenceStateKey> = {
+    compliant: 'compliant',
+    pending: 'pendingReview',
+    missing: 'missingEvidence',
+    riskBlocked: 'riskBlocked',
+  };
+
+  const evidenceState = stateMap[kpiType];
+
   // Local search and filter state
   const [localSearch, setLocalSearch] = useState('');
   const [criticalityFilter, setCriticalityFilter] = useState('');
@@ -45,8 +54,8 @@ export default function KpiDetailPage() {
   const [controlFieldFilter, setControlFieldFilter] = useState('');
 
   // Build search parameters from URL
-  const searchFilters = {
-    status: kpiType as any,
+  const searchFilters: EvidenceSearchParams = {
+    ...(evidenceState ? { state: evidenceState } : {}),
     search: searchParams.get('search') || undefined,
     criticality: searchParams.get('criticality') as 'A' | 'B' | 'C' | 'D' | undefined,
     applicationType: searchParams.get('appType') || undefined,
@@ -54,7 +63,7 @@ export default function KpiDetailPage() {
     installType: searchParams.get('installType') || undefined,
   };
 
-  // Use the useEvidenceSearch hook with the kpiType as status filter plus URL filters
+  // Use the useEvidenceSearch hook with KPI-derived evidence state and URL filters
   const { data: evidenceItems, isLoading, error } = useEvidenceSearch(searchFilters);
 
   // Apply local filters to the evidence items

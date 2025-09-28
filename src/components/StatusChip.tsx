@@ -12,7 +12,7 @@ export default function StatusChip({
   const color =
       status === 'met' || status === 'approved' || status === 'current'
           ? 'success'
-          : status === 'missing' || status === 'rejected' || status === 'expired' || status === 'broken' || status === 'invalid_evidence'
+          : status === 'missing' || status === 'rejected' || status === 'expired' || status === 'broken' || status === 'invalid_evidence' || status === 'risk_blocked'
               ? 'error'
               : status === 'expiring' || status === 'submitted'
                   ? 'warning'
@@ -20,7 +20,7 @@ export default function StatusChip({
   return (
       <Chip
           size="small"
-          label={status}
+          label={status.replace(/_/g, ' ')}
           color={color}
           variant="outlined"
       />

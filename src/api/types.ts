@@ -274,11 +274,18 @@ export type AttestationResponse = {
 export type ReleaseItem = any;          // unchanged for now
 
 // Evidence search parameters for workbench
+export type EvidenceStateKey = 'compliant' | 'pendingReview' | 'missingEvidence' | 'riskBlocked';
+
+export type EvidenceStateSlug = 'compliant' | 'pending-review' | 'missing-evidence' | 'risk-blocked';
+
 export interface EvidenceSearchParams {
-  // Status filters
-  status?: 'missing' | 'pending' | 'expired' | 'rejected' | 'approved' | 'compliant';
-  freshnessStatus?: 'current' | 'expiring' | 'expired' | 'broken';
+  // Evidence state (new backend endpoints)
+  state?: EvidenceStateKey;
+
+  // Legacy status filters (kept for compatibility with existing UI components)
+  status?: 'missing' | 'pending' | 'expired' | 'rejected' | 'approved' | 'compliant' | 'active' | 'revoked' | 'submitted' | 'risk_blocked';
   approvalStatus?: 'approved' | 'pending_review' | 'rejected' | 'no_evidence' | 'user_attested';
+  freshnessStatus?: 'current' | 'expiring' | 'expired' | 'broken' | 'invalid_evidence';
 
   // App filters
   appId?: string;
@@ -291,10 +298,6 @@ export interface EvidenceSearchParams {
   // Field filters
   domain?: string;                    // "security", "integrity"
   fieldKey?: string;                  // "encryption_at_rest"
-
-  // Time filters
-  dueWithin?: string;                 // "7days", "30days"
-  overdueSince?: string;              // "2024-01-01"
 
   // People filters
   assignedReviewer?: string;
@@ -319,7 +322,7 @@ export interface WorkbenchEvidenceItem {
   fieldKey: string;                 // "encryption_at_rest"
   fieldLabel: string;               // "Encryption at Rest"
   policyRequirement: string;        // "Required for A-rated apps"
-  status: 'missing' | 'pending' | 'expired' | 'rejected' | 'approved' | 'compliant';
+  status: 'missing' | 'pending' | 'expired' | 'rejected' | 'approved' | 'compliant' | 'risk_blocked';
   approvalStatus: 'approved' | 'pending_review' | 'rejected' | 'no_evidence' | 'user_attested';
   freshnessStatus: 'current' | 'expiring' | 'expired' | 'broken';
   dueDate?: string;                 // When evidence is due
@@ -331,4 +334,110 @@ export interface WorkbenchEvidenceItem {
   daysOverdue?: number;             // How many days overdue
   riskCount?: number;               // Number of associated risks
   uri?: string;                     // Evidence URL/link
+  linkStatus?: string;
+  linkedBy?: string | null;
+  linkedAt?: string | null;
+  reviewedBy?: string | null;
+  reviewComment?: string | null;
+  documentTitle?: string | null;
+  documentSourceType?: string | null;
+  documentOwners?: string | null;
+  documentLinkHealth?: number | null;
+  trackId?: string | null;
+  documentId?: string | null;
+  docVersionId?: string | null;
+  claimId?: string | null;
+  validFrom?: string | null;
+  validUntil?: string | null;
+  productOwner?: string | null;
+  riskId?: string;
+  riskStatus?: string;
+  assignedSme?: string | null;
+}
+
+export interface EnhancedEvidenceSummary {
+  evidenceId: string;
+  appId: string;
+  profileFieldId: string;
+  claimId: string | null;
+  uri: string | null;
+  type: string | null;
+  status: string | null;
+  submittedBy: string | null;
+  validFrom: string | null;
+  validUntil: string | null;
+  trackId: string | null;
+  documentId: string | null;
+  docVersionId: string | null;
+  createdAt: string | null;
+  updatedAt: string | null;
+  linkStatus: string | null;
+  linkedBy: string | null;
+  linkedAt: string | null;
+  reviewedBy: string | null;
+  reviewedAt: string | null;
+  reviewComment: string | null;
+  documentTitle: string | null;
+  documentSourceType: string | null;
+  documentOwners: string | null;
+  documentLinkHealth: number | null;
+  fieldKey: string;
+  productOwner: string | null;
+  appName?: string | null;
+  domain?: string | null;
+  domainTitle?: string | null;
+  domainKey?: string | null;
+  fieldLabel?: string | null;
+  appCriticality?: 'A' | 'B' | 'C' | 'D' | null;
+  applicationType?: string | null;
+  architectureType?: string | null;
+  installType?: string | null;
+  applicationTier?: string | null;
+  derivedFrom?: string | null;
+  derived_from?: string | null;
+}
+
+export interface MissingEvidenceSummary {
+  profile_field_id: string;
+  field_key: string;
+  app_id: string;
+  app_name: string;
+  product_owner: string | null;
+  profile_id?: string;
+  version?: number;
+  domain?: string;
+  domain_title?: string;
+  domain_key?: string;
+  field_label?: string;
+  app_criticality?: 'A' | 'B' | 'C' | 'D';
+  application_type?: string;
+  architecture_type?: string;
+  install_type?: string;
+  application_tier?: string;
+  derived_from?: string;
+}
+
+export interface RiskBlockedSummary {
+  risk_id: string;
+  app_id: string;
+  field_key: string | null;
+  risk_status: string;
+  assigned_sme: string | null;
+  created_at: string;
+  updated_at: string;
+  triggering_evidence_id: string | null;
+  title: string;
+  hypothesis: string | null;
+  app_name: string;
+  product_owner: string | null;
+  domain?: string;
+  domain_title?: string;
+  domain_key?: string;
+  field_label?: string;
+  app_criticality?: 'A' | 'B' | 'C' | 'D';
+  application_type?: string;
+  architecture_type?: string;
+  install_type?: string;
+  application_tier?: string;
+  derived_from?: string;
 }

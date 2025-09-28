@@ -8,6 +8,7 @@ import {
   AppKpis,
   WorkbenchEvidenceItem,
   EvidenceSearchParams,
+  EvidenceStateKey,
 } from './types';
 import { realApps, realAppKpis, realProfiles, realPortfolioKpis } from './realMockData';
 
@@ -1558,10 +1559,7 @@ export const mockApi = {
     await delay(120);
     return releases;
   },
-  getAllEvidence: async () => {
-    await delay(150);
-    return Object.values(evidence).flat();
-  },
+
   getPortfolioKpis: async (filters?: {
     search?: string;
     criticality?: string;
@@ -1747,8 +1745,18 @@ export const mockApi = {
       };
     });
 
-    // Filter by status
-    if (params.status) {
+    const stateStatusMap: Record<EvidenceStateKey, string[]> = {
+      compliant: ['compliant', 'approved'],
+      pendingReview: ['pending', 'submitted'],
+      missingEvidence: ['missing'],
+      riskBlocked: ['risk_blocked', 'rejected'],
+    };
+
+    if (params.state) {
+      const acceptableStatuses = stateStatusMap[params.state];
+      results = results.filter(item => acceptableStatuses.includes(item.status));
+    } else if (params.status) {
+      // Legacy status filtering
       results = results.filter(item => item.status === params.status);
     }
 

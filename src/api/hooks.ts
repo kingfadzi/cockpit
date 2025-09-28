@@ -5,7 +5,6 @@ import type {
     EvidenceItem,
     RequirementsResponse,
     ReleaseItem,
-    PortfolioKpis,
     ProfileResponse,
     AppKpis,
     AppsWithKpis,
@@ -42,8 +41,6 @@ export const useProfile = (appId: string) =>
 export const useEvidence = (appId: string) =>
     useQuery<EvidenceItem[]>({ queryKey: ['evidence', appId], queryFn: () => endpoints.getEvidence(appId), enabled: !!appId, ...commonQuery });
 
-export const useAllEvidence = () =>
-    useQuery<EvidenceItem[]>({ queryKey: ['evidence', 'all'], queryFn: () => endpoints.getAllEvidence(), ...commonQuery });
 
 export const useRequirements = (appId: string, params?: Record<string, string>) =>
     useQuery<RequirementsResponse>({
@@ -73,7 +70,7 @@ export const useEvidenceSearch = (params: EvidenceSearchParams) =>
 export const useCreateEvidence = (appId: string) => {
     const qc = useQueryClient();
     return useMutation({
-        mutationFn: (payload: any) => endpoints.createEvidence(appId, payload),
+        mutationFn: (payload: unknown) => endpoints.createEvidence(appId, payload),
         onSuccess: () => {
             qc.invalidateQueries({ queryKey: ['evidence', appId] });
             qc.invalidateQueries({ queryKey: ['requirements', appId] });
@@ -104,7 +101,7 @@ export const useDocs = (appId: string, params?: Record<string, string>) =>
 export const useCreateDoc = (appId: string) => {
     const qc = useQueryClient();
     return useMutation({
-        mutationFn: (payload: any) => endpoints.createDoc(appId, payload),
+        mutationFn: (payload: unknown) => endpoints.createDoc(appId, payload),
         onSuccess: () => {
             qc.invalidateQueries({ queryKey: ['docs', appId] });
         },
@@ -122,12 +119,12 @@ export const useSuggestedEvidence = (appId: string, fieldKey: string) =>
 export const useCreateEvidenceWithDocument = (appId: string) => {
     const qc = useQueryClient();
     return useMutation({
-        mutationFn: (payload: any) => endpoints.createEvidenceWithDocument(appId, payload),
+        mutationFn: (payload: unknown) => endpoints.createEvidenceWithDocument(appId, payload),
         onSuccess: (data, variables) => {
             qc.invalidateQueries({ queryKey: ['evidence', appId] });
             qc.invalidateQueries({ queryKey: ['profile', appId] });
-            if (variables.profileFieldId) {
-                qc.invalidateQueries({ queryKey: ['profileFieldEvidence', variables.profileFieldId] });
+            if ((variables as { profileFieldId?: string }).profileFieldId) {
+                qc.invalidateQueries({ queryKey: ['profileFieldEvidence', (variables as { profileFieldId?: string }).profileFieldId] });
             }
         },
     });
@@ -136,7 +133,7 @@ export const useCreateEvidenceWithDocument = (appId: string) => {
 export const useAttachEvidence = () => {
     const qc = useQueryClient();
     return useMutation({
-        mutationFn: ({ claimId, evidenceId, payload }: { claimId: string; evidenceId: string; payload: any }) => 
+        mutationFn: ({ claimId, evidenceId, payload }: { claimId: string; evidenceId: string; payload: unknown }) => 
             endpoints.attachEvidence(claimId, evidenceId, payload),
         onSuccess: () => {
             qc.invalidateQueries({ queryKey: ['evidence'] });
@@ -147,7 +144,7 @@ export const useAttachEvidence = () => {
 
 export const useCreateTrack = (appId: string) => {
     return useMutation({
-        mutationFn: (payload: any) => endpoints.createTrack(appId, payload),
+        mutationFn: (payload: unknown) => endpoints.createTrack(appId, payload),
     });
 };
 
@@ -246,7 +243,7 @@ export const useProfileFieldRisks = (profileFieldId: string) =>
 export const useCreateRisk = (appId: string, fieldKey: string) => {
     const qc = useQueryClient();
     return useMutation({
-        mutationFn: (payload: any) => endpoints.createRisk(appId, fieldKey, payload),
+        mutationFn: (payload: unknown) => endpoints.createRisk(appId, fieldKey, payload),
         onSuccess: () => {
             qc.invalidateQueries({ queryKey: ['risks', appId] });
             qc.invalidateQueries({ queryKey: ['fieldRisks', appId, fieldKey] });
@@ -257,7 +254,7 @@ export const useCreateRisk = (appId: string, fieldKey: string) => {
 export const useAttachEvidenceToRisk = (riskId: string) => {
     const qc = useQueryClient();
     return useMutation({
-        mutationFn: (payload: any) => endpoints.attachEvidenceToRisk(riskId, payload),
+        mutationFn: (payload: unknown) => endpoints.attachEvidenceToRisk(riskId, payload),
         onSuccess: () => {
             qc.invalidateQueries({ queryKey: ['risk', riskId] });
             qc.invalidateQueries({ queryKey: ['risks'] });
@@ -278,7 +275,7 @@ export const useDetachEvidenceFromRisk = (riskId: string) => {
 
 // SME Hooks
 export const useSmeReviewQueue = (smeId: string) =>
-    useQuery<any[]>({ 
+    useQuery<unknown[]>({ 
         queryKey: ['sme', 'queue', smeId], 
         queryFn: () => endpoints.getSmeReviewQueue(smeId), 
         enabled: !!smeId, 
@@ -286,7 +283,7 @@ export const useSmeReviewQueue = (smeId: string) =>
     });
 
 export const useSmeSecurityDomainRisks = (smeId: string) =>
-    useQuery<any[]>({
+    useQuery<unknown[]>({
         queryKey: ['sme', 'security-domain', smeId],
         queryFn: () => endpoints.getSmeSecurityDomainRisks(smeId),
         enabled: !!smeId,
@@ -294,7 +291,7 @@ export const useSmeSecurityDomainRisks = (smeId: string) =>
     });
 
 export const useSmeCrossDomainRisks = (smeId: string) =>
-    useQuery<any[]>({ 
+    useQuery<unknown[]>({ 
         queryKey: ['sme', 'cross-domain', smeId], 
         queryFn: () => endpoints.getSmeCrossDomainRisks(smeId), 
         enabled: !!smeId, 
@@ -302,7 +299,7 @@ export const useSmeCrossDomainRisks = (smeId: string) =>
     });
 
 export const useSmeAllOpenRisks = (smeId: string) =>
-    useQuery<any[]>({ 
+    useQuery<unknown[]>({ 
         queryKey: ['sme', 'all-open-risks', smeId], 
         queryFn: () => endpoints.getSmeAllOpenRisks(smeId), 
         enabled: !!smeId, 
