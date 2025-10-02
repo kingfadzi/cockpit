@@ -227,6 +227,113 @@ export type RiskStory = {
   resolution?: string;
   dueDate?: string;
 };
+
+// ============================================
+// Risk Grouping by CIA+R+S (Grouped Risks)
+// ============================================
+
+export interface RiskCategory {
+  riskCategoryId: string;
+  appId: string;
+  domain: string;                    // 'security_rating', 'confidentiality_rating', etc.
+  domainTitle: string;                // 'Security', 'Confidentiality', etc.
+  severity: RiskSeverity;             // Highest from children
+  status: RiskStatus;                 // Rollup from children
+  assignedSme?: string;
+  riskItemCount: number;
+  criticalCount: number;
+  highCount: number;
+  mediumCount: number;
+  lowCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface RiskItem {
+  riskItemId: string;
+  riskCategoryId: string;
+  appId: string;
+  fieldKey: string;
+  fieldLabel: string;
+  profileFieldId?: string;
+  title: string;
+  hypothesis?: string;
+  condition?: string;
+  consequence?: string;
+  severity: RiskSeverity;
+  status: RiskStatus;
+  assignedSme?: string;
+  raisedBy: string;
+  triggeringEvidenceId?: string;
+  evidenceCount: number;
+  evidenceIds?: string[];
+  openedAt: string;
+  assignedAt?: string;
+  createdAt: string;
+  updatedAt: string;
+  policyRequirementSnapshot?: PolicyRequirementSnapshot;
+  // Additional context
+  domain?: string;
+  domainTitle?: string;
+}
+
+export interface RiskCategoriesResponse {
+  categories: RiskCategory[];
+  summary: {
+    totalCategories: number;
+    totalRiskItems: number;
+    criticalCount: number;
+    highCount: number;
+    mediumCount: number;
+    lowCount: number;
+  };
+}
+
+export interface RiskItemsResponse extends PaginatedResponse<RiskItem> {
+  // Extends generic pagination with RiskItem type
+}
+
+export interface ReviewRiskItemPayload {
+  action: 'approve' | 'reject' | 'request_info' | 'assign_other' | 'escalate' | 'approve_with_mitigation';
+  comments: string;
+  smeId: string;
+  assignToSme?: string;              // For assign_other action
+  mitigationPlan?: string;           // For approve_with_mitigation
+}
+
+export interface BulkReviewRiskItemsPayload {
+  riskItemIds: string[];
+  action: 'approve' | 'reject' | 'request_info';
+  comments: string;
+  smeId: string;
+}
+
+export interface ReviewRiskItemResponse {
+  riskItemId: string;
+  status: RiskStatus;
+  reviewedBy: string;
+  reviewedAt: string;
+  jiraTicketId?: string;
+  jiraTicketUrl?: string;
+}
+
+export interface BulkReviewRiskItemsResponse {
+  successful: Array<{
+    riskItemId: string;
+    status: RiskStatus;
+    jiraTicketId?: string;
+  }>;
+  failed: Array<{
+    riskItemId: string;
+    error: string;
+  }>;
+  summary: {
+    total: number;
+    successful: number;
+    failed: number;
+  };
+}
+
 export type BulkAttestationRequest = {
   fields: {
     profileFieldId: string;

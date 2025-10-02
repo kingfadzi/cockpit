@@ -1413,4 +1413,40 @@ export const endpoints = {
         USE_MOCK
             ? mockApi.getControls(domain)
             : (await api.get<string[]>(`/internal/profile-fields-registry/domains/${domain}/controls`)).data,
+
+    // ============================================
+    // CIA+R+S Grouped Risks Endpoints
+    // ============================================
+
+    /** Get risk categories for an application */
+    getRiskCategories: async (appId: string): Promise<import('./types').RiskCategoriesResponse> =>
+        USE_MOCK
+            ? mockApi.getRiskCategories(appId)
+            : (await api.get<import('./types').RiskCategoriesResponse>(`/api/apps/${appId}/risk-categories`)).data,
+
+    /** Get single risk category */
+    getRiskCategory: async (categoryId: string): Promise<import('./types').RiskCategory> =>
+        USE_MOCK
+            ? mockApi.getRiskCategory(categoryId)
+            : (await api.get<import('./types').RiskCategory>(`/api/risk-categories/${categoryId}`)).data,
+
+    /** Get risk items for a category */
+    getRiskItems: async (categoryId: string, page?: number, pageSize?: number): Promise<import('./types').RiskItemsResponse> =>
+        USE_MOCK
+            ? mockApi.getRiskItems(categoryId, page, pageSize)
+            : (await api.get<import('./types').RiskItemsResponse>(`/api/risk-categories/${categoryId}/items`, {
+                params: { page, pageSize: pageSize || 10 }
+            })).data,
+
+    /** Review a single risk item */
+    reviewRiskItem: async (categoryId: string, itemId: string, payload: import('./types').ReviewRiskItemPayload): Promise<import('./types').ReviewRiskItemResponse> =>
+        USE_MOCK
+            ? mockApi.reviewRiskItem(categoryId, itemId, payload)
+            : (await api.post<import('./types').ReviewRiskItemResponse>(`/api/risk-categories/${categoryId}/items/${itemId}/review`, payload)).data,
+
+    /** Bulk review risk items */
+    bulkReviewRiskItems: async (categoryId: string, payload: import('./types').BulkReviewRiskItemsPayload): Promise<import('./types').BulkReviewRiskItemsResponse> =>
+        USE_MOCK
+            ? mockApi.bulkReviewRiskItems(categoryId, payload)
+            : (await api.post<import('./types').BulkReviewRiskItemsResponse>(`/api/risk-categories/${categoryId}/bulk-review`, payload)).data,
 };

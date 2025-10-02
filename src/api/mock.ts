@@ -9,6 +9,14 @@ import {
   WorkbenchEvidenceItem,
   EvidenceSearchParams,
   EvidenceStateKey,
+  RiskCategory,
+  RiskItem,
+  RiskCategoriesResponse,
+  RiskItemsResponse,
+  ReviewRiskItemPayload,
+  ReviewRiskItemResponse,
+  BulkReviewRiskItemsPayload,
+  BulkReviewRiskItemsResponse,
 } from './types';
 import { realApps, realAppKpis, realProfiles, realPortfolioKpis } from './realMockData';
 
@@ -1867,5 +1875,532 @@ export const mockApi = {
       "app_criticality_assessment": []
     };
     return controlsMap[domain] || [];
+  },
+
+  // ============================================
+  // CIA+R+S Grouped Risks Mock Data
+  // ============================================
+
+  getRiskCategories: async (appId: string): Promise<RiskCategoriesResponse> => {
+    await delay(500);
+
+    // Mock data for CORR-12356
+    if (appId === 'CORR-12356') {
+      return {
+        categories: [
+          {
+            riskCategoryId: 'rc_security_corr12356',
+            appId: 'CORR-12356',
+            domain: 'security_rating',
+            domainTitle: 'Security',
+            severity: 'high',
+            status: 'PENDING_SME_REVIEW',
+            assignedSme: 'security_sme_001',
+            riskItemCount: 4,
+            criticalCount: 1,
+            highCount: 2,
+            mediumCount: 1,
+            lowCount: 0,
+            createdAt: '2025-01-15T10:00:00Z',
+            updatedAt: '2025-01-20T14:30:00Z'
+          },
+          {
+            riskCategoryId: 'rc_confidentiality_corr12356',
+            appId: 'CORR-12356',
+            domain: 'confidentiality_rating',
+            domainTitle: 'Confidentiality',
+            severity: 'high',
+            status: 'UNDER_REVIEW',
+            assignedSme: 'security_sme_001',
+            riskItemCount: 3,
+            criticalCount: 0,
+            highCount: 2,
+            mediumCount: 1,
+            lowCount: 0,
+            createdAt: '2025-01-15T10:00:00Z',
+            updatedAt: '2025-01-19T11:00:00Z'
+          },
+          {
+            riskCategoryId: 'rc_integrity_corr12356',
+            appId: 'CORR-12356',
+            domain: 'integrity_rating',
+            domainTitle: 'Integrity',
+            severity: 'medium',
+            status: 'PENDING_SME_REVIEW',
+            assignedSme: 'data_architecture_sme_001',
+            riskItemCount: 2,
+            criticalCount: 0,
+            highCount: 0,
+            mediumCount: 2,
+            lowCount: 0,
+            createdAt: '2025-01-16T09:00:00Z',
+            updatedAt: '2025-01-20T10:00:00Z'
+          },
+          {
+            riskCategoryId: 'rc_availability_corr12356',
+            appId: 'CORR-12356',
+            domain: 'availability_rating',
+            domainTitle: 'Availability',
+            severity: 'medium',
+            status: 'PENDING_SME_REVIEW',
+            assignedSme: 'service_transition_sme_001',
+            riskItemCount: 1,
+            criticalCount: 0,
+            highCount: 0,
+            mediumCount: 1,
+            lowCount: 0,
+            createdAt: '2025-01-17T14:00:00Z',
+            updatedAt: '2025-01-20T15:00:00Z'
+          },
+          {
+            riskCategoryId: 'rc_resilience_corr12356',
+            appId: 'CORR-12356',
+            domain: 'resilience_rating',
+            domainTitle: 'Resilience',
+            severity: 'low',
+            status: 'PENDING_SME_REVIEW',
+            assignedSme: 'service_transition_sme_001',
+            riskItemCount: 2,
+            criticalCount: 0,
+            highCount: 0,
+            mediumCount: 0,
+            lowCount: 2,
+            createdAt: '2025-01-18T08:00:00Z',
+            updatedAt: '2025-01-19T16:00:00Z'
+          }
+        ],
+        summary: {
+          totalCategories: 5,
+          totalRiskItems: 12,
+          criticalCount: 1,
+          highCount: 4,
+          mediumCount: 4,
+          lowCount: 2
+        }
+      };
+    }
+
+    // Empty response for other apps
+    return {
+      categories: [],
+      summary: {
+        totalCategories: 0,
+        totalRiskItems: 0,
+        criticalCount: 0,
+        highCount: 0,
+        mediumCount: 0,
+        lowCount: 0
+      }
+    };
+  },
+
+  getRiskCategory: async (categoryId: string): Promise<RiskCategory> => {
+    await delay(300);
+
+    const categories: Record<string, RiskCategory> = {
+      'rc_security_corr12356': {
+        riskCategoryId: 'rc_security_corr12356',
+        appId: 'CORR-12356',
+        domain: 'security_rating',
+        domainTitle: 'Security',
+        severity: 'high',
+        status: 'PENDING_SME_REVIEW',
+        assignedSme: 'security_sme_001',
+        riskItemCount: 4,
+        criticalCount: 1,
+        highCount: 2,
+        mediumCount: 1,
+        lowCount: 0,
+        createdAt: '2025-01-15T10:00:00Z',
+        updatedAt: '2025-01-20T14:30:00Z'
+      }
+    };
+
+    return categories[categoryId] || categories['rc_security_corr12356'];
+  },
+
+  getRiskItems: async (categoryId: string, page = 1, pageSize = 10): Promise<RiskItemsResponse> => {
+    await delay(400);
+
+    const allItems: Record<string, RiskItem[]> = {
+      'rc_security_corr12356': [
+        {
+          riskItemId: 'ri_encryption_rest_001',
+          riskCategoryId: 'rc_security_corr12356',
+          appId: 'CORR-12356',
+          fieldKey: 'encryption_at_rest',
+          fieldLabel: 'Encryption at Rest',
+          title: 'Encryption at rest not implemented',
+          hypothesis: 'Evidence may indicate gaps in encryption implementation',
+          condition: 'IF the attached evidence reveals missing encryption',
+          consequence: 'THEN data at rest may be vulnerable to unauthorized access',
+          severity: 'critical',
+          status: 'PENDING_SME_REVIEW',
+          assignedSme: 'security_sme_001',
+          raisedBy: 'SYSTEM_AUTO_CREATION',
+          triggeringEvidenceId: 'ev_001',
+          evidenceCount: 2,
+          evidenceIds: ['ev_001', 'ev_002'],
+          openedAt: '2025-01-15T10:00:00Z',
+          assignedAt: '2025-01-15T10:00:05Z',
+          createdAt: '2025-01-15T10:00:00Z',
+          updatedAt: '2025-01-20T14:30:00Z',
+          domain: 'security_rating',
+          domainTitle: 'Security',
+          policyRequirementSnapshot: {
+            fieldKey: 'encryption_at_rest',
+            fieldLabel: 'Encryption at Rest',
+            activeRule: {
+              value: 'required',
+              label: 'Required',
+              ttl: '90d',
+              security_rating: 'A2',
+              requiresReview: true
+            },
+            snapshotTimestamp: Date.now(),
+            complianceFrameworks: [
+              { framework: 'NIST', controls: ['SC-28', 'SC-8'] },
+              { framework: 'ISO27001', controls: ['A.10.1.1'] }
+            ]
+          }
+        },
+        {
+          riskItemId: 'ri_mfa_001',
+          riskCategoryId: 'rc_security_corr12356',
+          appId: 'CORR-12356',
+          fieldKey: 'mfa_enforcement',
+          fieldLabel: 'Multi-Factor Authentication',
+          title: 'MFA not enforced for all users',
+          hypothesis: 'MFA implementation may have gaps',
+          condition: 'IF MFA is not enforced for all user types',
+          consequence: 'THEN accounts may be vulnerable to credential compromise',
+          severity: 'high',
+          status: 'PENDING_SME_REVIEW',
+          assignedSme: 'security_sme_001',
+          raisedBy: 'po_user_001',
+          triggeringEvidenceId: 'ev_003',
+          evidenceCount: 1,
+          evidenceIds: ['ev_003'],
+          openedAt: '2025-01-16T11:00:00Z',
+          assignedAt: '2025-01-16T11:05:00Z',
+          createdAt: '2025-01-16T11:00:00Z',
+          updatedAt: '2025-01-19T09:00:00Z',
+          domain: 'security_rating',
+          domainTitle: 'Security'
+        },
+        {
+          riskItemId: 'ri_key_rotation_001',
+          riskCategoryId: 'rc_security_corr12356',
+          appId: 'CORR-12356',
+          fieldKey: 'key_rotation_max',
+          fieldLabel: 'Key Rotation Maximum Period',
+          title: 'Key rotation period exceeds policy',
+          hypothesis: 'Current key rotation practices may not align with security policy',
+          condition: 'IF key rotation period exceeds 90 days',
+          consequence: 'THEN cryptographic keys become vulnerable to compromise',
+          severity: 'high',
+          status: 'UNDER_REVIEW',
+          assignedSme: 'security_sme_001',
+          raisedBy: 'SYSTEM_AUTO_CREATION',
+          triggeringEvidenceId: 'ev_004',
+          evidenceCount: 1,
+          evidenceIds: ['ev_004'],
+          openedAt: '2025-01-17T08:00:00Z',
+          assignedAt: '2025-01-17T08:05:00Z',
+          createdAt: '2025-01-17T08:00:00Z',
+          updatedAt: '2025-01-20T14:30:00Z',
+          domain: 'security_rating',
+          domainTitle: 'Security'
+        },
+        {
+          riskItemId: 'ri_secrets_mgmt_001',
+          riskCategoryId: 'rc_security_corr12356',
+          appId: 'CORR-12356',
+          fieldKey: 'secrets_management',
+          fieldLabel: 'Secrets Management',
+          title: 'Centralized secrets management not implemented',
+          hypothesis: 'Secrets may not be managed through centralized vault',
+          condition: 'IF secrets are stored in code or config files',
+          consequence: 'THEN secrets may be exposed in version control or logs',
+          severity: 'medium',
+          status: 'PENDING_SME_REVIEW',
+          assignedSme: 'security_sme_001',
+          raisedBy: 'SYSTEM_AUTO_CREATION',
+          triggeringEvidenceId: 'ev_005',
+          evidenceCount: 2,
+          evidenceIds: ['ev_005', 'ev_006'],
+          openedAt: '2025-01-18T14:00:00Z',
+          assignedAt: '2025-01-18T14:05:00Z',
+          createdAt: '2025-01-18T14:00:00Z',
+          updatedAt: '2025-01-19T16:00:00Z',
+          domain: 'security_rating',
+          domainTitle: 'Security'
+        }
+      ],
+      'rc_confidentiality_corr12356': [
+        {
+          riskItemId: 'ri_data_residency_001',
+          riskCategoryId: 'rc_confidentiality_corr12356',
+          appId: 'CORR-12356',
+          fieldKey: 'data_residency_control',
+          fieldLabel: 'Data Residency Control',
+          title: 'Data residency requirements not enforced',
+          hypothesis: 'Data may be stored outside required geographic regions',
+          condition: 'IF data crosses geographic boundaries',
+          consequence: 'THEN regulatory compliance may be violated',
+          severity: 'high',
+          status: 'UNDER_REVIEW',
+          assignedSme: 'security_sme_001',
+          raisedBy: 'compliance_team',
+          triggeringEvidenceId: 'ev_007',
+          evidenceCount: 3,
+          evidenceIds: ['ev_007', 'ev_008', 'ev_009'],
+          openedAt: '2025-01-15T12:00:00Z',
+          assignedAt: '2025-01-15T12:05:00Z',
+          createdAt: '2025-01-15T12:00:00Z',
+          updatedAt: '2025-01-20T11:00:00Z',
+          domain: 'confidentiality_rating',
+          domainTitle: 'Confidentiality'
+        },
+        {
+          riskItemId: 'ri_deidentification_001',
+          riskCategoryId: 'rc_confidentiality_corr12356',
+          appId: 'CORR-12356',
+          fieldKey: 'de_identification',
+          fieldLabel: 'De-Identification',
+          title: 'PII de-identification not implemented',
+          hypothesis: 'Personal data may not be properly anonymized',
+          condition: 'IF PII is stored without de-identification',
+          consequence: 'THEN privacy regulations may be violated',
+          severity: 'high',
+          status: 'PENDING_SME_REVIEW',
+          assignedSme: 'security_sme_001',
+          raisedBy: 'privacy_officer',
+          triggeringEvidenceId: 'ev_010',
+          evidenceCount: 1,
+          evidenceIds: ['ev_010'],
+          openedAt: '2025-01-16T09:00:00Z',
+          assignedAt: '2025-01-16T09:05:00Z',
+          createdAt: '2025-01-16T09:00:00Z',
+          updatedAt: '2025-01-18T14:00:00Z',
+          domain: 'confidentiality_rating',
+          domainTitle: 'Confidentiality'
+        },
+        {
+          riskItemId: 'ri_access_review_001',
+          riskCategoryId: 'rc_confidentiality_corr12356',
+          appId: 'CORR-12356',
+          fieldKey: 'access_review',
+          fieldLabel: 'Access Review Cadence',
+          title: 'Access reviews not performed quarterly',
+          hypothesis: 'Access reviews may be performed less frequently than required',
+          condition: 'IF access reviews are performed annually instead of quarterly',
+          consequence: 'THEN unauthorized access may go undetected',
+          severity: 'medium',
+          status: 'PENDING_SME_REVIEW',
+          assignedSme: 'security_sme_001',
+          raisedBy: 'SYSTEM_AUTO_CREATION',
+          triggeringEvidenceId: 'ev_011',
+          evidenceCount: 2,
+          evidenceIds: ['ev_011', 'ev_012'],
+          openedAt: '2025-01-17T10:00:00Z',
+          assignedAt: '2025-01-17T10:05:00Z',
+          createdAt: '2025-01-17T10:00:00Z',
+          updatedAt: '2025-01-19T11:00:00Z',
+          domain: 'confidentiality_rating',
+          domainTitle: 'Confidentiality'
+        }
+      ],
+      'rc_integrity_corr12356': [
+        {
+          riskItemId: 'ri_audit_logging_001',
+          riskCategoryId: 'rc_integrity_corr12356',
+          appId: 'CORR-12356',
+          fieldKey: 'audit_logging',
+          fieldLabel: 'Audit Logging',
+          title: 'Insufficient audit logging coverage',
+          hypothesis: 'Critical operations may not be logged',
+          condition: 'IF audit logs do not cover all sensitive operations',
+          consequence: 'THEN security incidents may not be detectable',
+          severity: 'medium',
+          status: 'PENDING_SME_REVIEW',
+          assignedSme: 'data_architecture_sme_001',
+          raisedBy: 'security_team',
+          triggeringEvidenceId: 'ev_013',
+          evidenceCount: 1,
+          evidenceIds: ['ev_013'],
+          openedAt: '2025-01-16T13:00:00Z',
+          assignedAt: '2025-01-16T13:05:00Z',
+          createdAt: '2025-01-16T13:00:00Z',
+          updatedAt: '2025-01-20T10:00:00Z',
+          domain: 'integrity_rating',
+          domainTitle: 'Integrity'
+        },
+        {
+          riskItemId: 'ri_change_control_001',
+          riskCategoryId: 'rc_integrity_corr12356',
+          appId: 'CORR-12356',
+          fieldKey: 'change_control',
+          fieldLabel: 'Change Control',
+          title: 'Change control process gaps identified',
+          hypothesis: 'Changes may not follow proper approval workflow',
+          condition: 'IF changes are deployed without peer review',
+          consequence: 'THEN code quality and security may be compromised',
+          severity: 'medium',
+          status: 'PENDING_SME_REVIEW',
+          assignedSme: 'data_architecture_sme_001',
+          raisedBy: 'audit_team',
+          triggeringEvidenceId: 'ev_014',
+          evidenceCount: 2,
+          evidenceIds: ['ev_014', 'ev_015'],
+          openedAt: '2025-01-17T15:00:00Z',
+          assignedAt: '2025-01-17T15:05:00Z',
+          createdAt: '2025-01-17T15:00:00Z',
+          updatedAt: '2025-01-19T09:00:00Z',
+          domain: 'integrity_rating',
+          domainTitle: 'Integrity'
+        }
+      ],
+      'rc_availability_corr12356': [
+        {
+          riskItemId: 'ri_rto_001',
+          riskCategoryId: 'rc_availability_corr12356',
+          appId: 'CORR-12356',
+          fieldKey: 'rto_hours',
+          fieldLabel: 'Recovery Time Objective (Hours)',
+          title: 'RTO exceeds target for critical system',
+          hypothesis: 'Current recovery capabilities may not meet business requirements',
+          condition: 'IF system cannot be recovered within 4 hours',
+          consequence: 'THEN business operations may be significantly impacted',
+          severity: 'medium',
+          status: 'PENDING_SME_REVIEW',
+          assignedSme: 'service_transition_sme_001',
+          raisedBy: 'business_continuity_team',
+          triggeringEvidenceId: 'ev_016',
+          evidenceCount: 1,
+          evidenceIds: ['ev_016'],
+          openedAt: '2025-01-17T14:00:00Z',
+          assignedAt: '2025-01-17T14:05:00Z',
+          createdAt: '2025-01-17T14:00:00Z',
+          updatedAt: '2025-01-20T15:00:00Z',
+          domain: 'availability_rating',
+          domainTitle: 'Availability'
+        }
+      ],
+      'rc_resilience_corr12356': [
+        {
+          riskItemId: 'ri_dr_test_001',
+          riskCategoryId: 'rc_resilience_corr12356',
+          appId: 'CORR-12356',
+          fieldKey: 'dr_test_frequency',
+          fieldLabel: 'DR Test Frequency',
+          title: 'DR testing not performed on schedule',
+          hypothesis: 'Disaster recovery procedures may not have been tested recently',
+          condition: 'IF DR test is overdue by more than 30 days',
+          consequence: 'THEN recovery procedures may fail when needed',
+          severity: 'low',
+          status: 'PENDING_SME_REVIEW',
+          assignedSme: 'service_transition_sme_001',
+          raisedBy: 'operations_team',
+          triggeringEvidenceId: 'ev_017',
+          evidenceCount: 1,
+          evidenceIds: ['ev_017'],
+          openedAt: '2025-01-18T08:00:00Z',
+          assignedAt: '2025-01-18T08:05:00Z',
+          createdAt: '2025-01-18T08:00:00Z',
+          updatedAt: '2025-01-19T16:00:00Z',
+          domain: 'resilience_rating',
+          domainTitle: 'Resilience'
+        },
+        {
+          riskItemId: 'ri_backup_policy_001',
+          riskCategoryId: 'rc_resilience_corr12356',
+          appId: 'CORR-12356',
+          fieldKey: 'backup_policy',
+          fieldLabel: 'Backup Policy',
+          title: 'Backup restore testing gaps',
+          hypothesis: 'Backup restore procedures may not be regularly validated',
+          condition: 'IF backup restores are not tested quarterly',
+          consequence: 'THEN backups may be unusable when needed',
+          severity: 'low',
+          status: 'PENDING_SME_REVIEW',
+          assignedSme: 'service_transition_sme_001',
+          raisedBy: 'SYSTEM_AUTO_CREATION',
+          triggeringEvidenceId: 'ev_018',
+          evidenceCount: 1,
+          evidenceIds: ['ev_018'],
+          openedAt: '2025-01-18T09:00:00Z',
+          assignedAt: '2025-01-18T09:05:00Z',
+          createdAt: '2025-01-18T09:00:00Z',
+          updatedAt: '2025-01-19T10:00:00Z',
+          domain: 'resilience_rating',
+          domainTitle: 'Resilience'
+        }
+      ]
+    };
+
+    const items = allItems[categoryId] || [];
+    const start = (page - 1) * pageSize;
+    const paginatedItems = items.slice(start, start + pageSize);
+
+    return {
+      page,
+      pageSize,
+      total: items.length,
+      items: paginatedItems
+    };
+  },
+
+  reviewRiskItem: async (categoryId: string, itemId: string, payload: ReviewRiskItemPayload): Promise<ReviewRiskItemResponse> => {
+    await delay(1000);
+
+    const statusMap: Record<string, any> = {
+      'approve': 'SME_APPROVED',
+      'reject': 'SME_REJECTED',
+      'request_info': 'UNDER_REVIEW',
+      'approve_with_mitigation': 'SME_APPROVED',
+      'assign_other': 'PENDING_SME_REVIEW',
+      'escalate': 'ESCALATED'
+    };
+
+    return {
+      riskItemId: itemId,
+      status: statusMap[payload.action] || 'UNDER_REVIEW',
+      reviewedBy: payload.smeId,
+      reviewedAt: new Date().toISOString(),
+      jiraTicketId: `RISK-${Math.floor(Math.random() * 9999)}`,
+      jiraTicketUrl: `https://jira.company.com/browse/RISK-${Math.floor(Math.random() * 9999)}`
+    };
+  },
+
+  bulkReviewRiskItems: async (categoryId: string, payload: BulkReviewRiskItemsPayload): Promise<BulkReviewRiskItemsResponse> => {
+    await delay(1500);
+
+    const statusMap: Record<string, any> = {
+      'approve': 'SME_APPROVED',
+      'reject': 'SME_REJECTED',
+      'request_info': 'UNDER_REVIEW'
+    };
+
+    const successful = payload.riskItemIds.slice(0, -1).map(id => ({
+      riskItemId: id,
+      status: statusMap[payload.action] || 'UNDER_REVIEW',
+      jiraTicketId: `RISK-${Math.floor(Math.random() * 9999)}`
+    }));
+
+    const failed = payload.riskItemIds.length > 1 ? [{
+      riskItemId: payload.riskItemIds[payload.riskItemIds.length - 1],
+      error: 'Risk already reviewed by another SME'
+    }] : [];
+
+    return {
+      successful,
+      failed,
+      summary: {
+        total: payload.riskItemIds.length,
+        successful: successful.length,
+        failed: failed.length
+      }
+    };
   },
 };

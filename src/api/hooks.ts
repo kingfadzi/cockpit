@@ -370,3 +370,68 @@ export const useControls = (domain: string) =>
         ...commonQuery,
     });
 
+// ============================================
+// CIA+R+S Grouped Risks Hooks
+// ============================================
+
+/** Get risk categories for an application */
+export const useRiskCategories = (appId: string) =>
+    useQuery({
+        queryKey: ['riskCategories', appId],
+        queryFn: () => endpoints.getRiskCategories(appId),
+        enabled: !!appId,
+        ...commonQuery,
+    });
+
+/** Get single risk category */
+export const useRiskCategory = (categoryId: string) =>
+    useQuery({
+        queryKey: ['riskCategory', categoryId],
+        queryFn: () => endpoints.getRiskCategory(categoryId),
+        enabled: !!categoryId,
+        ...commonQuery,
+    });
+
+/** Get risk items for a category */
+export const useRiskItems = (categoryId: string, page = 1, pageSize = 10) =>
+    useQuery({
+        queryKey: ['riskItems', categoryId, page, pageSize],
+        queryFn: () => endpoints.getRiskItems(categoryId, page, pageSize),
+        enabled: !!categoryId,
+        ...commonQuery,
+    });
+
+/** Review a single risk item */
+export const useReviewRiskItem = (categoryId: string, itemId: string) => {
+    const qc = useQueryClient();
+    return useMutation({
+        mutationFn: (payload: import('./types').ReviewRiskItemPayload) =>
+            endpoints.reviewRiskItem(categoryId, itemId, payload),
+        onSuccess: () => {
+            // Invalidate risk items for this category
+            qc.invalidateQueries({ queryKey: ['riskItems', categoryId] });
+            // Invalidate risk categories to update counts
+            qc.invalidateQueries({ queryKey: ['riskCategories'] });
+            // Invalidate the specific category
+            qc.invalidateQueries({ queryKey: ['riskCategory', categoryId] });
+        },
+    });
+};
+
+/** Bulk review risk items */
+export const useBulkReviewRiskItems = (categoryId: string) => {
+    const qc = useQueryClient();
+    return useMutation({
+        mutationFn: (payload: import('./types').BulkReviewRiskItemsPayload) =>
+            endpoints.bulkReviewRiskItems(categoryId, payload),
+        onSuccess: () => {
+            // Invalidate risk items for this category
+            qc.invalidateQueries({ queryKey: ['riskItems', categoryId] });
+            // Invalidate risk categories to update counts
+            qc.invalidateQueries({ queryKey: ['riskCategories'] });
+            // Invalidate the specific category
+            qc.invalidateQueries({ queryKey: ['riskCategory', categoryId] });
+        },
+    });
+};
+
