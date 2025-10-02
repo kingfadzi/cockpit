@@ -1884,6 +1884,8 @@ export const mockApi = {
   getRiskCategories: async (appId: string): Promise<RiskCategoriesResponse> => {
     await delay(500);
 
+    console.log('[Mock] getRiskCategories called with appId:', appId);
+
     // Mock data for CORR-12356
     if (appId === 'CORR-12356') {
       return {
@@ -1980,7 +1982,56 @@ export const mockApi = {
       };
     }
 
+    // Mock data for APM100001
+    if (appId === 'APM100001') {
+      return {
+        categories: [
+          {
+            riskCategoryId: 'rc_security_apm100001',
+            appId: 'APM100001',
+            domain: 'security_rating',
+            domainTitle: 'Security',
+            severity: 'critical',
+            status: 'PENDING_SME_REVIEW',
+            assignedSme: 'security_sme_001',
+            riskItemCount: 3,
+            criticalCount: 2,
+            highCount: 1,
+            mediumCount: 0,
+            lowCount: 0,
+            createdAt: '2025-01-15T10:00:00Z',
+            updatedAt: '2025-01-20T14:30:00Z'
+          },
+          {
+            riskCategoryId: 'rc_availability_apm100001',
+            appId: 'APM100001',
+            domain: 'availability_rating',
+            domainTitle: 'Availability',
+            severity: 'medium',
+            status: 'PENDING_SME_REVIEW',
+            assignedSme: 'service_transition_sme_001',
+            riskItemCount: 2,
+            criticalCount: 0,
+            highCount: 0,
+            mediumCount: 2,
+            lowCount: 0,
+            createdAt: '2025-01-17T14:00:00Z',
+            updatedAt: '2025-01-20T15:00:00Z'
+          }
+        ],
+        summary: {
+          totalCategories: 2,
+          totalRiskItems: 5,
+          criticalCount: 2,
+          highCount: 1,
+          mediumCount: 2,
+          lowCount: 0
+        }
+      };
+    }
+
     // Empty response for other apps
+    console.log('[Mock] No mock data for appId:', appId, '- returning empty categories');
     return {
       categories: [],
       summary: {

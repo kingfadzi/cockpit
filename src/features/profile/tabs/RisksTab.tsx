@@ -22,6 +22,7 @@ import RiskItemModal from '../../risks/components/RiskItemModal';
 
 interface RisksTabProps {
     appId: string;
+    userRole?: string;
 }
 
 export default function RisksTab({ appId }: RisksTabProps) {
@@ -29,6 +30,8 @@ export default function RisksTab({ appId }: RisksTabProps) {
     const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
     const [selectedRiskItem, setSelectedRiskItem] = useState<RiskItem | null>(null);
     const [detailsModalOpen, setDetailsModalOpen] = useState(false);
+
+    console.log('[RisksTab] Rendering with:', { appId, isLoading, isError, categoriesData });
 
     const handleToggleCategory = (categoryId: string) => {
         setExpandedCategories((prev) => {
