@@ -7,15 +7,9 @@ import { Application } from '../api/types';
 import { generateRisksForApp } from './mockRisks';
 import { mockUsers } from './mockUsers';
 
-const transactionCycles = ['Daily', 'Hourly', 'Monthly', 'Quarterly', 'Weekly', 'Real-time'];
+const transactionCycles = ['Retail', 'Platform', 'Data', 'Mobile', 'Corporate', 'Payments'];
 const appOwners = ['Jane Smith', 'Michael Lee', 'Sarah Chen', 'David Park', 'Emma Wilson', 'Chris Taylor'];
-
-// Security domain criticalities
-const securityCriticalities = ['A1', 'A2', 'B', 'C', 'D'];
-// Resilience domain criticalities (in hours)
-const resilienceCriticalities = ['4', '8', '24', '72'];
-// Standard criticalities for other domains
-const standardCriticalities = ['A', 'B', 'C', 'D'];
+const appCriticalityAssessments: Array<'A' | 'B' | 'C' | 'D'> = ['A', 'B', 'C', 'D'];
 
 const applicationNames = [
   // Customer-facing
@@ -89,30 +83,14 @@ function generateApplication(
   const ownerId = getRandomItem(mockUsers).id;
   const transactionCycle = getRandomItem(transactionCycles);
 
-  // Assign criticality based on primary domain
-  let criticality: string;
-  const criticalityRandom = Math.random();
-
-  if (primaryDomain === 'security') {
-    // Security domain: A1=10%, A2=10%, B=30%, C=35%, D=15%
-    if (criticalityRandom < 0.10) criticality = 'A1';
-    else if (criticalityRandom < 0.20) criticality = 'A2';
-    else if (criticalityRandom < 0.50) criticality = 'B';
-    else if (criticalityRandom < 0.85) criticality = 'C';
-    else criticality = 'D';
-  } else if (primaryDomain === 'resilience') {
-    // Resilience domain: numeric values (4=20%, 8=30%, 24=35%, 72=15%)
-    if (criticalityRandom < 0.20) criticality = '4';
-    else if (criticalityRandom < 0.50) criticality = '8';
-    else if (criticalityRandom < 0.85) criticality = '24';
-    else criticality = '72';
-  } else {
-    // Other domains: A=15%, B=30%, C=40%, D=15%
-    if (criticalityRandom < 0.15) criticality = 'A';
-    else if (criticalityRandom < 0.45) criticality = 'B';
-    else if (criticalityRandom < 0.85) criticality = 'C';
-    else criticality = 'D';
-  }
+  // Assign Application Criticality Assessment (combines CIA+S+R)
+  // Weighted distribution: A=15%, B=30%, C=40%, D=15%
+  const assessmentRandom = Math.random();
+  let appCriticalityAssessment: 'A' | 'B' | 'C' | 'D';
+  if (assessmentRandom < 0.15) appCriticalityAssessment = 'A';
+  else if (assessmentRandom < 0.45) appCriticalityAssessment = 'B';
+  else if (assessmentRandom < 0.85) appCriticalityAssessment = 'C';
+  else appCriticalityAssessment = 'D';
 
   // Generate risks
   const assignToCurrentUser = Math.random() > 0.7; // 30% chance to have risks assigned to current user
@@ -143,7 +121,7 @@ function generateApplication(
     id: internalId,
     appId,
     name,
-    criticality,
+    appCriticalityAssessment,
     transactionCycle,
     owner,
     ownerId,
@@ -204,8 +182,8 @@ export function generateMockApplications(): Application[] {
     id: 'app-047',
     appId: 'APM100047',
     name: 'Internal Wiki',
-    criticality: 'D',
-    transactionCycle: 'Daily',
+    appCriticalityAssessment: 'D',
+    transactionCycle: 'Corporate',
     owner: 'Emma Wilson',
     ownerId: 'user-005',
     aggregatedRiskScore: 15,

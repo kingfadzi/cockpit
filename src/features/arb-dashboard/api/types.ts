@@ -7,11 +7,8 @@ export interface Application {
   id: string;
   appId: string; // Application ID (e.g., APM100001)
   name: string;
-  criticality: string; // Domain-dependent format:
-                       // - Security: 'A1' | 'A2' | 'B' | 'C' | 'D'
-                       // - Resilience: numeric string (e.g., '4', '8', '24')
-                       // - Other domains: 'A' | 'B' | 'C' | 'D'
-  transactionCycle: string; // Transaction cycle (e.g., 'Monthly', 'Quarterly', 'Daily')
+  appCriticalityAssessment: 'A' | 'B' | 'C' | 'D'; // Overall assessment combining CIA+S+R
+  transactionCycle: string; // Business unit/division (e.g., 'Retail', 'Platform', 'Data')
   owner: string;
   ownerId: string;
   aggregatedRiskScore: number; // 0-100
@@ -22,7 +19,7 @@ export interface Application {
     medium: number;
     low: number;
   };
-  domains: string[]; // ['security', 'data', 'operations', 'enterprise_architecture']
+  domains: string[]; // ['security', 'data', 'operations', 'enterprise_architecture', 'resilience']
   hasAssignedRisks: boolean; // for current user
   lastActivityDate: string; // ISO 8601
   risks: Risk[];
