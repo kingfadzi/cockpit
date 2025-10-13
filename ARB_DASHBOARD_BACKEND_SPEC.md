@@ -98,8 +98,8 @@ Add full application metadata by integrating with Application Profile Service.
     {
       "appId": "APM100001",
       "appName": "Customer Portal",
-      "criticality": "A1",
-      "transactionCycle": "Monthly",
+      "appCriticalityAssessment": "A",
+      "transactionCycle": "Retail",
       "owner": "John Doe",
       "ownerId": "john.doe@example.com",
       "domainRiskCount": 1,
@@ -185,8 +185,8 @@ GET /api/v1/domain-risks/arb/security/applications?scope=my-queue&userId=securit
       "id": "app-internal-uuid-1",
       "appId": "APM100001",
       "name": "Customer Portal",
-      "criticality": "A1",
-      "transactionCycle": "Monthly",
+      "appCriticalityAssessment": "A",
+      "transactionCycle": "Retail",
       "owner": "John Doe",
       "ownerId": "john.doe@example.com",
       "aggregatedRiskScore": 85,
@@ -226,8 +226,8 @@ GET /api/v1/domain-risks/arb/security/applications?scope=my-queue&userId=securit
 | `id` | string | Internal application UUID |
 | `appId` | string | External application ID (e.g., APM100001) |
 | `name` | string | Application name |
-| `criticality` | string | Criticality rating - **format varies by domain**: Security domain: `A1`, `A2`, `B`, `C`, `D`; Resilience domain: numeric values (e.g., `4`, `8`, `24`); Other domains: `A`, `B`, `C`, `D` |
-| `transactionCycle` | string | Transaction cycle for the application (e.g., "Monthly", "Quarterly", "Daily") |
+| `appCriticalityAssessment` | string | Overall application criticality assessment combining CIA+S+R domains: `A`, `B`, `C`, or `D` |
+| `transactionCycle` | string | Business unit/division (e.g., "Retail", "Platform", "Data", "Mobile", "Corporate", "Payments") |
 | `owner` | string | Product Owner name |
 | `ownerId` | string | Product Owner email/ID |
 | `aggregatedRiskScore` | number | Highest priority score across all domain risks (0-100) |
@@ -473,11 +473,8 @@ interface Application {
   id: string;                    // Internal UUID
   appId: string;                 // External ID (APM100001)
   name: string;                  // Application name
-  criticality: string;           // Domain-dependent format:
-                                 // - Security: "A1" | "A2" | "B" | "C" | "D"
-                                 // - Resilience: numeric string (e.g., "4", "8", "24")
-                                 // - Other domains: "A" | "B" | "C" | "D"
-  transactionCycle: string;      // Transaction cycle (e.g., "Monthly", "Quarterly")
+  appCriticalityAssessment: 'A' | 'B' | 'C' | 'D';  // Overall assessment combining CIA+S+R
+  transactionCycle: string;      // Business unit/division (e.g., "Retail", "Platform", "Data")
   owner: string;                 // Owner name
   ownerId: string;               // Owner email/ID
 
@@ -500,13 +497,13 @@ interface Application {
 }
 ```
 
-**Important Note on Criticality Field:**
-The `criticality` field format varies by domain to support different rating systems:
-- **Security domain**: Uses enhanced ratings: `A1`, `A2`, `B`, `C`, `D`
-- **Resilience domain**: Uses numeric values representing hours (e.g., `4`, `8`, `24`, `72`)
-- **Other domains** (data, operations, enterprise_architecture): Uses standard ratings: `A`, `B`, `C`, `D`
+**Important Note on Application Criticality Assessment:**
+The `appCriticalityAssessment` field represents the overall criticality rating for the application, combining assessments across all domains (Confidentiality, Integrity, Availability, Security, and Resilience). Valid values are `A` (highest), `B`, `C`, or `D` (lowest).
 
-The backend should return criticality as-is from the Application Profile Service without transformation.
+**Important Note on Transaction Cycle:**
+The `transactionCycle` field represents the business unit or division that owns the application (e.g., "Retail", "Platform", "Data", "Mobile", "Corporate", "Payments"). This is NOT a time-based cycle but rather an organizational grouping.
+
+The backend should return these fields as-is from the Application Profile Service without transformation.
 
 ### DomainRiskSummary
 
@@ -941,13 +938,13 @@ const createRisk = async (riskData) => {
 
 ### Sample Test Data
 
-**Application with Risks (Security Domain):**
+**Application Example 1:**
 ```json
 {
   "appId": "APM100001",
   "name": "Customer Portal",
-  "criticality": "A1",
-  "transactionCycle": "Monthly",
+  "appCriticalityAssessment": "A",
+  "transactionCycle": "Retail",
   "owner": "John Doe",
   "ownerId": "john.doe@example.com",
   "aggregatedRiskScore": 85,
@@ -964,13 +961,13 @@ const createRisk = async (riskData) => {
 }
 ```
 
-**Application with Risks (Resilience Domain):**
+**Application Example 2:**
 ```json
 {
   "appId": "APM200002",
   "name": "Payment Processing",
-  "criticality": "4",
-  "transactionCycle": "Hourly",
+  "appCriticalityAssessment": "B",
+  "transactionCycle": "Platform",
   "owner": "Jane Smith",
   "ownerId": "jane.smith@example.com",
   "aggregatedRiskScore": 72,
@@ -981,7 +978,7 @@ const createRisk = async (riskData) => {
     "medium": 4,
     "low": 0
   },
-  "domains": ["resilience"],
+  "domains": ["resilience", "operations"],
   "hasAssignedRisks": false,
   "lastActivityDate": "2025-10-11T09:15:00Z"
 }
@@ -1014,6 +1011,7 @@ const createRisk = async (riskData) => {
 | Version | Date | Author | Changes |
 |---------|------|--------|---------|
 | 1.0 | 2025-10-13 | Frontend Team | Initial specification |
+| 1.1 | 2025-10-13 | Frontend Team | Updated data model: Changed `criticality` to `appCriticalityAssessment` (A/B/C/D); Changed `transactionCycle` to represent business unit instead of time cycle |
 
 ---
 
