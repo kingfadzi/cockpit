@@ -45,7 +45,7 @@ The frontend needs:
 - ❌ Missing: Scope-aware endpoints (my-queue vs my-domain vs all-domains)
 
 ### Integration Points
-- **Application Profile Service**: Source of truth for application metadata (name, criticality, owner, business unit)
+- **Application Profile Service**: Source of truth for application metadata (name, criticality, owner, transaction cycle)
 - **Domain Risk Service**: Risk aggregations and priority scores
 - **Risk Item Service**: Individual risk items
 - **User Service**: ARB user assignments and permissions
@@ -98,8 +98,8 @@ Add full application metadata by integrating with Application Profile Service.
     {
       "appId": "APM100001",
       "appName": "Customer Portal",
-      "criticality": "A",
-      "businessUnit": "Engineering",
+      "criticality": "A1",
+      "transactionCycle": "Monthly",
       "owner": "John Doe",
       "ownerId": "john.doe@example.com",
       "domainRiskCount": 1,
@@ -117,7 +117,7 @@ Add full application metadata by integrating with Application Profile Service.
 
 #### Implementation Notes
 1. **Data Source:** Query Application Profile Service for each `appId` in `topApplications`
-2. **Caching:** Consider caching application metadata (criticality, owner, business unit rarely change)
+2. **Caching:** Consider caching application metadata (criticality, owner, transaction cycle rarely change)
 3. **Performance:** Batch fetch application details if possible
 4. **Fallback:** If application metadata unavailable, return `null` values but include `appId`
 
@@ -185,8 +185,8 @@ GET /api/v1/domain-risks/arb/security/applications?scope=my-queue&userId=securit
       "id": "app-internal-uuid-1",
       "appId": "APM100001",
       "name": "Customer Portal",
-      "criticality": "A",
-      "businessUnit": "Engineering",
+      "criticality": "A1",
+      "transactionCycle": "Monthly",
       "owner": "John Doe",
       "ownerId": "john.doe@example.com",
       "aggregatedRiskScore": 85,
@@ -226,8 +226,8 @@ GET /api/v1/domain-risks/arb/security/applications?scope=my-queue&userId=securit
 | `id` | string | Internal application UUID |
 | `appId` | string | External application ID (e.g., APM100001) |
 | `name` | string | Application name |
-| `criticality` | string | Criticality rating: `A`, `B`, `C`, `D` |
-| `businessUnit` | string | Business unit owning the application |
+| `criticality` | string | Criticality rating - **format varies by domain**: Security domain: `A1`, `A2`, `B`, `C`, `D`; Resilience domain: numeric values (e.g., `4`, `8`, `24`); Other domains: `A`, `B`, `C`, `D` |
+| `transactionCycle` | string | Transaction cycle for the application (e.g., "Monthly", "Quarterly", "Daily") |
 | `owner` | string | Product Owner name |
 | `ownerId` | string | Product Owner email/ID |
 | `aggregatedRiskScore` | number | Highest priority score across all domain risks (0-100) |
@@ -315,7 +315,7 @@ For each application, include a summary of domain-level risks:
 #### Implementation Notes
 
 1. **Data Sources:**
-   - Application Profile Service: application metadata (name, criticality, owner, businessUnit)
+   - Application Profile Service: application metadata (name, criticality, owner, transactionCycle)
    - Domain Risk Service: risk aggregations and priority scores
    - Risk Item Service: individual risk items for breakdown counts
 
@@ -473,8 +473,11 @@ interface Application {
   id: string;                    // Internal UUID
   appId: string;                 // External ID (APM100001)
   name: string;                  // Application name
-  criticality: 'A' | 'B' | 'C' | 'D';
-  businessUnit: string;
+  criticality: string;           // Domain-dependent format:
+                                 // - Security: "A1" | "A2" | "B" | "C" | "D"
+                                 // - Resilience: numeric string (e.g., "4", "8", "24")
+                                 // - Other domains: "A" | "B" | "C" | "D"
+  transactionCycle: string;      // Transaction cycle (e.g., "Monthly", "Quarterly")
   owner: string;                 // Owner name
   ownerId: string;               // Owner email/ID
 
@@ -496,6 +499,14 @@ interface Application {
   risks?: RiskItem[];
 }
 ```
+
+**Important Note on Criticality Field:**
+The `criticality` field format varies by domain to support different rating systems:
+- **Security domain**: Uses enhanced ratings: `A1`, `A2`, `B`, `C`, `D`
+- **Resilience domain**: Uses numeric values representing hours (e.g., `4`, `8`, `24`, `72`)
+- **Other domains** (data, operations, enterprise_architecture): Uses standard ratings: `A`, `B`, `C`, `D`
+
+The backend should return criticality as-is from the Application Profile Service without transformation.
 
 ### DomainRiskSummary
 
@@ -930,13 +941,13 @@ const createRisk = async (riskData) => {
 
 ### Sample Test Data
 
-**Application with Risks:**
+**Application with Risks (Security Domain):**
 ```json
 {
   "appId": "APM100001",
   "name": "Customer Portal",
-  "criticality": "A",
-  "businessUnit": "Engineering",
+  "criticality": "A1",
+  "transactionCycle": "Monthly",
   "owner": "John Doe",
   "ownerId": "john.doe@example.com",
   "aggregatedRiskScore": 85,
@@ -950,6 +961,29 @@ const createRisk = async (riskData) => {
   "domains": ["security", "data"],
   "hasAssignedRisks": true,
   "lastActivityDate": "2025-10-12T14:30:00Z"
+}
+```
+
+**Application with Risks (Resilience Domain):**
+```json
+{
+  "appId": "APM200002",
+  "name": "Payment Processing",
+  "criticality": "4",
+  "transactionCycle": "Hourly",
+  "owner": "Jane Smith",
+  "ownerId": "jane.smith@example.com",
+  "aggregatedRiskScore": 72,
+  "totalOpenItems": 8,
+  "riskBreakdown": {
+    "critical": 1,
+    "high": 3,
+    "medium": 4,
+    "low": 0
+  },
+  "domains": ["resilience"],
+  "hasAssignedRisks": false,
+  "lastActivityDate": "2025-10-11T09:15:00Z"
 }
 ```
 
