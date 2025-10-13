@@ -42,7 +42,7 @@ import {
 import { useSubmitSmeReview, useProfileFieldEvidence } from '../../../api/hooks';
 import RiskCommentsPanel from './RiskCommentsPanel';
 
-interface RiskStoryModalProps {
+interface SmeRiskItemModalProps {
     open: boolean;
     onClose: () => void;
     risk: any | null;
@@ -51,7 +51,7 @@ interface RiskStoryModalProps {
 
 type SmeAction = 'approve' | 'reject' | 'request_info' | 'assign_other' | 'escalate' | 'approve_with_mitigation';
 
-export default function RiskStoryModal({ open, onClose, risk, smeId }: RiskStoryModalProps) {
+export default function SmeRiskItemModal({ open, onClose, risk, smeId }: SmeRiskItemModalProps) {
     const [comments, setComments] = useState('');
     const [action, setAction] = useState<SmeAction | null>(null);
     const [activeTab, setActiveTab] = useState(0);
@@ -186,7 +186,7 @@ export default function RiskStoryModal({ open, onClose, risk, smeId }: RiskStory
                 <Stack direction="row" alignItems="center" justifyContent="space-between">
                     <Stack direction="row" alignItems="center" spacing={2}>
                         <Typography variant="h6" fontWeight={600}>
-                            Risk Story Review
+                            Risk Item Review
                         </Typography>
                         {mockJiraData && (
                             <Chip
@@ -245,7 +245,7 @@ export default function RiskStoryModal({ open, onClose, risk, smeId }: RiskStory
 
                                 {/* 3-Column Main Content */}
                                 <Grid container spacing={2}>
-                                    {/* Left Column - Risk Story (70%) */}
+                                    {/* Left Column - Risk Item (70%) */}
                                     <Grid item xs={12} md={8}>
                                         <Stack spacing={2}>
                                             {/* Risk Assessment Card */}

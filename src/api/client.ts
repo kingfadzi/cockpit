@@ -923,7 +923,7 @@ export const endpoints = {
 
     // Risk Management Endpoints
 
-    /** Get individual risk story */
+    /** Get individual risk item */
     getRisk: async (riskId: string): Promise<RiskStory> =>
         USE_MOCK
             ? {
@@ -1127,7 +1127,7 @@ export const endpoints = {
             ? []
             : (await api.get<RiskStory[]>(`/api/profile-fields/${profileFieldId}/risks`)).data,
 
-    /** Create new risk story */
+    /** Create new risk item */
     createRisk: async (appId: string, fieldKey: string, payload: unknown): Promise<RiskStory> =>
         USE_MOCK
             ? {

@@ -45,10 +45,13 @@ import {
 } from '@mui/icons-material';
 import { useAppRisks, useCreateRisk, useAttachEvidenceToRisk } from '../../../api/hooks';
 import type { RiskStory, RiskStatus, RiskSeverity } from '../../../api/types';
+import SmeRiskItemModal from '../../sme/components/SmeRiskItemModal';
+import PoRiskItemModal from '../components/PoRiskItemModal';
 
 interface RisksTabProps {
     appId: string;
     userRole?: 'po' | 'sme'; // Determines which actions are available
+    smeId?: string; // Required when userRole='sme'
 }
 
 interface CreateRiskForm {
@@ -59,7 +62,7 @@ interface CreateRiskForm {
     assignedSme: string;
 }
 
-export default function RisksTab({ appId, userRole = 'po' }: RisksTabProps) {
+export default function RisksTab({ appId, userRole = 'po', smeId }: RisksTabProps) {
     const [createDialogOpen, setCreateDialogOpen] = useState(false);
     const [detailsModalOpen, setDetailsModalOpen] = useState(false);
     const [selectedRisk, setSelectedRisk] = useState<RiskStory | null>(null);
@@ -263,7 +266,7 @@ export default function RisksTab({ appId, userRole = 'po' }: RisksTabProps) {
             <Stack direction="row" alignItems="center" justifyContent="space-between">
                 <Stack>
                     <Typography variant="h6" fontWeight={700}>
-                        Risk Stories
+                        Risk Items
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
                         Security and compliance risks identified for {appId}
@@ -381,7 +384,7 @@ export default function RisksTab({ appId, userRole = 'po' }: RisksTabProps) {
                 <Paper variant="outlined" sx={{ p: 6, textAlign: 'center', borderRadius: 3 }}>
                     <WarningIcon sx={{ fontSize: 64, color: 'text.disabled', mb: 3 }} />
                     <Typography variant="h6" color="text.secondary" gutterBottom>
-                        No Risk Stories
+                        No Risk Items
                     </Typography>
                     <Typography variant="body2" color="text.secondary" sx={{ mb: 3, maxWidth: 400, mx: 'auto' }}>
                         No security or compliance risks have been identified for this application yet.
@@ -505,342 +508,27 @@ export default function RisksTab({ appId, userRole = 'po' }: RisksTabProps) {
                 </Paper>
             )}
 
-            {/* Enhanced Risk Details Modal */}
-            <Dialog open={detailsModalOpen} onClose={() => setDetailsModalOpen(false)} maxWidth="lg" fullWidth>
-                <DialogTitle>
-                    <Stack direction="row" alignItems="center" justifyContent="space-between">
-                        <Stack>
-                            <Typography variant="h6">
-                                Risk Story Details
-                            </Typography>
-                            {selectedRisk && (
-                                <Typography variant="caption" color="text.secondary">
-                                    Risk ID: {selectedRisk.riskId}
-                                </Typography>
-                            )}
-                        </Stack>
-                        <IconButton onClick={() => setDetailsModalOpen(false)} size="small">
-                            <CloseIcon />
-                        </IconButton>
-                    </Stack>
-                </DialogTitle>
-                <DialogContent>
-                    {selectedRisk && (
-                        <Grid container spacing={2}>
-                            {/* Left Column - Main Content */}
-                            <Grid item xs={12} md={8}>
-                                <Stack spacing={2}>
-                                    {/* Risk Header */}
-                                    <Paper variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
-                                        <Stack spacing={1.5}>
-                                            <Typography variant="h6">
-                                                {selectedRisk.title}
-                                            </Typography>
-                                            <Stack direction="row" spacing={1} flexWrap="wrap">
-                                                <Chip
-                                                    size="small"
-                                                    color={getRiskSeverityColor(selectedRisk.severity)}
-                                                    label={`${selectedRisk.severity.toUpperCase()} SEVERITY`}
-                                                />
-                                                <Chip
-                                                    size="small"
-                                                    color={getRiskStatusColor(selectedRisk.status)}
-                                                    label={formatStatusLabel(selectedRisk.status)}
-                                                />
-                                                <Chip
-                                                    size="small"
-                                                    variant="outlined"
-                                                    color={selectedRisk.creationType === 'SYSTEM_AUTO_CREATION' ? 'info' : 'default'}
-                                                    label={selectedRisk.creationType === 'SYSTEM_AUTO_CREATION' ? 'AUTO-CREATED' : 'MANUAL'}
-                                                />
-                                            </Stack>
-                                        </Stack>
-                                    </Paper>
-
-                                    {/* Risk Assessment - If/Then Logic */}
-                                    <Paper variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
-                                        <Typography variant="h6" sx={{ mb: 1.5 }}>
-                                            Risk Assessment
-                                        </Typography>
-                                        <Stack spacing={1.5}>
-                                            <Box>
-                                                <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 0.5 }}>
-                                                    HYPOTHESIS
-                                                </Typography>
-                                                <Typography variant="body2">
-                                                    {selectedRisk.hypothesis}
-                                                </Typography>
-                                            </Box>
-                                            
-                                            <Box sx={{ bgcolor: 'grey.50', p: 1.5, borderRadius: 1, border: '1px solid', borderColor: 'grey.200' }}>
-                                                <Typography variant="subtitle2" color="warning.main" fontWeight={600} sx={{ mb: 0.5 }}>
-                                                    RISK CONDITION
-                                                </Typography>
-                                                <Typography variant="body2" color="warning.dark">
-                                                    {selectedRisk.condition}
-                                                </Typography>
-                                            </Box>
-
-                                            <Box sx={{ bgcolor: 'error.50', p: 1.5, borderRadius: 1, border: '1px solid', borderColor: 'error.200' }}>
-                                                <Typography variant="subtitle2" color="error.main" fontWeight={600} sx={{ mb: 0.5 }}>
-                                                    POTENTIAL CONSEQUENCE
-                                                </Typography>
-                                                <Typography variant="body2" color="error.dark">
-                                                    {selectedRisk.consequence}
-                                                </Typography>
-                                            </Box>
-                                        </Stack>
-                                    </Paper>
-
-                                    {/* Policy Context */}
-                                    {selectedRisk.policyRequirementSnapshot && (
-                                        <Paper variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
-                                            <Typography variant="h6" sx={{ mb: 1.5 }}>
-                                                Policy Context
-                                            </Typography>
-                                            <Stack spacing={1.5}>
-                                                <Grid container spacing={1.5}>
-                                                    <Grid item xs={6}>
-                                                        <Typography variant="subtitle2" sx={{ mb: 0.5 }}>Field</Typography>
-                                                        <Typography variant="body2">
-                                                            {selectedRisk.policyRequirementSnapshot.fieldLabel}
-                                                        </Typography>
-                                                    </Grid>
-                                                    <Grid item xs={6}>
-                                                        <Typography variant="subtitle2" sx={{ mb: 0.5 }}>Requirement</Typography>
-                                                        <Typography variant="body2">
-                                                            {selectedRisk.policyRequirementSnapshot?.activeRule?.label || selectedRisk.policyRequirementSnapshot?.activeRule?.value || '—'}
-                                                        </Typography>
-                                                    </Grid>
-                                                    <Grid item xs={6}>
-                                                        <Typography variant="subtitle2" sx={{ mb: 0.5 }}>App Rating</Typography>
-                                                        {(() => {
-                                                            const ratingInfo = getRatingInfo(selectedRisk.policyRequirementSnapshot.activeRule);
-                                                            return ratingInfo ? (
-                                                                <Chip 
-                                                                    size="small" 
-                                                                    variant="outlined"
-                                                                    label={`${ratingInfo.type}: ${ratingInfo.value}`}
-                                                                />
-                                                            ) : (
-                                                                <Typography variant="body2">—</Typography>
-                                                            );
-                                                        })()}
-                                                    </Grid>
-                                                    <Grid item xs={6}>
-                                                        <Typography variant="subtitle2" sx={{ mb: 0.5 }}>TTL</Typography>
-                                                        <Typography variant="body2">
-                                                            {selectedRisk.policyRequirementSnapshot.activeRule.ttl}
-                                                        </Typography>
-                                                    </Grid>
-                                                </Grid>
-
-                                                {/* Compliance Frameworks */}
-                                                {selectedRisk.policyRequirementSnapshot.complianceFrameworks.length > 0 && (
-                                                    <Box>
-                                                        <Typography variant="subtitle2" sx={{ mb: 0.5 }}>
-                                                            Compliance Frameworks
-                                                        </Typography>
-                                                        <Stack direction="row" spacing={0.5} flexWrap="wrap" useFlexGap>
-                                                            {selectedRisk.policyRequirementSnapshot.complianceFrameworks.map((framework, index) => (
-                                                                <Tooltip 
-                                                                    key={index}
-                                                                    title={`Controls: ${framework.controls.join(', ')}`}
-                                                                >
-                                                                    <Chip
-                                                                        size="small"
-                                                                        variant="outlined"
-                                                                        label={framework.framework}
-                                                                        color="primary"
-                                                                    />
-                                                                </Tooltip>
-                                                            ))}
-                                                        </Stack>
-                                                    </Box>
-                                                )}
-                                            </Stack>
-                                        </Paper>
-                                    )}
-
-                                    {/* Evidence Section */}
-                                    {selectedRisk.triggeringEvidenceId && (
-                                        <Paper variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
-                                            <Typography variant="h6" sx={{ mb: 1 }}>
-                                                Triggering Evidence
-                                            </Typography>
-                                            <Stack direction="row" alignItems="center" spacing={1.5}>
-                                                <Chip 
-                                                    size="small" 
-                                                    icon={<ViewIcon />}
-                                                    label={`Evidence ID: ${selectedRisk.triggeringEvidenceId}`}
-                                                    variant="outlined"
-                                                    clickable
-                                                    onClick={() => console.log('View evidence:', selectedRisk.triggeringEvidenceId)}
-                                                />
-                                                <Typography variant="body2" color="text.secondary">
-                                                    Click to view the evidence that triggered this risk
-                                                </Typography>
-                                            </Stack>
-                                        </Paper>
-                                    )}
-                                </Stack>
-                            </Grid>
-
-                            {/* Right Column - Metadata & Actions */}
-                            <Grid item xs={12} md={4}>
-                                <Stack spacing={2}>
-                                    {/* Assignment & Timeline */}
-                                    <Paper variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
-                                        <Typography variant="h6" sx={{ mb: 1.5 }}>
-                                            Assignment & Timeline
-                                        </Typography>
-                                        <Stack spacing={1.5}>
-                                            <Box>
-                                                <Typography variant="subtitle2" sx={{ mb: 0.5 }}>Assigned SME</Typography>
-                                                <Typography variant="body2" fontWeight={600}>
-                                                    {selectedRisk.assignedSme || 'Unassigned'}
-                                                </Typography>
-                                            </Box>
-                                            
-                                            <Box>
-                                                <Typography variant="subtitle2" sx={{ mb: 0.5 }}>Raised By</Typography>
-                                                <Typography variant="body2">
-                                                    {selectedRisk.raisedBy}
-                                                </Typography>
-                                            </Box>
-
-                                            <Box>
-                                                <Typography variant="subtitle2" sx={{ mb: 0.5 }}>Opened</Typography>
-                                                <Typography variant="body2">
-                                                    {formatDate(selectedRisk.openedAt)}
-                                                </Typography>
-                                            </Box>
-
-                                            {selectedRisk.assignedAt && (
-                                                <Box>
-                                                    <Typography variant="subtitle2" sx={{ mb: 0.5 }}>Assigned</Typography>
-                                                    <Typography variant="body2">
-                                                        {formatDate(selectedRisk.assignedAt)}
-                                                    </Typography>
-                                                </Box>
-                                            )}
-
-                                            {selectedRisk.lastReviewedAt && (
-                                                <Box>
-                                                    <Typography variant="subtitle2" sx={{ mb: 0.5 }}>Last Reviewed</Typography>
-                                                    <Typography variant="body2">
-                                                        {formatDate(selectedRisk.lastReviewedAt)}
-                                                    </Typography>
-                                                    <Typography variant="caption" color="text.secondary">
-                                                        by {selectedRisk.lastReviewedBy}
-                                                    </Typography>
-                                                </Box>
-                                            )}
-                                        </Stack>
-                                    </Paper>
-
-                                    {/* Quick Actions */}
-                                    <Paper variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
-                                        <Typography variant="h6" sx={{ mb: 1.5 }}>
-                                            Actions
-                                        </Typography>
-                                        <Stack spacing={1}>
-                                            {userRole === 'sme' && selectedRisk.status === 'PENDING_SME_REVIEW' && (
-                                                <>
-                                                    <Button
-                                                        variant="contained"
-                                                        color="success"
-                                                        startIcon={<ApproveIcon />}
-                                                        onClick={() => handleApproveRisk(selectedRisk)}
-                                                        fullWidth
-                                                    >
-                                                        Approve Risk
-                                                    </Button>
-                                                    <Button
-                                                        variant="contained"
-                                                        color="error"
-                                                        startIcon={<RejectIcon />}
-                                                        onClick={() => handleRejectRisk(selectedRisk)}
-                                                        fullWidth
-                                                    >
-                                                        Reject Risk
-                                                    </Button>
-                                                </>
-                                            )}
-                                            
-                                            {userRole === 'po' && (selectedRisk.status === 'pending_evidence' || selectedRisk.status === 'open') && (
-                                                <Button
-                                                    variant="outlined"
-                                                    startIcon={<AttachFileIcon />}
-                                                    onClick={() => handleAttachEvidence(selectedRisk)}
-                                                    fullWidth
-                                                >
-                                                    Attach Evidence
-                                                </Button>
-                                            )}
-
-                                            {userRole === 'sme' && (
-                                                <>
-                                                    <Button
-                                                        variant="outlined"
-                                                        startIcon={<AssignIcon />}
-                                                        onClick={() => console.log('Reassign risk:', selectedRisk.riskId)}
-                                                        fullWidth
-                                                    >
-                                                        Reassign
-                                                    </Button>
-                                                    <Button
-                                                        variant="outlined"
-                                                        startIcon={<EditIcon />}
-                                                        onClick={() => console.log('Edit risk:', selectedRisk.riskId)}
-                                                        fullWidth
-                                                    >
-                                                        Edit Risk
-                                                    </Button>
-                                                </>
-                                            )}
-                                        </Stack>
-                                    </Paper>
-
-                                    {/* Technical Details */}
-                                    <Paper variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
-                                        <Typography variant="h6" sx={{ mb: 1.5 }}>
-                                            Technical Details
-                                        </Typography>
-                                        <Stack spacing={1}>
-                                            <Box>
-                                                <Typography variant="caption" color="text.secondary">Field Key</Typography>
-                                                <Typography variant="body2">{selectedRisk.fieldKey || '—'}</Typography>
-                                            </Box>
-                                            <Box>
-                                                <Typography variant="caption" color="text.secondary">Evidence Count</Typography>
-                                                <Typography variant="body2">{selectedRisk.evidenceCount || 0} pieces</Typography>
-                                            </Box>
-                                            <Box>
-                                                <Typography variant="caption" color="text.secondary">Created</Typography>
-                                                <Typography variant="body2">{formatDate(selectedRisk.createdAt)}</Typography>
-                                            </Box>
-                                            <Box>
-                                                <Typography variant="caption" color="text.secondary">Last Updated</Typography>
-                                                <Typography variant="body2">{formatDate(selectedRisk.updatedAt)}</Typography>
-                                            </Box>
-                                        </Stack>
-                                    </Paper>
-                                </Stack>
-                            </Grid>
-                        </Grid>
-                    )}
-                </DialogContent>
-                <DialogActions>
-                    <Button onClick={() => setDetailsModalOpen(false)}>
-                        Close
-                    </Button>
-                </DialogActions>
-            </Dialog>
+            {/* Risk Item Details Modals - Conditional based on user role */}
+            {userRole === 'sme' ? (
+                <SmeRiskItemModal
+                    open={detailsModalOpen}
+                    onClose={() => setDetailsModalOpen(false)}
+                    risk={selectedRisk}
+                    smeId={smeId || 'unknown_sme'}
+                />
+            ) : (
+                <PoRiskItemModal
+                    open={detailsModalOpen}
+                    onClose={() => setDetailsModalOpen(false)}
+                    risk={selectedRisk}
+                    appId={appId}
+                    onAttachEvidence={handleAttachEvidence}
+                />
+            )}
 
             {/* Create Risk Dialog */}
             <Dialog open={createDialogOpen} onClose={() => setCreateDialogOpen(false)} maxWidth="sm" fullWidth>
-                <DialogTitle>Create New Risk Story</DialogTitle>
+                <DialogTitle>Create New Risk Item</DialogTitle>
                 <DialogContent>
                     <Stack spacing={2} sx={{ mt: 1 }}>
                         <TextField

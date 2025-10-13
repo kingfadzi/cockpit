@@ -22,7 +22,7 @@ import {
 } from '@mui/icons-material';
 import type { Risk } from '../../../api/types';
 import { useRisk } from '../../../api/hooks';
-import RiskStoryModal from '../../sme/components/RiskStoryModal';
+import SmeRiskItemModal from '../../sme/components/SmeRiskItemModal';
 
 interface FieldRisksModalProps {
     open: boolean;
@@ -148,7 +148,7 @@ export default function FieldRisksModal({ open, onClose, fieldLabel, risks }: Fi
             </DialogActions>
             
             {/* Risk Detail Modal */}
-            <RiskStoryModal
+            <SmeRiskItemModal
                 open={!!selectedRiskId}
                 onClose={handleRiskModalClose}
                 risk={selectedRisk}

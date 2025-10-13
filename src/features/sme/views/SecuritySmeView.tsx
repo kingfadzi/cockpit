@@ -42,7 +42,7 @@ import SectionHeader from '../../../components/SectionHeader';
 import { useSmeReviewQueue, useSmeSecurityDomainRisks, useSmeCrossDomainRisks, useSmeAllOpenRisks, useSubmitSmeReview, usePendingSmeEvidence } from '../../../api/hooks';
 import RaiseRiskModal from '../components/RaiseRiskModal';
 import AppSecurityReviewModal from '../components/AppSecurityReviewModal';
-import RiskStoryModal from '../components/RiskStoryModal';
+import SmeRiskItemModal from '../components/SmeRiskItemModal';
 import PendingEvidenceView from './PendingEvidenceView';
 
 const getCriticalityBadge = (criticality: 'A' | 'B' | 'C' | 'D', appName: string) => {
@@ -89,7 +89,7 @@ export default function SecuritySmeView() {
     const [selectedItem, setSelectedItem] = useState<any>(null);
     const [securityModalOpen, setSecurityModalOpen] = useState(false);
     const [selectedApp, setSelectedApp] = useState<any>(null);
-    const [riskStoryModalOpen, setRiskStoryModalOpen] = useState(false);
+    const [riskItemModalOpen, setRiskItemModalOpen] = useState(false);
     const [selectedRisk, setSelectedRisk] = useState<any>(null);
     
     // Search states
@@ -228,9 +228,9 @@ export default function SecuritySmeView() {
         setSecurityModalOpen(true);
     };
 
-    const openRiskStoryModal = (risk: any) => {
+    const openRiskItemModal = (risk: any) => {
         setSelectedRisk(risk);
-        setRiskStoryModalOpen(true);
+        setRiskItemModalOpen(true);
     };
 
     const formatDaysOverdue = (days?: number) => {
@@ -401,11 +401,11 @@ export default function SecuritySmeView() {
                                     </TableHead>
                                     <TableBody>
                                         {paginatedAssignments.map((assignment) => (
-                                            <TableRow 
-                                                key={`${assignment.riskId}`} 
+                                            <TableRow
+                                                key={`${assignment.riskId}`}
                                                 hover
                                                 sx={{ cursor: 'pointer' }}
-                                                onClick={() => openRiskStoryModal(assignment)}
+                                                onClick={() => openRiskItemModal(assignment)}
                                             >
                                                 <TableCell>
                                                     <Typography variant="body2" fontWeight={600}>
@@ -664,11 +664,11 @@ export default function SecuritySmeView() {
                                     </TableHead>
                                     <TableBody>
                                         {paginatedRisks.map((risk) => (
-                                            <TableRow 
-                                                key={risk.riskId} 
-                                                hover 
+                                            <TableRow
+                                                key={risk.riskId}
+                                                hover
                                                 sx={{ cursor: 'pointer' }}
-                                                onClick={() => openRiskStoryModal(risk)}
+                                                onClick={() => openRiskItemModal(risk)}
                                             >
                                                 <TableCell>
                                                     <Typography variant="body2" fontWeight={600}>
@@ -754,9 +754,9 @@ export default function SecuritySmeView() {
                 />
             )}
 
-            <RiskStoryModal
-                open={riskStoryModalOpen}
-                onClose={() => setRiskStoryModalOpen(false)}
+            <SmeRiskItemModal
+                open={riskItemModalOpen}
+                onClose={() => setRiskItemModalOpen(false)}
                 risk={selectedRisk}
                 smeId={smeId}
             />
