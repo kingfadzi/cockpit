@@ -3,7 +3,7 @@
  * Shows detailed risk view for a single application
  */
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   Stack,
   Box,
@@ -18,12 +18,15 @@ import {
   InputLabel,
   Select,
   MenuItem,
+  CircularProgress,
+  Alert,
 } from '@mui/material';
 import { useParams, useNavigate } from 'react-router-dom';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import CriticalityBadge from '../../components/CriticalityBadge';
 import { USE_MOCK_DATA } from './config';
 import { getMockArbDashboard, currentMockUser } from './mocks/mockArbData';
+import { getArbApplications } from './api/arbDashboardApi';
 import { Application, Risk } from './api/types';
 
 interface AppSummaryMetrics {
@@ -43,31 +46,91 @@ export default function ArbAppProfile() {
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [priorityFilter, setPriorityFilter] = useState<string>('');
   const [sortBy, setSortBy] = useState<string>('priority');
+  const [application, setApplication] = useState<Application | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // Load application data (mock for now)
-  const application = useMemo(() => {
-    if (!USE_MOCK_DATA) {
-      // TODO: Phase 2 - Real API call
-      return null;
-    }
+  // Load application data
+  useEffect(() => {
+    const loadApplication = async () => {
+      setIsLoading(true);
+      setError(null);
 
-    // Get all applications (no scope filtering for profile view)
-    const dashboardData = getMockArbDashboard(
-      'all-domains',
-      currentMockUser.id,
-      currentMockUser.arbDomain
+      try {
+        if (USE_MOCK_DATA) {
+          // Get all applications (no scope filtering for profile view)
+          const dashboardData = getMockArbDashboard(
+            'all-domains',
+            currentMockUser.id,
+            currentMockUser.arbDomain
+          );
+
+          console.log('[ArbAppProfile] Looking for appId:', appId);
+          console.log('[ArbAppProfile] Available apps:', dashboardData.applications.map(a => ({ id: a.id, appId: a.appId, name: a.name })));
+
+          // Find the application
+          const foundApp = dashboardData.applications.find((app) => app.appId === appId);
+          console.log('[ArbAppProfile] Found app:', foundApp);
+
+          setApplication(foundApp || null);
+        } else {
+          // Real API call
+          if (!arbName) {
+            throw new Error('ARB name is required');
+          }
+
+          // Fetch all applications with risks included
+          const response = await getArbApplications(arbName, {
+            scope: 'all-domains',
+            includeRisks: true,
+            size: 1000 // Large size to get all apps
+          });
+
+          // Find the specific application
+          const foundApp = response.applications.find((app) => app.appId === appId);
+
+          if (!foundApp) {
+            throw new Error('Application not found');
+          }
+
+          setApplication(foundApp);
+        }
+      } catch (err) {
+        console.error('[ArbAppProfile] Error loading application:', err);
+        setError(err instanceof Error ? err.message : 'Failed to load application');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadApplication();
+  }, [arbName, appId]);
+
+  // Loading state
+  if (isLoading) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 400 }}>
+        <CircularProgress />
+      </Box>
     );
+  }
 
-    console.log('[ArbAppProfile] Looking for appId:', appId);
-    console.log('[ArbAppProfile] Available apps:', dashboardData.applications.map(a => ({ id: a.id, appId: a.appId, name: a.name })));
+  // Error state
+  if (error) {
+    return (
+      <Stack spacing={3}>
+        <Alert severity="error">{error}</Alert>
+        <Button
+          startIcon={<ArrowBackIcon />}
+          onClick={() => navigate(`/sme/arb/${arbName}`)}
+        >
+          Back to Dashboard
+        </Button>
+      </Stack>
+    );
+  }
 
-    // Find the application
-    const foundApp = dashboardData.applications.find((app) => app.appId === appId);
-    console.log('[ArbAppProfile] Found app:', foundApp);
-
-    return foundApp || null;
-  }, [appId]);
-
+  // No app state
   if (!application) {
     return (
       <Stack spacing={3}>

@@ -34,6 +34,7 @@ import {
 import { DashboardScope, ArbDashboardResponse } from './api/types';
 import { USE_MOCK_DATA } from './config';
 import { getMockArbDashboard, currentMockUser } from './mocks/mockArbData';
+import { fetchArbDashboard, createRiskItem } from './api/arbDashboardApi';
 import HeadsUpDisplay from './components/HeadsUpDisplay';
 import ApplicationWatchlist from './components/ApplicationWatchlist';
 
@@ -79,10 +80,16 @@ export default function ArbDashboardView({ arbDomain, domainDisplayName = 'My Do
 
         setDashboardData(data);
       } else {
-        // TODO: Phase 2 - Real API call
-        // const data = await fetchArbDashboard(currentScope);
-        // setDashboardData(data);
-        throw new Error('Real API not yet implemented');
+        // Real API call
+        if (!arbDomain) {
+          throw new Error('ARB domain is required');
+        }
+
+        // Get current user ID - in production, this would come from auth context
+        const userId = currentMockUser.id; // TODO: Replace with real user ID from auth
+
+        const data = await fetchArbDashboard(arbDomain, currentScope, userId);
+        setDashboardData(data);
       }
     } catch (err) {
       console.error('[ARB Dashboard] Error loading data:', err);
@@ -108,22 +115,43 @@ export default function ArbDashboardView({ arbDomain, domainDisplayName = 'My Do
   };
 
   // Handle create risk
-  const handleCreateRisk = () => {
+  const handleCreateRisk = async () => {
     if (!newRisk.title || !newRisk.description || !newRisk.fieldKey) {
       return;
     }
 
-    // TODO: Phase 2 - Implement actual risk creation API call
-    console.log('[ARB Dashboard] Creating risk:', newRisk);
+    try {
+      if (USE_MOCK_DATA) {
+        console.log('[ARB Dashboard] Creating risk (mock):', newRisk);
+      } else {
+        // Real API call
+        const payload = {
+          title: newRisk.title,
+          description: newRisk.description,
+          priority: newRisk.severity.toUpperCase() as 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL',
+          fieldKey: newRisk.fieldKey,
+          createdBy: currentMockUser.id // TODO: Replace with real user ID from auth
+        };
 
-    // Reset form and close dialog
-    setNewRisk({
-      title: '',
-      description: '',
-      severity: 'medium',
-      fieldKey: '',
-    });
-    setCreateRiskDialogOpen(false);
+        await createRiskItem(payload);
+        console.log('[ARB Dashboard] Risk created successfully');
+      }
+
+      // Reload dashboard data to reflect new risk
+      await loadDashboardData();
+    } catch (err) {
+      console.error('[ARB Dashboard] Error creating risk:', err);
+      setError(err instanceof Error ? err.message : 'Failed to create risk');
+    } finally {
+      // Reset form and close dialog
+      setNewRisk({
+        title: '',
+        description: '',
+        severity: 'medium',
+        fieldKey: '',
+      });
+      setCreateRiskDialogOpen(false);
+    }
   };
 
   // Loading state
