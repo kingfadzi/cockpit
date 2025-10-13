@@ -168,7 +168,7 @@ export default function ArbAppProfile() {
         <Stack spacing={2}>
           {/* App name and criticality */}
           <Stack direction="row" spacing={2} alignItems="center">
-            <CriticalityBadge criticality={application.criticality} />
+            <CriticalityBadge criticality={application.appCriticalityAssessment} />
             <Typography variant="h5" sx={{ fontWeight: 600 }}>
               {application.name}
             </Typography>
@@ -179,7 +179,7 @@ export default function ArbAppProfile() {
 
           {/* App metadata */}
           <Typography variant="body2" color="text.secondary">
-            {application.businessUnit} | Owner: {application.owner}
+            {application.transactionCycle} | Owner: {application.owner}
           </Typography>
 
           {/* Summary metrics */}

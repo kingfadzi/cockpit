@@ -55,7 +55,7 @@ export default function ApplicationWatchlist({ applications, currentScope, domai
   const [appIdFilter, setAppIdFilter] = useState('');
   const [ownerFilter, setOwnerFilter] = useState(''); // Now searchable text
   const [criticalityFilter, setCriticalityFilter] = useState<'A' | 'B' | 'C' | 'D' | ''>('');
-  const [businessUnitFilter, setBusinessUnitFilter] = useState('');
+  const [transactionCycleFilter, setTransactionCycleFilter] = useState('');
   const [domainFilter, setDomainFilter] = useState('');
   const [lastActivityFilter, setLastActivityFilter] = useState<'today' | 'week' | 'month' | 'all'>('all');
 
@@ -70,10 +70,10 @@ export default function ApplicationWatchlist({ applications, currentScope, domai
   };
 
   // Extract unique values for filters
-  const businessUnits = useMemo(() => {
-    const units = new Set<string>();
-    applications.forEach(app => units.add(app.businessUnit));
-    return Array.from(units).sort();
+  const transactionCycles = useMemo(() => {
+    const cycles = new Set<string>();
+    applications.forEach(app => cycles.add(app.transactionCycle));
+    return Array.from(cycles).sort();
   }, [applications]);
 
   const uniqueDomains = useMemo(() => {
@@ -97,12 +97,12 @@ export default function ApplicationWatchlist({ applications, currentScope, domai
       }
 
       // Criticality filter
-      if (criticalityFilter && app.criticality !== criticalityFilter) {
+      if (criticalityFilter && app.appCriticalityAssessment !== criticalityFilter) {
         return false;
       }
 
-      // Business unit filter
-      if (businessUnitFilter && app.businessUnit !== businessUnitFilter) {
+      // Transaction Cycle filter
+      if (transactionCycleFilter && app.transactionCycle !== transactionCycleFilter) {
         return false;
       }
 
@@ -149,7 +149,7 @@ export default function ApplicationWatchlist({ applications, currentScope, domai
     });
 
     return filtered;
-  }, [applications, appNameFilter, appIdFilter, criticalityFilter, businessUnitFilter, domainFilter, ownerFilter, lastActivityFilter, sortField, sortDirection]);
+  }, [applications, appNameFilter, appIdFilter, criticalityFilter, transactionCycleFilter, domainFilter, ownerFilter, lastActivityFilter, sortField, sortDirection]);
 
   // Paginate applications
   const paginatedApplications = useMemo(() => {
@@ -179,7 +179,7 @@ export default function ApplicationWatchlist({ applications, currentScope, domai
     setAppNameFilter('');
     setAppIdFilter('');
     setCriticalityFilter('');
-    setBusinessUnitFilter('');
+    setTransactionCycleFilter('');
     setDomainFilter('');
     setOwnerFilter('');
     setLastActivityFilter('all');
@@ -286,17 +286,17 @@ export default function ApplicationWatchlist({ applications, currentScope, domai
               <MenuItem value="D">D</MenuItem>
             </Select>
           </FormControl>
-          <FormControl size="small" sx={{ minWidth: 150 }}>
-            <InputLabel>Business Unit</InputLabel>
+          <FormControl size="small" sx={{ minWidth: 170 }}>
+            <InputLabel>Transaction Cycle</InputLabel>
             <Select
-              value={businessUnitFilter}
-              label="Business Unit"
-              onChange={(e) => setBusinessUnitFilter(e.target.value)}
+              value={transactionCycleFilter}
+              label="Transaction Cycle"
+              onChange={(e) => setTransactionCycleFilter(e.target.value)}
             >
               <MenuItem value="">All</MenuItem>
-              {businessUnits.map((unit) => (
-                <MenuItem key={unit} value={unit}>
-                  {unit}
+              {transactionCycles.map((cycle) => (
+                <MenuItem key={cycle} value={cycle}>
+                  {cycle}
                 </MenuItem>
               ))}
             </Select>
@@ -356,7 +356,7 @@ export default function ApplicationWatchlist({ applications, currentScope, domai
                   Application
                 </TableSortLabel>
               </TableCell>
-              <TableCell>Business Unit</TableCell>
+              <TableCell>Transaction Cycle</TableCell>
               {/* Domain column - only for All Domains */}
               {currentScope === 'all-domains' && <TableCell>Domain(s)</TableCell>}
               <TableCell>Product Owner</TableCell>
@@ -405,7 +405,7 @@ export default function ApplicationWatchlist({ applications, currentScope, domai
               >
                 <TableCell sx={{ maxWidth: 350 }}>
                   <Stack direction="row" spacing={1} alignItems="center">
-                    <CriticalityBadge criticality={app.criticality} />
+                    <CriticalityBadge criticality={app.appCriticalityAssessment} />
                     <Box sx={{ minWidth: 0, flex: 1 }}>
                       <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 0.5 }}>
                         <Typography
@@ -444,7 +444,7 @@ export default function ApplicationWatchlist({ applications, currentScope, domai
                   </Stack>
                 </TableCell>
                 <TableCell>
-                  <Typography variant="body2">{app.businessUnit}</Typography>
+                  <Typography variant="body2">{app.transactionCycle}</Typography>
                 </TableCell>
                 {/* Domain cell - only for All Domains */}
                 {currentScope === 'all-domains' && (
