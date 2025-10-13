@@ -14,7 +14,7 @@
 3. [Existing Endpoint Modifications](#existing-endpoint-modifications)
 4. [New Endpoints Required](#new-endpoints-required)
 5. [Data Models](#data-models)
-6. [Business Logic](#business-logic)
+6. [Business Logic Requirements](#business-logic-requirements)
 7. [Error Handling](#error-handling)
 8. [Testing Requirements](#testing-requirements)
 9. [Implementation Priority](#implementation-priority)
@@ -79,7 +79,7 @@ The frontend needs:
 ```
 
 #### Required Enhancement
-Add full application metadata by joining with Application Profile Service.
+Add full application metadata by integrating with Application Profile Service.
 
 #### Enhanced Response
 ```json
@@ -118,23 +118,8 @@ Add full application metadata by joining with Application Profile Service.
 #### Implementation Notes
 1. **Data Source:** Query Application Profile Service for each `appId` in `topApplications`
 2. **Caching:** Consider caching application metadata (criticality, owner, business unit rarely change)
-3. **Performance:** Batch fetch application details in a single query if possible
+3. **Performance:** Batch fetch application details if possible
 4. **Fallback:** If application metadata unavailable, return `null` values but include `appId`
-
-#### SQL/Query Pseudocode
-```sql
--- Step 1: Get domain risks for ARB
-SELECT dr.*, app.name, app.criticality, app.business_unit, app.owner, app.owner_id
-FROM domain_risks dr
-LEFT JOIN applications app ON dr.app_id = app.app_id
-WHERE dr.assigned_arb = :arbName
-  AND dr.status IN ('PENDING_ARB_REVIEW', 'UNDER_ARB_REVIEW', ...)
-ORDER BY dr.priority_score DESC
-LIMIT 10;
-
--- Step 2: Aggregate for overview metrics
--- (existing logic remains)
-```
 
 ---
 
@@ -258,90 +243,39 @@ GET /api/v1/domain-risks/arb/security/applications?scope=my-queue&userId=securit
 | `domainRisks` | array | Summary of domain-level risks |
 | `risks` | array | Detailed risk items (only if `includeRisks=true`) |
 
-#### Business Logic
+#### Business Logic Requirements
 
 **Scope Filtering:**
 
 1. **my-queue:**
-   ```sql
-   -- Return applications where user has assigned domain risks
-   SELECT DISTINCT a.*
-   FROM applications a
-   JOIN domain_risks dr ON a.app_id = dr.app_id
-   WHERE dr.assigned_to = :userId
-     AND dr.status IN ('PENDING_ARB_REVIEW', 'UNDER_ARB_REVIEW', 'AWAITING_REMEDIATION', 'IN_PROGRESS')
-   ```
+   - Return applications where the user has assigned domain risks
+   - Only include domain risks with status: `PENDING_ARB_REVIEW`, `UNDER_ARB_REVIEW`, `AWAITING_REMEDIATION`, `IN_PROGRESS`
 
 2. **my-domain:**
-   ```sql
-   -- Return applications with domain risks in ARB's domain
-   SELECT DISTINCT a.*
-   FROM applications a
-   JOIN domain_risks dr ON a.app_id = dr.app_id
-   WHERE dr.domain = :arbName
-     AND dr.status IN ('PENDING_ARB_REVIEW', 'UNDER_ARB_REVIEW', 'AWAITING_REMEDIATION', 'IN_PROGRESS')
-   ```
+   - Return applications with domain risks in the ARB's domain
+   - Only include domain risks with status: `PENDING_ARB_REVIEW`, `UNDER_ARB_REVIEW`, `AWAITING_REMEDIATION`, `IN_PROGRESS`
 
 3. **all-domains:**
-   ```sql
-   -- Return all applications with any domain risks
-   SELECT DISTINCT a.*
-   FROM applications a
-   JOIN domain_risks dr ON a.app_id = dr.app_id
-   WHERE dr.status IN ('PENDING_ARB_REVIEW', 'UNDER_ARB_REVIEW', 'AWAITING_REMEDIATION', 'IN_PROGRESS')
-   ```
+   - Return all applications with any domain risks
+   - Only include domain risks with status: `PENDING_ARB_REVIEW`, `UNDER_ARB_REVIEW`, `AWAITING_REMEDIATION`, `IN_PROGRESS`
 
 **Aggregation Calculations:**
 
-```sql
--- For each application, calculate aggregations
-SELECT
-  a.app_id,
-  a.name,
-  a.criticality,
-  a.business_unit,
-  a.owner,
-  a.owner_id,
-  MAX(dr.priority_score) as aggregated_risk_score,
-  SUM(dr.open_items) as total_open_items,
-  MAX(dr.updated_at) as last_activity_date,
-  ARRAY_AGG(DISTINCT dr.domain) as domains,
+- **aggregatedRiskScore**: Take the maximum priority score across all domain risks for the application
+- **totalOpenItems**: Sum of open items across all domain risks for the application
+- **riskBreakdown**: Count risk items by priority (CRITICAL, HIGH, MEDIUM, LOW), only include status = OPEN or IN_PROGRESS
+- **domains**: List of unique domains that have risks for this application
+- **hasAssignedRisks**: Boolean flag - true if any domain risk is assigned to the requesting user
+- **lastActivityDate**: Most recent updated_at timestamp from domain risks or risk items
 
-  -- Risk breakdown by severity
-  SUM(CASE WHEN ri.priority = 'CRITICAL' THEN 1 ELSE 0 END) as critical_count,
-  SUM(CASE WHEN ri.priority = 'HIGH' THEN 1 ELSE 0 END) as high_count,
-  SUM(CASE WHEN ri.priority = 'MEDIUM' THEN 1 ELSE 0 END) as medium_count,
-  SUM(CASE WHEN ri.priority = 'LOW' THEN 1 ELSE 0 END) as low_count,
-
-  -- Check if user has assigned risks
-  MAX(CASE WHEN dr.assigned_to = :userId THEN 1 ELSE 0 END) as has_assigned_risks
-
-FROM applications a
-JOIN domain_risks dr ON a.app_id = dr.app_id
-LEFT JOIN risk_items ri ON dr.domain_risk_id = ri.domain_risk_id
-  AND ri.status IN ('OPEN', 'IN_PROGRESS')
-WHERE [scope filter]
-GROUP BY a.app_id, a.name, a.criticality, a.business_unit, a.owner, a.owner_id
-ORDER BY aggregated_risk_score DESC, total_open_items DESC
-```
+**Sorting:**
+- Default sort: `aggregatedRiskScore DESC`, then `totalOpenItems DESC`
 
 **Domain Risks Summary:**
-```sql
--- Get domain-level summaries for each application
-SELECT
-  dr.domain_risk_id,
-  dr.domain,
-  dr.status,
-  dr.priority_score,
-  dr.open_items,
-  dr.assigned_arb,
-  dr.assigned_to,
-  dr.assigned_at
-FROM domain_risks dr
-WHERE dr.app_id = :appId
-  AND dr.status IN ('PENDING_ARB_REVIEW', 'UNDER_ARB_REVIEW', 'AWAITING_REMEDIATION', 'IN_PROGRESS')
-ORDER BY dr.priority_score DESC
-```
+For each application, include a summary of domain-level risks:
+- Include domain risk ID, domain, status, priority score, open items count
+- Include assignment information (assignedArb, assignedTo, assignedAt)
+- Sort by priority score descending
 
 #### Error Responses
 
@@ -380,21 +314,26 @@ ORDER BY dr.priority_score DESC
 
 #### Implementation Notes
 
-1. **Performance Optimization:**
-   - Use database indexes on `domain_risks.assigned_to`, `domain_risks.domain`, `domain_risks.app_id`
-   - Consider materialized views for aggregation calculations
-   - Implement caching with 5-minute TTL for application metadata
+1. **Data Sources:**
+   - Application Profile Service: application metadata (name, criticality, owner, businessUnit)
+   - Domain Risk Service: risk aggregations and priority scores
+   - Risk Item Service: individual risk items for breakdown counts
 
-2. **Data Consistency:**
-   - Ensure domain risk aggregations are up-to-date (triggered by risk item updates)
+2. **Performance Optimization:**
+   - Consider caching application metadata (5-minute TTL)
+   - Batch fetch application details where possible
+   - Use appropriate indexes on frequently queried fields
+
+3. **Data Consistency:**
+   - Ensure domain risk aggregations are up-to-date (should be recalculated when risk items change)
    - Handle applications with no open domain risks (exclude from results)
 
-3. **Pagination:**
+4. **Pagination:**
    - Default page size: 100 applications
    - Maximum page size: 500 applications
-   - Use cursor-based pagination if performance issues arise
+   - Return totalCount in response for client-side pagination UI
 
-4. **includeRisks Flag:**
+5. **includeRisks Flag:**
    - When `includeRisks=true`, populate `risks[]` array with full risk item details
    - Default to `false` to reduce payload size
    - Consider separate endpoint if detailed risks are needed frequently
@@ -467,71 +406,39 @@ GET /api/v1/domain-risks/arb/security/metrics?scope=all-domains
 | `scope` | string | Dashboard scope used for filtering |
 | `arbName` | string | ARB identifier |
 | `userId` | string | User ID (only for my-queue scope) |
-| `criticalCount` | number | Count of risk items with priority=CRITICAL |
+| `criticalCount` | number | Count of risk items with priority=CRITICAL and status in (OPEN, IN_PROGRESS) |
 | `openItemsCount` | number | Count of risk items with status=OPEN |
 | `pendingReviewCount` | number | Count of domain risks with status=PENDING_ARB_REVIEW |
-| `averageRiskScore` | number | Average priorityScore across all risk items (0-100) |
+| `averageRiskScore` | number | Average priorityScore across all risk items with status in (OPEN, IN_PROGRESS) |
 | `healthGrade` | string | Overall health grade: `A`, `B`, `C`, `D`, `F` |
 | `recentActivity.newRisksLast7Days` | number | Risk items created in last 7 days |
 | `recentActivity.resolvedLast7Days` | number | Risk items resolved in last 7 days |
 | `recentActivity.newRisksLast30Days` | number | Risk items created in last 30 days |
 | `recentActivity.resolvedLast30Days` | number | Risk items resolved in last 30 days |
 
-#### Business Logic
+#### Business Logic Requirements
 
 **Scope Filtering:**
 Apply same filtering logic as applications endpoint (Section 2).
 
 **Metric Calculations:**
 
-```sql
--- Critical Count
-SELECT COUNT(DISTINCT ri.risk_item_id)
-FROM risk_items ri
-JOIN domain_risks dr ON ri.domain_risk_id = dr.domain_risk_id
-WHERE [scope filter]
-  AND ri.priority = 'CRITICAL'
-  AND ri.status IN ('OPEN', 'IN_PROGRESS')
+- **criticalCount**: Count distinct risk items with priority = CRITICAL and status in (OPEN, IN_PROGRESS)
+- **openItemsCount**: Count distinct risk items with status = OPEN
+- **pendingReviewCount**: Count distinct domain risks with status = PENDING_ARB_REVIEW
+- **averageRiskScore**: Calculate average of priorityScore field across all risk items with status in (OPEN, IN_PROGRESS)
+- **healthGrade**: Calculated based on averageRiskScore:
+  - A: averageRiskScore ≤ 20
+  - B: averageRiskScore ≤ 40
+  - C: averageRiskScore ≤ 60
+  - D: averageRiskScore ≤ 80
+  - F: averageRiskScore > 80
 
--- Open Items Count
-SELECT COUNT(DISTINCT ri.risk_item_id)
-FROM risk_items ri
-JOIN domain_risks dr ON ri.domain_risk_id = dr.domain_risk_id
-WHERE [scope filter]
-  AND ri.status = 'OPEN'
-
--- Pending Review Count
-SELECT COUNT(DISTINCT dr.domain_risk_id)
-FROM domain_risks dr
-WHERE [scope filter]
-  AND dr.status = 'PENDING_ARB_REVIEW'
-
--- Average Risk Score
-SELECT AVG(ri.priority_score)
-FROM risk_items ri
-JOIN domain_risks dr ON ri.domain_risk_id = dr.domain_risk_id
-WHERE [scope filter]
-  AND ri.status IN ('OPEN', 'IN_PROGRESS')
-
--- Recent Activity (last 7 days)
-SELECT
-  COUNT(CASE WHEN ri.opened_at >= NOW() - INTERVAL '7 days' THEN 1 END) as new_risks_7d,
-  COUNT(CASE WHEN ri.resolved_at >= NOW() - INTERVAL '7 days' THEN 1 END) as resolved_7d,
-  COUNT(CASE WHEN ri.opened_at >= NOW() - INTERVAL '30 days' THEN 1 END) as new_risks_30d,
-  COUNT(CASE WHEN ri.resolved_at >= NOW() - INTERVAL '30 days' THEN 1 END) as resolved_30d
-FROM risk_items ri
-JOIN domain_risks dr ON ri.domain_risk_id = dr.domain_risk_id
-WHERE [scope filter]
-```
-
-**Health Grade Calculation:**
-```
-if averageRiskScore <= 20: healthGrade = "A"
-if averageRiskScore <= 40: healthGrade = "B"
-if averageRiskScore <= 60: healthGrade = "C"
-if averageRiskScore <= 80: healthGrade = "D"
-if averageRiskScore > 80:  healthGrade = "F"
-```
+**Recent Activity:**
+- **newRisksLast7Days**: Count risk items where opened_at >= (now - 7 days)
+- **resolvedLast7Days**: Count risk items where resolved_at >= (now - 7 days)
+- **newRisksLast30Days**: Count risk items where opened_at >= (now - 30 days)
+- **resolvedLast30Days**: Count risk items where resolved_at >= (now - 30 days)
 
 #### Error Responses
 
@@ -540,17 +447,18 @@ Same error handling as applications endpoint (Section 2).
 #### Implementation Notes
 
 1. **Performance:**
-   - Use database aggregation functions (COUNT, AVG)
-   - Consider materialized view or cached results (5-minute TTL)
-   - Single query for all metrics preferred
+   - Use efficient aggregation functions
+   - Consider caching with 5-minute TTL
+   - Single query for all metrics preferred over multiple queries
 
 2. **Edge Cases:**
    - If no risk items exist, return counts as `0`
    - If no risk items for average calculation, return `averageRiskScore: 0` and `healthGrade: "A"`
+   - Handle timezone considerations for date calculations (use UTC)
 
 3. **Optimization:**
-   - Combine with applications endpoint if frontend can merge responses
-   - Consider adding metrics to applications response as `meta` field
+   - Consider combining with applications endpoint if frontend can merge responses
+   - Consider adding metrics to applications response as `meta` field to reduce API calls
 
 ---
 
@@ -625,37 +533,68 @@ interface DashboardMetrics {
 }
 ```
 
+### RiskItem (from existing API)
+
+```typescript
+interface RiskItem {
+  riskItemId: string;
+  domainRiskId: string;
+  appId: string;
+  fieldKey: string;
+  profileFieldId: string;
+  triggeringEvidenceId: string | null;
+  trackId: string | null;
+  title: string;
+  description: string;
+  priority: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW';
+  severity: string;
+  priorityScore: number;
+  evidenceStatus: string;
+  status: 'OPEN' | 'IN_PROGRESS' | 'RESOLVED' | 'WAIVED' | 'CLOSED';
+  resolution: string | null;
+  resolutionComment: string | null;
+  creationType: string;
+  raisedBy: string;
+  openedAt: string;
+  resolvedAt: string | null;
+  policyRequirementSnapshot: any;
+  createdAt: string;
+  updatedAt: string;
+}
+```
+
 ---
 
-## Business Logic
+## Business Logic Requirements
 
 ### Scope Filtering Rules
 
 **my-queue:**
 - **Filter:** Domain risks assigned to the requesting user
 - **Use Case:** Personal work queue for ARB reviewer
-- **SQL Fragment:**
-  ```sql
-  WHERE dr.assigned_to = :userId
-    AND dr.status IN ('PENDING_ARB_REVIEW', 'UNDER_ARB_REVIEW', 'AWAITING_REMEDIATION', 'IN_PROGRESS')
-  ```
+- **Logic:** Include applications where at least one domain risk has `assigned_to = userId` and status in active statuses
 
 **my-domain:**
 - **Filter:** Domain risks in the ARB's domain
 - **Use Case:** All work in ARB's area of responsibility
-- **SQL Fragment:**
-  ```sql
-  WHERE dr.domain = :arbName
-    AND dr.status IN ('PENDING_ARB_REVIEW', 'UNDER_ARB_REVIEW', 'AWAITING_REMEDIATION', 'IN_PROGRESS')
-  ```
+- **Logic:** Include applications where at least one domain risk has `domain = arbName` and status in active statuses
 
 **all-domains:**
 - **Filter:** All domain risks across all domains
 - **Use Case:** Enterprise-wide visibility for senior ARB members
-- **SQL Fragment:**
-  ```sql
-  WHERE dr.status IN ('PENDING_ARB_REVIEW', 'UNDER_ARB_REVIEW', 'AWAITING_REMEDIATION', 'IN_PROGRESS')
-  ```
+- **Logic:** Include all applications with domain risks in active statuses
+
+**Active Statuses:**
+For all scopes, only include domain risks and risk items with the following statuses:
+- `PENDING_ARB_REVIEW`
+- `UNDER_ARB_REVIEW`
+- `AWAITING_REMEDIATION`
+- `IN_PROGRESS`
+
+Exclude:
+- `RESOLVED`
+- `WAIVED`
+- `CLOSED`
 
 ### Risk Score Aggregation
 
@@ -672,7 +611,21 @@ interface DashboardMetrics {
 **hasAssignedRisks:**
 - Boolean flag: true if ANY domain risk is assigned to the requesting user
 - Used for "My Queue" filtering
-- Calculation: `EXISTS (SELECT 1 FROM domain_risks WHERE assigned_to = :userId)`
+- Check if there exists at least one domain risk with `assigned_to = userId`
+
+**totalOpenItems:**
+- Sum of `open_items` field from all domain risks for the application
+- Only include domain risks with active statuses
+
+**domains:**
+- Array of unique domain names that have active domain risks for the application
+- Example: `["security", "data"]`
+
+**lastActivityDate:**
+- Most recent timestamp from either:
+  - `domain_risks.updated_at` for the application's domain risks
+  - `risk_items.updated_at` for the application's risk items
+- Return as ISO 8601 format
 
 ---
 
@@ -722,6 +675,10 @@ interface DashboardMetrics {
 - `page`: Must be >= 0, return 400 if negative
 - `size`: Must be 1-500, return 400 if out of range
 
+**includeRisks:**
+- Must be boolean (`true` or `false`)
+- Return 400 if invalid value
+
 ---
 
 ## Testing Requirements
@@ -734,15 +691,21 @@ interface DashboardMetrics {
    - Test all-domains returns all applications
 
 2. **Aggregation Calculations:**
-   - Test aggregatedRiskScore = max priority score
-   - Test riskBreakdown counts by severity
+   - Test aggregatedRiskScore equals max priority score
+   - Test riskBreakdown counts match expected values
    - Test hasAssignedRisks flag accuracy
 
 3. **Metrics Calculations:**
    - Test criticalCount, openItemsCount, pendingReviewCount
    - Test averageRiskScore calculation
    - Test healthGrade assignment
-   - Test recentActivity date ranges
+   - Test recentActivity date ranges (7-day and 30-day)
+
+4. **Edge Cases:**
+   - Test empty results (no applications)
+   - Test application with no risk items
+   - Test zero risk score calculations
+   - Test missing application metadata
 
 ### Integration Tests
 
@@ -758,17 +721,37 @@ interface DashboardMetrics {
    - Test Application Profile Service integration
    - Test domain risk aggregation recalculation
    - Test handling of missing application metadata
+   - Test handling of stale cache data
+
+3. **Scope Transitions:**
+   - Test switching between my-queue, my-domain, all-domains
+   - Verify results change appropriately
+   - Test userId requirement for my-queue
 
 ### Performance Tests
 
 1. **Load Testing:**
    - Test with 1000+ applications
    - Test with 10,000+ risk items
-   - Measure response time (target: < 500ms)
+   - Measure response time (target: < 500ms for applications, < 200ms for metrics)
 
 2. **Concurrency:**
    - Test concurrent requests from multiple users
-   - Test cache invalidation
+   - Test cache invalidation and consistency
+
+### API Contract Tests
+
+1. **Request Validation:**
+   - Test invalid scope values
+   - Test missing userId for my-queue
+   - Test invalid pagination parameters
+   - Test invalid arbName
+
+2. **Response Format:**
+   - Verify all required fields present
+   - Verify data types match specification
+   - Verify ISO 8601 date formats
+   - Verify enum values (criticality, status, priority)
 
 ---
 
@@ -801,63 +784,10 @@ interface DashboardMetrics {
 ### Phase 3: Optimization (Week 3+)
 **Goal:** Performance and scalability
 
-5. Implement caching strategy
-6. Add database indexes
-7. Create materialized views for aggregations
-8. Implement cursor-based pagination
-
----
-
-## Database Schema Considerations
-
-### Required Indexes
-
-```sql
--- For scope filtering
-CREATE INDEX idx_domain_risks_assigned_to ON domain_risks(assigned_to);
-CREATE INDEX idx_domain_risks_domain ON domain_risks(domain);
-CREATE INDEX idx_domain_risks_app_id ON domain_risks(app_id);
-
--- For aggregations
-CREATE INDEX idx_risk_items_domain_risk_id ON risk_items(domain_risk_id);
-CREATE INDEX idx_risk_items_status ON risk_items(status);
-CREATE INDEX idx_risk_items_priority ON risk_items(priority);
-
--- For recent activity
-CREATE INDEX idx_risk_items_opened_at ON risk_items(opened_at);
-CREATE INDEX idx_risk_items_resolved_at ON risk_items(resolved_at);
-```
-
-### Materialized View (Optional)
-
-Consider creating a materialized view for application risk aggregations:
-
-```sql
-CREATE MATERIALIZED VIEW mv_application_risk_summary AS
-SELECT
-  a.app_id,
-  a.name,
-  a.criticality,
-  a.business_unit,
-  a.owner,
-  a.owner_id,
-  MAX(dr.priority_score) as aggregated_risk_score,
-  SUM(dr.open_items) as total_open_items,
-  MAX(dr.updated_at) as last_activity_date,
-  ARRAY_AGG(DISTINCT dr.domain) as domains,
-  SUM(CASE WHEN ri.priority = 'CRITICAL' THEN 1 ELSE 0 END) as critical_count,
-  SUM(CASE WHEN ri.priority = 'HIGH' THEN 1 ELSE 0 END) as high_count,
-  SUM(CASE WHEN ri.priority = 'MEDIUM' THEN 1 ELSE 0 END) as medium_count,
-  SUM(CASE WHEN ri.priority = 'LOW' THEN 1 ELSE 0 END) as low_count
-FROM applications a
-JOIN domain_risks dr ON a.app_id = dr.app_id
-LEFT JOIN risk_items ri ON dr.domain_risk_id = ri.domain_risk_id
-  AND ri.status IN ('OPEN', 'IN_PROGRESS')
-WHERE dr.status IN ('PENDING_ARB_REVIEW', 'UNDER_ARB_REVIEW', 'AWAITING_REMEDIATION', 'IN_PROGRESS')
-GROUP BY a.app_id, a.name, a.criticality, a.business_unit, a.owner, a.owner_id;
-
--- Refresh strategy: Trigger on domain_risks update or scheduled (every 5 minutes)
-```
+5. Implement caching strategy (consider 5-minute TTL)
+6. Performance monitoring and optimization
+7. Load testing and capacity planning
+8. Documentation updates
 
 ---
 
@@ -903,6 +833,17 @@ GET /api/v1/domain-risks/arb/{arbName}/metrics
   }
 ```
 
+**Create Risk Item (Existing):**
+```
+POST /api/v1/risk-items
+{
+  appId, fieldKey, profileFieldId,
+  title, description, priority, createdBy, evidenceId
+}
+
+→ RiskItemResponse { riskItemId, ... }
+```
+
 ---
 
 ## Questions for Backend Team
@@ -911,11 +852,12 @@ GET /api/v1/domain-risks/arb/{arbName}/metrics
    - What is the API for fetching application metadata?
    - Can we batch fetch multiple applications?
    - What is the data model (exact field names)?
+   - What is the performance/caching strategy?
 
 2. **Performance:**
    - What are the expected data volumes (apps, domain risks, risk items)?
-   - Are there existing indexes on domain_risks and risk_items tables?
    - Is caching infrastructure available (Redis, Memcached)?
+   - What is the target response time SLA?
 
 3. **Authorization:**
    - Should we implement ARB role checking?
@@ -926,6 +868,11 @@ GET /api/v1/domain-risks/arb/{arbName}/metrics
    - What is the release timeline?
    - Can we deploy incrementally (applications endpoint first, metrics later)?
    - Is there a staging environment for frontend testing?
+
+5. **Data Consistency:**
+   - How often are domain risk aggregations recalculated?
+   - Are aggregations real-time or eventual consistency?
+   - How should we handle stale data scenarios?
 
 ---
 
@@ -955,6 +902,32 @@ setDashboardData({
 });
 ```
 
+**Creating a Risk:**
+```typescript
+const createRisk = async (riskData) => {
+  const response = await fetch('/api/v1/risk-items', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      appId: riskData.appId,
+      fieldKey: riskData.fieldKey,
+      title: riskData.title,
+      description: riskData.description,
+      priority: riskData.severity.toUpperCase(), // map severity to priority
+      createdBy: currentUser.id,
+      profileFieldId: null,
+      evidenceId: null
+    })
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to create risk');
+  }
+
+  return await response.json();
+};
+```
+
 ### Sample Test Data
 
 **Application with Risks:**
@@ -977,6 +950,26 @@ setDashboardData({
   "domains": ["security", "data"],
   "hasAssignedRisks": true,
   "lastActivityDate": "2025-10-12T14:30:00Z"
+}
+```
+
+**Dashboard Metrics:**
+```json
+{
+  "scope": "my-queue",
+  "arbName": "security",
+  "userId": "security_arb_001",
+  "criticalCount": 12,
+  "openItemsCount": 126,
+  "pendingReviewCount": 45,
+  "averageRiskScore": 62.5,
+  "healthGrade": "C",
+  "recentActivity": {
+    "newRisksLast7Days": 8,
+    "resolvedLast7Days": 3,
+    "newRisksLast30Days": 32,
+    "resolvedLast30Days": 15
+  }
 }
 ```
 
