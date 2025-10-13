@@ -38,7 +38,7 @@ interface ApplicationWatchlistProps {
   headerAction?: React.ReactNode; // Optional action button for header
 }
 
-type SortField = 'name' | 'aggregatedRiskScore' | 'totalOpenItems' | 'lastActivityDate';
+type SortField = 'name' | 'transactionCycle' | 'owner' | 'aggregatedRiskScore' | 'totalOpenItems' | 'lastActivityDate';
 type SortDirection = 'asc' | 'desc';
 
 export default function ApplicationWatchlist({ applications, currentScope, domainDisplayName = 'My Domain', arbName, headerAction }: ApplicationWatchlistProps) {
@@ -137,6 +137,10 @@ export default function ApplicationWatchlist({ applications, currentScope, domai
       switch (sortField) {
         case 'name':
           return modifier * a.name.localeCompare(b.name);
+        case 'transactionCycle':
+          return modifier * a.transactionCycle.localeCompare(b.transactionCycle);
+        case 'owner':
+          return modifier * a.owner.localeCompare(b.owner);
         case 'aggregatedRiskScore':
           return modifier * (a.aggregatedRiskScore - b.aggregatedRiskScore);
         case 'totalOpenItems':
@@ -356,10 +360,26 @@ export default function ApplicationWatchlist({ applications, currentScope, domai
                   Application
                 </TableSortLabel>
               </TableCell>
-              <TableCell>Transaction Cycle</TableCell>
+              <TableCell>
+                <TableSortLabel
+                  active={sortField === 'transactionCycle'}
+                  direction={sortField === 'transactionCycle' ? sortDirection : 'asc'}
+                  onClick={() => handleSort('transactionCycle')}
+                >
+                  Transaction Cycle
+                </TableSortLabel>
+              </TableCell>
               {/* Domain column - only for All Domains */}
               {currentScope === 'all-domains' && <TableCell>Domain(s)</TableCell>}
-              <TableCell>Product Owner</TableCell>
+              <TableCell>
+                <TableSortLabel
+                  active={sortField === 'owner'}
+                  direction={sortField === 'owner' ? sortDirection : 'asc'}
+                  onClick={() => handleSort('owner')}
+                >
+                  Product Owner
+                </TableSortLabel>
+              </TableCell>
               <TableCell align="center">
                 <TableSortLabel
                   active={sortField === 'aggregatedRiskScore'}
