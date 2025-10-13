@@ -7,8 +7,11 @@ export interface Application {
   id: string;
   appId: string; // Application ID (e.g., APM100001)
   name: string;
-  criticality: 'A' | 'B' | 'C' | 'D'; // Criticality rating
-  businessUnit: string;
+  criticality: string; // Domain-dependent format:
+                       // - Security: 'A1' | 'A2' | 'B' | 'C' | 'D'
+                       // - Resilience: numeric string (e.g., '4', '8', '24')
+                       // - Other domains: 'A' | 'B' | 'C' | 'D'
+  transactionCycle: string; // Transaction cycle (e.g., 'Monthly', 'Quarterly', 'Daily')
   owner: string;
   ownerId: string;
   aggregatedRiskScore: number; // 0-100
