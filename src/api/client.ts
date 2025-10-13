@@ -25,6 +25,19 @@ import type {
     EvidenceStateSlug,
     PaginatedResponse,
     PaginationMetadata,
+    // SME Dashboard types
+    PendingEvidenceItem,
+    EvidenceReviewRequest,
+    EvidenceReviewResponse,
+    DomainRiskResponse,
+    DomainSummaryResponse,
+    ArbDashboardResponse,
+    RiskItemResponse,
+    RiskItemStatus,
+    RiskStatusUpdateRequest,
+    RiskComment,
+    RiskCommentType,
+    RiskCommentRequest,
 } from './types';
 
 // For production builds, use relative URLs that work with nginx proxy
@@ -1413,4 +1426,386 @@ export const endpoints = {
         USE_MOCK
             ? mockApi.getControls(domain)
             : (await api.get<string[]>(`/internal/profile-fields-registry/domains/${domain}/controls`)).data,
+
+    // ==========================================
+    // SME Dashboard Endpoints
+    // ==========================================
+
+    /** Get pending evidence for SME review */
+    getPendingSmeEvidence: async (smeEmail: string, page?: number, size?: number): Promise<PendingEvidenceItem[]> => {
+        const params: Record<string, string | number> = { assignedSme: smeEmail };
+        if (page !== undefined) params.page = page;
+        if (size !== undefined) params.size = size;
+
+        if (USE_MOCK) {
+            // Mock pending evidence - multiple items for better testing
+            return [
+                {
+                    evidenceId: 'evidence-123',
+                    appId: 'APM100001',
+                    appName: 'Payment Service',
+                    profileFieldId: 'pf-789',
+                    fieldKey: 'encryption_at_rest',
+                    fieldLabel: 'Encryption at Rest',
+                    evidenceType: 'DOCUMENT',
+                    evidenceUri: 'https://confluence.example.com/security/encryption-policy.pdf',
+                    linkStatus: 'PENDING_SME_REVIEW',
+                    submittedBy: 'developer@example.com',
+                    submittedAt: '2025-10-12T10:30:00Z',
+                    profileFieldCriticality: 'CRITICAL',
+                    evidenceMetadata: {
+                        documentId: 'doc-enc-001',
+                        description: 'Encryption at rest policy compliance documentation'
+                    }
+                },
+                {
+                    evidenceId: 'evidence-124',
+                    appId: 'APM100002',
+                    appName: 'Customer Portal',
+                    profileFieldId: 'pf-790',
+                    fieldKey: 'mfa_enforcement',
+                    fieldLabel: 'Multi-Factor Authentication',
+                    evidenceType: 'URL',
+                    evidenceUri: 'https://wiki.company.com/mfa-config',
+                    linkStatus: 'PENDING_SME_REVIEW',
+                    submittedBy: 'product.owner@example.com',
+                    submittedAt: '2025-10-11T14:20:00Z',
+                    profileFieldCriticality: 'HIGH',
+                    evidenceMetadata: {
+                        description: 'MFA configuration and enforcement documentation'
+                    }
+                },
+                {
+                    evidenceId: 'evidence-125',
+                    appId: 'APM100003',
+                    appName: 'Data Warehouse',
+                    profileFieldId: 'pf-791',
+                    fieldKey: 'backup_policy',
+                    fieldLabel: 'Backup and Recovery Policy',
+                    evidenceType: 'ATTESTATION',
+                    evidenceUri: 'https://sharepoint.company.com/backup-attestation',
+                    linkStatus: 'PENDING_SME_REVIEW',
+                    submittedBy: 'ops.team@example.com',
+                    submittedAt: '2025-10-10T09:15:00Z',
+                    profileFieldCriticality: 'MEDIUM',
+                    evidenceMetadata: {
+                        description: 'Annual backup policy attestation'
+                    }
+                },
+                {
+                    evidenceId: 'evidence-126',
+                    appId: 'APM100004',
+                    appName: 'Mobile App',
+                    profileFieldId: 'pf-792',
+                    fieldKey: 'security_testing',
+                    fieldLabel: 'Security Testing Evidence',
+                    evidenceType: 'DOCUMENT',
+                    evidenceUri: 'https://docs.company.com/security-scan-report.pdf',
+                    linkStatus: 'PENDING_SME_REVIEW',
+                    submittedBy: 'security.team@example.com',
+                    submittedAt: '2025-10-09T16:45:00Z',
+                    profileFieldCriticality: 'HIGH',
+                    evidenceMetadata: {
+                        documentId: 'doc-sec-test-001',
+                        description: 'Quarterly security testing and penetration test results'
+                    }
+                },
+                {
+                    evidenceId: 'evidence-127',
+                    appId: 'APM100005',
+                    appName: 'API Gateway',
+                    profileFieldId: 'pf-793',
+                    fieldKey: 'data_retention',
+                    fieldLabel: 'Data Retention Policy',
+                    evidenceType: 'URL',
+                    evidenceUri: 'https://compliance.company.com/data-retention',
+                    linkStatus: 'PENDING_SME_REVIEW',
+                    submittedBy: 'compliance@example.com',
+                    submittedAt: '2025-10-08T11:00:00Z',
+                    profileFieldCriticality: 'MEDIUM',
+                    evidenceMetadata: {
+                        description: 'Data retention policy compliance documentation'
+                    }
+                }
+            ];
+        }
+
+        return (await api.get<PendingEvidenceItem[]>('/api/evidence/pending-sme-review', { params })).data;
+    },
+
+    /** Review (approve/reject) evidence */
+    reviewEvidence: async (
+        evidenceId: string,
+        profileFieldId: string,
+        payload: EvidenceReviewRequest
+    ): Promise<EvidenceReviewResponse> => {
+        if (USE_MOCK) {
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            return {
+                evidenceId,
+                profileFieldId,
+                linkStatus: payload.action === 'approve' ? 'APPROVED' : 'REJECTED',
+                linkedBy: 'developer@example.com',
+                linkedAt: new Date().toISOString(),
+                reviewedBy: payload.reviewerId,
+                reviewedAt: new Date().toISOString(),
+                reviewComment: payload.reviewComment
+            };
+        }
+
+        return (await api.post<EvidenceReviewResponse>(
+            `/api/evidence/${evidenceId}/review?profileFieldId=${profileFieldId}`,
+            payload
+        )).data;
+    },
+
+    /** Get domain risks for ARB */
+    getDomainRisksForArb: async (arbName: string, status?: string): Promise<DomainRiskResponse[]> => {
+        const params = status ? { status } : {};
+
+        if (USE_MOCK) {
+            return [
+                {
+                    domainRiskId: 'dr-uuid-123',
+                    appId: 'APM100001',
+                    domain: 'security',
+                    derivedFrom: 'security_rating',
+                    arb: 'security',
+                    title: 'Security Domain Risks',
+                    description: 'Aggregated security risks derived from security_rating assessment.',
+                    totalItems: 5,
+                    openItems: 3,
+                    highPriorityItems: 2,
+                    overallPriority: 'HIGH',
+                    overallSeverity: 'high',
+                    priorityScore: 85,
+                    status: 'UNDER_ARB_REVIEW',
+                    assignedArb: 'security',
+                    assignedAt: '2025-10-12T10:00:00Z',
+                    openedAt: '2025-10-10T09:00:00Z',
+                    lastItemAddedAt: '2025-10-11T14:30:00Z',
+                    createdAt: '2025-10-10T09:00:00Z',
+                    updatedAt: '2025-10-11T14:30:00Z'
+                }
+            ];
+        }
+
+        return (await api.get<DomainRiskResponse[]>(`/api/v1/domain-risks/arb/${arbName}`, { params })).data;
+    },
+
+    /** Get comprehensive ARB dashboard */
+    getArbDashboard: async (arbName: string, status?: string): Promise<ArbDashboardResponse> => {
+        const params = status ? { status } : {};
+
+        if (USE_MOCK) {
+            return {
+                arbName: 'security',
+                overview: {
+                    totalDomainRisks: 10,
+                    totalOpenItems: 126,
+                    criticalCount: 2,
+                    highCount: 5,
+                    averagePriorityScore: 55,
+                    needsImmediateAttention: 7
+                },
+                domains: [
+                    {
+                        domain: 'security',
+                        riskCount: 10,
+                        openItems: 126,
+                        criticalItems: 15,
+                        avgPriorityScore: 55.0,
+                        topPriorityStatus: 'PENDING_ARB_REVIEW'
+                    }
+                ],
+                topApplications: [
+                    {
+                        appId: 'APM100001',
+                        appName: 'Payment Service',
+                        domainRiskCount: 1,
+                        totalOpenItems: 14,
+                        highestPriorityScore: 55,
+                        criticalDomain: 'security'
+                    }
+                ],
+                statusDistribution: {
+                    'PENDING_ARB_REVIEW': 10,
+                    'IN_PROGRESS': 0,
+                    'RESOLVED': 0
+                },
+                priorityDistribution: {
+                    'critical': 0,
+                    'high': 0,
+                    'medium': 10,
+                    'low': 0
+                },
+                recentActivity: {
+                    newRisksLast7Days: 0,
+                    newRisksLast30Days: 10,
+                    resolvedLast7Days: 0,
+                    resolvedLast30Days: 0
+                }
+            };
+        }
+
+        return (await api.get<ArbDashboardResponse>(`/api/v1/domain-risks/arb/${arbName}/dashboard`, { params })).data;
+    },
+
+    /** Get ARB summary (aggregate statistics) */
+    getArbSummary: async (arbName: string, status?: string): Promise<DomainSummaryResponse[]> => {
+        const params = status ? { status } : {};
+
+        if (USE_MOCK) {
+            return [
+                {
+                    domain: 'security',
+                    count: 10,
+                    totalOpenItems: 25,
+                    avgPriorityScore: 72.5
+                }
+            ];
+        }
+
+        return (await api.get<DomainSummaryResponse[]>(`/api/v1/domain-risks/arb/${arbName}/summary`, { params })).data;
+    },
+
+    /** Get domain risk by ID */
+    getDomainRiskById: async (domainRiskId: string): Promise<DomainRiskResponse> => {
+        if (USE_MOCK) {
+            return {
+                domainRiskId,
+                appId: 'APM100001',
+                domain: 'security',
+                derivedFrom: 'security_rating',
+                arb: 'security',
+                title: 'Security Domain Risks',
+                description: 'Aggregated security risks',
+                totalItems: 5,
+                openItems: 3,
+                highPriorityItems: 2,
+                overallPriority: 'HIGH',
+                overallSeverity: 'high',
+                priorityScore: 85,
+                status: 'UNDER_ARB_REVIEW',
+                assignedArb: 'security',
+                openedAt: '2025-10-10T09:00:00Z',
+                createdAt: '2025-10-10T09:00:00Z',
+                updatedAt: '2025-10-11T14:30:00Z'
+            };
+        }
+
+        return (await api.get<DomainRiskResponse>(`/api/v1/domain-risks/${domainRiskId}`)).data;
+    },
+
+    /** Get risk items for a domain risk */
+    getDomainRiskItems: async (domainRiskId: string): Promise<RiskItemResponse[]> => {
+        if (USE_MOCK) {
+            return [
+                {
+                    riskItemId: 'item-uuid-456',
+                    domainRiskId,
+                    appId: 'APM100001',
+                    fieldKey: 'encryption_at_rest',
+                    profileFieldId: 'pf-789',
+                    triggeringEvidenceId: 'evidence-001',
+                    trackId: null,
+                    title: 'Compliance risk: encryption_at_rest',
+                    description: 'Evidence requires review',
+                    priority: 'CRITICAL',
+                    severity: 'critical',
+                    priorityScore: 100,
+                    evidenceStatus: 'submitted',
+                    status: 'OPEN',
+                    resolution: null,
+                    resolutionComment: null,
+                    creationType: 'SYSTEM_AUTO_CREATION',
+                    raisedBy: 'SYSTEM_AUTO_CREATION',
+                    openedAt: '2025-10-11T14:30:00Z',
+                    resolvedAt: null,
+                    createdAt: '2025-10-11T14:30:00Z',
+                    updatedAt: '2025-10-11T14:30:00Z'
+                }
+            ];
+        }
+
+        return (await api.get<RiskItemResponse[]>(`/api/v1/domain-risks/${domainRiskId}/items`)).data;
+    },
+
+    /** Get domain risks for an app */
+    getDomainRisksForApp: async (appId: string): Promise<DomainRiskResponse[]> => {
+        if (USE_MOCK) {
+            return [];
+        }
+
+        return (await api.get<DomainRiskResponse[]>(`/api/v1/domain-risks/app/${appId}`)).data;
+    },
+
+    /** Get risk item comments */
+    getRiskItemComments: async (riskItemId: string, includeInternal?: boolean): Promise<RiskComment[]> => {
+        const params = includeInternal ? { includeInternal: 'true' } : {};
+
+        if (USE_MOCK) {
+            return [
+                {
+                    commentId: 'comment-uuid-111',
+                    riskItemId,
+                    commentType: 'REVIEW',
+                    commentText: 'Reviewed the encryption configuration. Needs to implement AES-256 with proper key management.',
+                    commentedBy: 'security_arb_user',
+                    commentedAt: '2025-10-12T16:15:00Z',
+                    isInternal: false,
+                    createdAt: '2025-10-12T16:15:00Z',
+                    updatedAt: '2025-10-12T16:15:00Z'
+                }
+            ];
+        }
+
+        return (await api.get<RiskComment[]>(`/api/v1/risk-items/${riskItemId}/comments`, { params })).data;
+    },
+
+    /** Add comment to risk item */
+    addRiskItemComment: async (riskItemId: string, payload: RiskCommentRequest): Promise<RiskComment> => {
+        if (USE_MOCK) {
+            await new Promise(resolve => setTimeout(resolve, 500));
+            return {
+                commentId: 'comment-uuid-' + Date.now(),
+                riskItemId,
+                commentType: payload.commentType,
+                commentText: payload.commentText,
+                commentedBy: payload.commentedBy,
+                commentedAt: new Date().toISOString(),
+                isInternal: payload.isInternal || false,
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString()
+            };
+        }
+
+        return (await api.post<RiskComment>(`/api/v1/risk-items/${riskItemId}/comments`, payload)).data;
+    },
+
+    /** Update risk item status */
+    updateRiskItemStatus: async (riskItemId: string, payload: RiskStatusUpdateRequest): Promise<RiskItemResponse> => {
+        if (USE_MOCK) {
+            await new Promise(resolve => setTimeout(resolve, 500));
+            return {
+                riskItemId,
+                domainRiskId: 'dr-uuid-123',
+                appId: 'APM100001',
+                title: 'Updated risk item',
+                priority: 'HIGH',
+                severity: 'high',
+                priorityScore: 75,
+                status: payload.status,
+                resolution: payload.resolution,
+                resolutionComment: payload.resolutionComment,
+                creationType: 'SYSTEM_AUTO_CREATION',
+                raisedBy: 'SYSTEM',
+                openedAt: '2025-10-11T14:30:00Z',
+                createdAt: '2025-10-11T14:30:00Z',
+                updatedAt: new Date().toISOString()
+            };
+        }
+
+        return (await api.patch<RiskItemResponse>(`/api/v1/risk-items/${riskItemId}/status`, payload)).data;
+    },
 };

@@ -13,20 +13,21 @@ import SearchIcon from '@mui/icons-material/Search';
 
 /**
  * Top-level shell with a single AppBar.
- * Contains app title, search bar, and persona selector (PO/SME).
+ * Contains app title, search bar, and view selector (PO/ARBs).
  * Removes the old side drawer entirely.
  */
 export const AppShell: React.FC = () => {
     const [search, setSearch] = useState('');
-    const [persona, setPersona] = useState<'PO' | 'SME'>('PO');
+    const [view, setView] = useState<string>('PO');
     const navigate = useNavigate();
 
-    const handlePersonaChange = (newPersona: 'PO' | 'SME') => {
-        setPersona(newPersona);
-        if (newPersona === 'PO') {
+    const handleViewChange = (newView: string) => {
+        setView(newView);
+        if (newView === 'PO') {
             navigate('/po');
         } else {
-            navigate('/sme');
+            // ARB views
+            navigate(`/sme/arb/${newView}`);
         }
     };
 
@@ -47,15 +48,18 @@ export const AppShell: React.FC = () => {
                         sx={{ mr: 2, display: { xs: 'none', sm: 'flex' }, maxWidth: 200 }}
                         InputProps={{ endAdornment: <SearchIcon /> }}
                     />
-                    {/* Persona selector */}
+                    {/* View selector */}
                     <Select
                         size="small"
-                        value={persona}
-                        onChange={(e) => handlePersonaChange(e.target.value as 'PO' | 'SME')}
-                        sx={{ minWidth: 120 }}
+                        value={view}
+                        onChange={(e) => handleViewChange(e.target.value as string)}
+                        sx={{ minWidth: 180 }}
                     >
-                        <MenuItem value="PO">PO View</MenuItem>
-                        <MenuItem value="SME">SME View</MenuItem>
+                        <MenuItem value="PO">PO</MenuItem>
+                        <MenuItem value="security">Security ARB</MenuItem>
+                        <MenuItem value="data">Data ARB</MenuItem>
+                        <MenuItem value="operations">Operations ARB</MenuItem>
+                        <MenuItem value="enterprise_architecture">Enterprise Architecture ARB</MenuItem>
                     </Select>
                 </Toolbar>
             </AppBar>

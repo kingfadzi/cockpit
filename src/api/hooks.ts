@@ -370,3 +370,117 @@ export const useControls = (domain: string) =>
         ...commonQuery,
     });
 
+// ==========================================
+// SME Dashboard Hooks
+// ==========================================
+
+// Evidence Review Hooks
+export const usePendingSmeEvidence = (smeEmail: string, page?: number, size?: number) =>
+    useQuery({
+        queryKey: ['sme', 'pending-evidence', smeEmail, page, size],
+        queryFn: () => endpoints.getPendingSmeEvidence(smeEmail, page, size),
+        enabled: !!smeEmail,
+        ...commonQuery
+    });
+
+export const useReviewEvidence = () => {
+    const qc = useQueryClient();
+    return useMutation({
+        mutationFn: ({ evidenceId, profileFieldId, payload }: {
+            evidenceId: string;
+            profileFieldId: string;
+            payload: { action: 'approve' | 'reject'; reviewerId: string; reviewComment?: string };
+        }) => endpoints.reviewEvidence(evidenceId, profileFieldId, payload),
+        onSuccess: () => {
+            // Invalidate all related queries
+            qc.invalidateQueries({ queryKey: ['sme', 'pending-evidence'] });
+            qc.invalidateQueries({ queryKey: ['sme', 'domain-risks'] });
+            qc.invalidateQueries({ queryKey: ['sme', 'arb-dashboard'] });
+            qc.invalidateQueries({ queryKey: ['risks'] });
+            qc.invalidateQueries({ queryKey: ['profile'] });
+        },
+    });
+};
+
+// Domain Risk Hooks
+export const useDomainRisksForArb = (arbName: string, status?: string) =>
+    useQuery({
+        queryKey: ['sme', 'domain-risks', arbName, status],
+        queryFn: () => endpoints.getDomainRisksForArb(arbName, status),
+        enabled: !!arbName,
+        ...commonQuery
+    });
+
+export const useArbDashboard = (arbName: string, status?: string) =>
+    useQuery({
+        queryKey: ['sme', 'arb-dashboard', arbName, status],
+        queryFn: () => endpoints.getArbDashboard(arbName, status),
+        enabled: !!arbName,
+        ...commonQuery
+    });
+
+export const useArbSummary = (arbName: string, status?: string) =>
+    useQuery({
+        queryKey: ['sme', 'arb-summary', arbName, status],
+        queryFn: () => endpoints.getArbSummary(arbName, status),
+        enabled: !!arbName,
+        ...commonQuery
+    });
+
+export const useDomainRisk = (domainRiskId: string) =>
+    useQuery({
+        queryKey: ['sme', 'domain-risk', domainRiskId],
+        queryFn: () => endpoints.getDomainRiskById(domainRiskId),
+        enabled: !!domainRiskId,
+        ...commonQuery
+    });
+
+export const useDomainRiskItems = (domainRiskId: string) =>
+    useQuery({
+        queryKey: ['sme', 'domain-risk-items', domainRiskId],
+        queryFn: () => endpoints.getDomainRiskItems(domainRiskId),
+        enabled: !!domainRiskId,
+        ...commonQuery
+    });
+
+export const useDomainRisksForApp = (appId: string) =>
+    useQuery({
+        queryKey: ['sme', 'domain-risks-app', appId],
+        queryFn: () => endpoints.getDomainRisksForApp(appId),
+        enabled: !!appId,
+        ...commonQuery
+    });
+
+// Risk Comment Hooks
+export const useRiskComments = (riskItemId: string, includeInternal?: boolean) =>
+    useQuery({
+        queryKey: ['risk-comments', riskItemId, includeInternal],
+        queryFn: () => endpoints.getRiskItemComments(riskItemId, includeInternal),
+        enabled: !!riskItemId,
+        ...commonQuery
+    });
+
+export const useAddRiskComment = (riskItemId: string) => {
+    const qc = useQueryClient();
+    return useMutation({
+        mutationFn: (payload: { commentType: string; commentText: string; commentedBy: string; isInternal?: boolean }) =>
+            endpoints.addRiskItemComment(riskItemId, payload),
+        onSuccess: () => {
+            qc.invalidateQueries({ queryKey: ['risk-comments', riskItemId] });
+        },
+    });
+};
+
+export const useUpdateRiskStatus = (riskItemId: string) => {
+    const qc = useQueryClient();
+    return useMutation({
+        mutationFn: (payload: { status: string; resolution?: string; resolutionComment?: string }) =>
+            endpoints.updateRiskItemStatus(riskItemId, payload),
+        onSuccess: () => {
+            qc.invalidateQueries({ queryKey: ['risks'] });
+            qc.invalidateQueries({ queryKey: ['sme', 'domain-risks'] });
+            qc.invalidateQueries({ queryKey: ['sme', 'arb-dashboard'] });
+        },
+    });
+};
+

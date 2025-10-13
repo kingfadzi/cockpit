@@ -40,6 +40,7 @@ import {
     AccessTime as TimeIcon,
 } from '@mui/icons-material';
 import { useSubmitSmeReview, useProfileFieldEvidence } from '../../../api/hooks';
+import RiskCommentsPanel from './RiskCommentsPanel';
 
 interface RiskStoryModalProps {
     open: boolean;
@@ -212,6 +213,7 @@ export default function RiskStoryModal({ open, onClose, risk, smeId }: RiskStory
                     <Tabs value={activeTab} onChange={(e, newValue) => setActiveTab(newValue)} sx={{ px: 3, pt: 1 }}>
                         <Tab label="Risk Details" />
                         <Tab label="Jira Sync" />
+                        <Tab label="Comments" />
                     </Tabs>
 
                     <Box sx={{ p: 3 }}>
@@ -647,6 +649,11 @@ export default function RiskStoryModal({ open, onClose, risk, smeId }: RiskStory
                                     </Paper>
                                 </Box>
                             </Stack>
+                        )}
+
+                        {/* Tab 3: Comments */}
+                        {activeTab === 2 && risk?.riskId && (
+                            <RiskCommentsPanel riskItemId={risk.riskId} currentUserId={smeId} />
                         )}
                     </Box>
                 </Box>

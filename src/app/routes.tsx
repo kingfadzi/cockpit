@@ -13,6 +13,7 @@ import AppProfilePage from '../features/profile/AppProfilePage';
 import POProfilePage from '../features/profile/POProfilePage';
 import SecuritySmeView from '../features/sme/views/SecuritySmeView';
 import PendingReviewPage from '../features/profile/components/PendingReviewPage';
+import ArbHome from '../features/sme/ArbHome';
 
 export const router = createBrowserRouter([
   {
@@ -35,6 +36,10 @@ export const router = createBrowserRouter([
       { path: 'sme/data-architecture', element: <div>Data Architecture SME View (Coming Soon)</div> },
       { path: 'sme/service-transition', element: <div>Service Transition SME View (Coming Soon)</div> },
       { path: 'sme/enterprise-architecture', element: <div>Enterprise Architecture SME View (Coming Soon)</div> },
+
+      // ARB Dashboard routes - single dynamic route
+      { path: 'sme/arb/:arbName', element: <ArbHome /> },
+
       { path: 'search', element: <div>Search (placeholder)</div> },
     ],
   },

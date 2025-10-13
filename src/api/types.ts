@@ -482,3 +482,189 @@ export interface RiskBlockedSummary {
   application_tier?: string;
   derived_from?: string;
 }
+
+// ==========================================
+// SME Dashboard Types
+// ==========================================
+
+// Evidence Review Types
+export interface PendingEvidenceItem {
+  evidenceId: string;
+  appId: string;
+  appName?: string;
+  profileFieldId: string;
+  fieldKey: string;
+  fieldLabel: string;
+  uri?: string;
+  type?: string;
+  documentTitle?: string;
+  linkStatus: 'PENDING_SME_REVIEW' | 'APPROVED' | 'REJECTED';
+  submittedBy?: string;
+  linkedAt: string;
+  linkedBy?: string;
+  validFrom?: string;
+  validUntil?: string;
+  priority?: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW';
+  domain?: string;
+  criticality?: string;
+}
+
+export interface EvidenceReviewRequest {
+  action: 'approve' | 'reject';
+  reviewerId: string;
+  reviewComment?: string;
+}
+
+export interface EvidenceReviewResponse {
+  evidenceId: string;
+  profileFieldId: string;
+  linkStatus: 'APPROVED' | 'REJECTED';
+  linkedBy?: string;
+  linkedAt: string;
+  reviewedBy: string;
+  reviewedAt: string;
+  reviewComment?: string;
+}
+
+// Domain Risk Types
+export interface DomainRiskResponse {
+  domainRiskId: string;
+  appId: string;
+  domain: string;
+  derivedFrom?: string;
+  arb: string;
+  title: string;
+  description?: string;
+  totalItems: number;
+  openItems: number;
+  highPriorityItems: number;
+  overallPriority: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW';
+  overallSeverity: 'critical' | 'high' | 'medium' | 'low';
+  priorityScore: number;
+  status: DomainRiskStatus;
+  assignedArb: string;
+  assignedAt?: string;
+  openedAt: string;
+  closedAt?: string;
+  lastItemAddedAt?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type DomainRiskStatus =
+  | 'PENDING_ARB_REVIEW'
+  | 'UNDER_ARB_REVIEW'
+  | 'AWAITING_REMEDIATION'
+  | 'IN_PROGRESS'
+  | 'RESOLVED'
+  | 'WAIVED'
+  | 'CLOSED';
+
+export interface DomainSummaryResponse {
+  domain: string;
+  count: number;
+  totalOpenItems: number;
+  avgPriorityScore: number;
+}
+
+export interface ArbDashboardResponse {
+  arbName: string;
+  overview: {
+    totalDomainRisks: number;
+    totalOpenItems: number;
+    criticalCount: number;
+    highCount: number;
+    averagePriorityScore: number;
+    needsImmediateAttention: number;
+  };
+  domains: Array<{
+    domain: string;
+    riskCount: number;
+    openItems: number;
+    criticalItems: number;
+    avgPriorityScore: number;
+    topPriorityStatus: string;
+  }>;
+  topApplications: Array<{
+    appId: string;
+    appName?: string;
+    domainRiskCount: number;
+    totalOpenItems: number;
+    highestPriorityScore: number;
+    criticalDomain: string;
+  }>;
+  statusDistribution: Record<string, number>;
+  priorityDistribution: Record<string, number>;
+  recentActivity: {
+    newRisksLast7Days: number;
+    newRisksLast30Days: number;
+    resolvedLast7Days: number;
+    resolvedLast30Days: number;
+  };
+}
+
+// Risk Item Types (Enhanced from existing)
+export interface RiskItemResponse {
+  riskItemId: string;
+  domainRiskId: string;
+  appId: string;
+  fieldKey?: string;
+  profileFieldId?: string;
+  triggeringEvidenceId?: string;
+  trackId?: string;
+  title: string;
+  description?: string;
+  priority: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW';
+  severity: 'critical' | 'high' | 'medium' | 'low';
+  priorityScore: number;
+  evidenceStatus?: string;
+  status: RiskItemStatus;
+  resolution?: string;
+  resolutionComment?: string;
+  creationType: 'SYSTEM_AUTO_CREATION' | 'MANUAL_CREATION' | 'MANUAL_SME_INITIATED' | 'AUTO';
+  raisedBy: string;
+  openedAt: string;
+  resolvedAt?: string;
+  policyRequirementSnapshot?: PolicyRequirementSnapshot;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type RiskItemStatus =
+  | 'OPEN'
+  | 'IN_PROGRESS'
+  | 'RESOLVED'
+  | 'WAIVED'
+  | 'CLOSED';
+
+export interface RiskStatusUpdateRequest {
+  status: RiskItemStatus;
+  resolution?: string;
+  resolutionComment?: string;
+}
+
+// Risk Comment Types
+export interface RiskComment {
+  commentId: string;
+  riskItemId: string;
+  commentType: RiskCommentType;
+  commentText: string;
+  commentedBy: string;
+  commentedAt: string;
+  isInternal: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type RiskCommentType =
+  | 'GENERAL'
+  | 'REVIEW'
+  | 'STATUS_CHANGE'
+  | 'RESOLUTION';
+
+export interface RiskCommentRequest {
+  commentType: RiskCommentType;
+  commentText: string;
+  commentedBy: string;
+  isInternal?: boolean;
+}

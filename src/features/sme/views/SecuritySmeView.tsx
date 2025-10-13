@@ -21,7 +21,10 @@ import {
     Grid,
     TextField,
     InputAdornment,
-    Pagination
+    Pagination,
+    Tabs,
+    Tab,
+    Badge
 } from '@mui/material';
 import {
     Security as SecurityIcon,
@@ -36,10 +39,11 @@ import {
     Search as SearchIcon
 } from '@mui/icons-material';
 import SectionHeader from '../../../components/SectionHeader';
-import { useSmeReviewQueue, useSmeSecurityDomainRisks, useSmeCrossDomainRisks, useSmeAllOpenRisks, useSubmitSmeReview } from '../../../api/hooks';
+import { useSmeReviewQueue, useSmeSecurityDomainRisks, useSmeCrossDomainRisks, useSmeAllOpenRisks, useSubmitSmeReview, usePendingSmeEvidence } from '../../../api/hooks';
 import RaiseRiskModal from '../components/RaiseRiskModal';
 import AppSecurityReviewModal from '../components/AppSecurityReviewModal';
 import RiskStoryModal from '../components/RiskStoryModal';
+import PendingEvidenceView from './PendingEvidenceView';
 
 const getCriticalityBadge = (criticality: 'A' | 'B' | 'C' | 'D', appName: string) => {
     const colors = {
@@ -68,14 +72,19 @@ const getCriticalityBadge = (criticality: 'A' | 'B' | 'C' | 'D', appName: string
 export default function SecuritySmeView() {
     // Hardcoded SME ID for development
     const smeId = 'security_sme_001';
-    
+    const smeEmail = 'security_sme@company.com';
+
+    // Tab state
+    const [currentTab, setCurrentTab] = useState(0);
+
     // Fetch data using real hooks
     const { data: reviewQueue = [], isLoading: queueLoading } = useSmeReviewQueue(smeId);
     const { data: securityDomainRisks = [], isLoading: domainLoading } = useSmeSecurityDomainRisks(smeId);
     const { data: crossDomainRisks = [], isLoading: crossDomainLoading } = useSmeCrossDomainRisks(smeId);
     const { data: allOpenRisksData = [], isLoading: allRisksLoading } = useSmeAllOpenRisks(smeId);
+    const { data: pendingEvidence = [] } = usePendingSmeEvidence(smeEmail);
     const submitReviewMutation = useSubmitSmeReview();
-    
+
     const [raiseRiskModalOpen, setRaiseRiskModalOpen] = useState(false);
     const [selectedItem, setSelectedItem] = useState<any>(null);
     const [securityModalOpen, setSecurityModalOpen] = useState(false);
@@ -293,8 +302,8 @@ export default function SecuritySmeView() {
 
     return (
         <Stack spacing={3}>
-            <SectionHeader 
-                title="Security SME Dashboard" 
+            <SectionHeader
+                title="Security SME Dashboard"
                 subtitle={
                     <Stack spacing={1}>
                         <Typography variant="body2" color="text.secondary">
@@ -317,7 +326,41 @@ export default function SecuritySmeView() {
                 icon={<SecurityIcon />}
             />
 
-            {/* Section 1: My Review Queue (Specific Assignments) */}
+            {/* Tab Navigation */}
+            <Card variant="outlined">
+                <Tabs
+                    value={currentTab}
+                    onChange={(_, newValue) => setCurrentTab(newValue)}
+                    sx={{ borderBottom: 1, borderColor: 'divider', px: 2 }}
+                >
+                    <Tab
+                        label={
+                            <Badge badgeContent={pendingEvidence.length} color="warning" max={99}>
+                                <span>Pending Evidence</span>
+                            </Badge>
+                        }
+                        sx={{ textTransform: 'none', fontWeight: 600 }}
+                    />
+                    <Tab
+                        label={
+                            <Badge badgeContent={filteredAssignments.length + allOpenRisks.length} color="primary" max={99}>
+                                <span>My Queue</span>
+                            </Badge>
+                        }
+                        sx={{ textTransform: 'none', fontWeight: 600 }}
+                    />
+                </Tabs>
+            </Card>
+
+            {/* Tab 0: Pending Evidence */}
+            {currentTab === 0 && (
+                <PendingEvidenceView smeEmail={smeEmail} />
+            )}
+
+            {/* Tab 1: My Queue */}
+            {currentTab === 1 && (
+                <Stack spacing={3}>
+                    {/* Section 1: My Review Queue (Specific Assignments) */}
             <Card variant="outlined">
                 <Box sx={{ p: 2 }}>
                     <Typography variant="h6" fontWeight={700} sx={{ mb: 2 }}>
@@ -683,13 +726,16 @@ export default function SecuritySmeView() {
                 </CardContent>
             </Card>
 
-            {/* Footer */}
-            <Box sx={{ textAlign: 'center', py: 2 }}>
-                <Button variant="outlined" href="/po/evidence">
-                    View Full Evidence Catalog
-                </Button>
-            </Box>
+                    {/* Footer */}
+                    <Box sx={{ textAlign: 'center', py: 2 }}>
+                        <Button variant="outlined" href="/po/evidence">
+                            View Full Evidence Catalog
+                        </Button>
+                    </Box>
+                </Stack>
+            )}
 
+            {/* Modals (available in all tabs) */}
             <RaiseRiskModal
                 open={raiseRiskModalOpen}
                 onClose={() => setRaiseRiskModalOpen(false)}
