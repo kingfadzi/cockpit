@@ -217,7 +217,7 @@ export const useRisk = (riskId: string) =>
         ...commonQuery,
     });
 
-export const useAppRisks = (appId: string, page?: number, size?: number, filters?: { status?: string; severity?: string; assignedSme?: string; search?: string }) =>
+export const useAppRisks = (appId: string, page?: number, size?: number, filters?: { status?: string; severity?: string; assignedSme?: string; search?: string; domain?: string }) =>
     useQuery({
         queryKey: ['risks', appId, page, size, filters],
         queryFn: () => endpoints.getAppRisks(appId, page, size, filters),

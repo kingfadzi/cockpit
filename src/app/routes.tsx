@@ -14,6 +14,7 @@ import POProfilePage from '../features/profile/POProfilePage';
 import SecuritySmeView from '../features/sme/views/SecuritySmeView';
 import PendingReviewPage from '../features/profile/components/PendingReviewPage';
 import ArbHome from '../features/sme/ArbHome';
+import SMEProfilePage from '../features/profile/SMEProfilePage';
 
 export const router = createBrowserRouter([
   {
@@ -39,6 +40,8 @@ export const router = createBrowserRouter([
 
       // ARB Dashboard routes - single dynamic route
       { path: 'sme/arb/:arbName', element: <ArbHome /> },
+      // ARB Application Profile - reuses PO profile structure with SME role
+      { path: 'sme/arb/:arbName/apps/:appId', element: <SMEProfilePage /> },
 
       { path: 'search', element: <div>Search (placeholder)</div> },
     ],

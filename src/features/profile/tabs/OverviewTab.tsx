@@ -65,9 +65,25 @@ export default function OverviewTab({ appId, onTabChange }: OverviewTabProps) {
 
     if (appError) {
         return (
-            <Alert severity="error">
-                Failed to load application data. Please try again later.
-            </Alert>
+            <Stack spacing={2}>
+                <Alert severity="warning">
+                    Application overview data is not available at this time.
+                </Alert>
+                <Typography variant="body2" color="text.secondary" sx={{ px: 2 }}>
+                    The Overview tab requires backend data integration. You can still access:
+                </Typography>
+                <Stack direction="row" spacing={1} sx={{ px: 2 }}>
+                    <Button variant="outlined" size="small" onClick={() => onTabChange?.('profile')}>
+                        View Profile
+                    </Button>
+                    <Button variant="outlined" size="small" onClick={() => onTabChange?.('risks')}>
+                        View Risks
+                    </Button>
+                    <Button variant="outlined" size="small" onClick={() => onTabChange?.('evidence')}>
+                        View Evidence
+                    </Button>
+                </Stack>
+            </Stack>
         );
     }
 

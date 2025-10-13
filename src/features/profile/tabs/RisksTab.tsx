@@ -70,6 +70,7 @@ export default function RisksTab({ appId, userRole = 'po', smeId }: RisksTabProp
     const [statusFilter, setStatusFilter] = useState<string>('');
     const [severityFilter, setSeverityFilter] = useState<string>('');
     const [smeFilter, setSmeFilter] = useState<string>('');
+    const [domainFilter, setDomainFilter] = useState<string>('');
     const [page, setPage] = useState(0);
     const [rowsPerPage, setRowsPerPage] = useState(5);
     const [newRisk, setNewRisk] = useState<CreateRiskForm>({
@@ -85,7 +86,8 @@ export default function RisksTab({ appId, userRole = 'po', smeId }: RisksTabProp
         ...(searchTerm && { search: searchTerm }),
         ...(statusFilter && { status: statusFilter }),
         ...(severityFilter && { severity: severityFilter }),
-        ...(smeFilter && { assignedSme: smeFilter === 'UNASSIGNED' ? '' : smeFilter })
+        ...(smeFilter && { assignedSme: smeFilter === 'UNASSIGNED' ? '' : smeFilter }),
+        ...(domainFilter && { domain: domainFilter })
     };
 
     // API hooks
@@ -98,6 +100,35 @@ export default function RisksTab({ appId, userRole = 'po', smeId }: RisksTabProp
     // Get unique SMEs for filter dropdown from current page results
     const uniqueSmes = useMemo(() => {
         return Array.from(new Set(risks.map(r => r.assignedSme).filter(Boolean))).sort();
+    }, [risks]);
+
+    // Helper function to extract domain from risk
+    const extractDomain = (risk: RiskStory): string | null => {
+        // Try to get domain from policy requirement snapshot active rule
+        const activeRule = risk.policyRequirementSnapshot?.activeRule;
+        if (activeRule) {
+            if (activeRule.security_rating) return 'security';
+            if (activeRule.confidentiality_rating) return 'confidentiality';
+            if (activeRule.availability_rating) return 'availability';
+            if (activeRule.integrity_rating) return 'integrity';
+            if (activeRule.resilience_rating) return 'resilience';
+        }
+
+        // Fallback: derive from fieldKey if it contains domain keywords
+        const fieldKey = risk.fieldKey?.toLowerCase() || '';
+        if (fieldKey.includes('encrypt') || fieldKey.includes('security') || fieldKey.includes('mfa') || fieldKey.includes('auth')) return 'security';
+        if (fieldKey.includes('backup') || fieldKey.includes('integrity')) return 'integrity';
+        if (fieldKey.includes('rto') || fieldKey.includes('availability') || fieldKey.includes('uptime')) return 'availability';
+        if (fieldKey.includes('confidential') || fieldKey.includes('privacy')) return 'confidentiality';
+        if (fieldKey.includes('resilience') || fieldKey.includes('recovery')) return 'resilience';
+
+        return null;
+    };
+
+    // Get unique domains for filter dropdown from current page results
+    const uniqueDomains = useMemo(() => {
+        const domains = risks.map(r => extractDomain(r)).filter(Boolean) as string[];
+        return Array.from(new Set(domains)).sort();
     }, [risks]);
 
     const handleCreateRisk = async () => {
@@ -236,6 +267,7 @@ export default function RisksTab({ appId, userRole = 'po', smeId }: RisksTabProp
         setStatusFilter('');
         setSeverityFilter('');
         setSmeFilter('');
+        setDomainFilter('');
         setPage(0);
     };
 
@@ -260,6 +292,11 @@ export default function RisksTab({ appId, userRole = 'po', smeId }: RisksTabProp
         setPage(0);
     };
 
+    const handleDomainFilterChange = (newDomain: string) => {
+        setDomainFilter(newDomain);
+        setPage(0);
+    };
+
     return (
         <Stack spacing={3}>
             {/* Header */}
@@ -272,7 +309,7 @@ export default function RisksTab({ appId, userRole = 'po', smeId }: RisksTabProp
                         Security and compliance risks identified for {appId}
                     </Typography>
                 </Stack>
-                {userRole === 'po' && (
+                {userRole === 'sme' && (
                     <Button
                         variant="contained"
                         startIcon={<AddIcon />}
@@ -287,7 +324,7 @@ export default function RisksTab({ appId, userRole = 'po', smeId }: RisksTabProp
             {/* Search and Filter Controls */}
             <Paper variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
                 <Grid container spacing={2} alignItems="center">
-                    <Grid item xs={12} sm={4}>
+                    <Grid item xs={12} sm={3}>
                         <TextField
                             placeholder="Search risks..."
                             value={searchTerm}
@@ -303,7 +340,24 @@ export default function RisksTab({ appId, userRole = 'po', smeId }: RisksTabProp
                             }}
                         />
                     </Grid>
-                    <Grid item xs={6} sm={2}>
+                    <Grid item xs={6} sm={1.5}>
+                        <FormControl size="small" fullWidth>
+                            <InputLabel>Domain</InputLabel>
+                            <Select
+                                value={domainFilter}
+                                label="Domain"
+                                onChange={(e) => handleDomainFilterChange(e.target.value)}
+                            >
+                                <MenuItem value="">All</MenuItem>
+                                {uniqueDomains.map((domain) => (
+                                    <MenuItem key={domain} value={domain}>
+                                        {domain.charAt(0).toUpperCase() + domain.slice(1)}
+                                    </MenuItem>
+                                ))}
+                            </Select>
+                        </FormControl>
+                    </Grid>
+                    <Grid item xs={6} sm={1.5}>
                         <FormControl size="small" fullWidth>
                             <InputLabel>Status</InputLabel>
                             <Select
@@ -324,7 +378,7 @@ export default function RisksTab({ appId, userRole = 'po', smeId }: RisksTabProp
                             </Select>
                         </FormControl>
                     </Grid>
-                    <Grid item xs={6} sm={2}>
+                    <Grid item xs={6} sm={1.5}>
                         <FormControl size="small" fullWidth>
                             <InputLabel>Severity</InputLabel>
                             <Select
@@ -358,12 +412,12 @@ export default function RisksTab({ appId, userRole = 'po', smeId }: RisksTabProp
                             </Select>
                         </FormControl>
                     </Grid>
-                    <Grid item xs={6} sm={2}>
+                    <Grid item xs={6} sm={2.5}>
                         <Button
                             variant="outlined"
                             size="small"
                             onClick={clearFilters}
-                            disabled={!searchTerm && !statusFilter && !severityFilter && !smeFilter}
+                            disabled={!searchTerm && !statusFilter && !severityFilter && !smeFilter && !domainFilter}
                             fullWidth
                         >
                             Clear
@@ -389,7 +443,7 @@ export default function RisksTab({ appId, userRole = 'po', smeId }: RisksTabProp
                     <Typography variant="body2" color="text.secondary" sx={{ mb: 3, maxWidth: 400, mx: 'auto' }}>
                         No security or compliance risks have been identified for this application yet.
                     </Typography>
-                    {userRole === 'po' && (
+                    {userRole === 'sme' && (
                         <Button
                             variant="contained"
                             size="large"
@@ -407,6 +461,7 @@ export default function RisksTab({ appId, userRole = 'po', smeId }: RisksTabProp
                             <TableHead>
                                 <TableRow>
                                     <TableCell sx={{ minWidth: 250 }}>Risk Title</TableCell>
+                                    <TableCell sx={{ minWidth: 100 }}>Domain</TableCell>
                                     <TableCell sx={{ minWidth: 100 }}>Severity</TableCell>
                                     <TableCell sx={{ minWidth: 120 }}>Status</TableCell>
                                     <TableCell sx={{ minWidth: 120 }}>Assigned SME</TableCell>
@@ -419,6 +474,7 @@ export default function RisksTab({ appId, userRole = 'po', smeId }: RisksTabProp
                                     [...Array(3)].map((_, index) => (
                                         <TableRow key={index}>
                                             <TableCell>Loading...</TableCell>
+                                            <TableCell>—</TableCell>
                                             <TableCell>—</TableCell>
                                             <TableCell>—</TableCell>
                                             <TableCell>—</TableCell>
@@ -443,7 +499,7 @@ export default function RisksTab({ appId, userRole = 'po', smeId }: RisksTabProp
                                                     <Typography variant="body2" fontWeight={600}>
                                                         {risk.title}
                                                     </Typography>
-                                                    <Typography variant="caption" color="text.secondary" sx={{ 
+                                                    <Typography variant="caption" color="text.secondary" sx={{
                                                         display: '-webkit-box',
                                                         WebkitLineClamp: 2,
                                                         WebkitBoxOrient: 'vertical',
@@ -453,6 +509,23 @@ export default function RisksTab({ appId, userRole = 'po', smeId }: RisksTabProp
                                                         {risk.description}
                                                     </Typography>
                                                 </Stack>
+                                            </TableCell>
+                                            <TableCell>
+                                                {(() => {
+                                                    const domain = extractDomain(risk);
+                                                    return domain ? (
+                                                        <Chip
+                                                            size="small"
+                                                            variant="outlined"
+                                                            label={domain.charAt(0).toUpperCase() + domain.slice(1)}
+                                                            color="primary"
+                                                        />
+                                                    ) : (
+                                                        <Typography variant="body2" color="text.secondary">
+                                                            —
+                                                        </Typography>
+                                                    );
+                                                })()}
                                             </TableCell>
                                             <TableCell>
                                                 <Chip

@@ -1,0 +1,610 @@
+version: 1
+updated_at: 2025-08-29
+
+fields:
+  # ---- Confidentiality
+  - key: confidentiality_level
+    label: Confidentiality Level
+    derived_from: confidentiality_rating
+    arb: data
+    rule:
+      A: { value: restricted,   label: "Restricted",   ttl: 90d, requires_review: true, priority: CRITICAL }
+      B: { value: confidential, label: "Confidential", ttl: 90d, requires_review: true, priority: HIGH }
+      C: { value: internal,     label: "Internal",     ttl: 180d, requires_review: false, priority: MEDIUM }
+      D: { value: public,       label: "Public",       ttl: 365d, requires_review: false, priority: LOW }
+    compliance_frameworks:
+      - framework: Internal
+        controls: ["TBD"]
+
+  - key: data_residency_control
+    label: Data Residency Control
+    derived_from: confidentiality_rating
+    arb: data
+    rule:
+      A: {value: required_in_region,      label: "Required in-region",      ttl: 90d, requires_review: true, priority: CRITICAL }
+      B: {value: preferred_in_region,     label: "Preferred in-region",     ttl: 90d, requires_review: true, priority: HIGH }
+      C: {value: permitted_cross_region,  label: "Permitted cross-region",  ttl: 180d, requires_review: false, priority: MEDIUM }
+      D: {value: unrestricted,            label: "Unrestricted",            ttl: 365d, requires_review: false, priority: LOW }
+    compliance_frameworks:
+      - framework: Internal
+        controls: ["TBD"]
+
+  - key: de_identification
+    label: De-Identification
+    derived_from: confidentiality_rating
+    arb: data
+    rule:
+      A: {value: mandatory_strong, label: "Mandatory (strong)", ttl: 90d, requires_review: true, priority: CRITICAL }
+      B: {value: required,         label: "Required",           ttl: 90d, requires_review: true, priority: HIGH }
+      C: {value: recommended,      label: "Recommended",        ttl: 180d, requires_review: false, priority: MEDIUM }
+      D: {value: optional,         label: "Optional",           ttl: 365d, requires_review: false, priority: LOW }
+    compliance_frameworks:
+      - framework: Internal
+        controls: ["TBD"]
+
+  # ---- Security
+  - key: encryption_at_rest
+    label: Encryption at Rest
+    derived_from: security_rating
+    arb: security
+    rule:
+      A1: { value: required, label: "Required", ttl: 90d, requires_review: true, priority: CRITICAL }
+      A2: { value: required, label: "Required", ttl: 90d, requires_review: true, priority: HIGH }
+      B:  { value: required, label: "Required", ttl: 180d, requires_review: true, priority: MEDIUM }
+      C:  { value: optional, label: "Optional", ttl: 365d, requires_review: false, priority: LOW }
+      D:  { value: optional, label: "Optional", ttl: 365d, requires_review: false, priority: LOW }
+    compliance_frameworks:
+      - framework: Internal
+        controls: ["TBD"]
+
+  - key: encryption_in_transit
+    label: Encryption in Transit
+    derived_from: security_rating
+    arb: security
+    rule:
+      A1: {value: required,    label: "Required",    ttl: 90d, requires_review: true, priority: CRITICAL }
+      A2: {value: required,    label: "Required",    ttl: 90d, requires_review: true, priority: HIGH }
+      B: {value: required,    label: "Required",    ttl: 180d, requires_review: true, priority: HIGH }
+      C: {value: recommended, label: "Recommended", ttl: 365d, requires_review: false, priority: MEDIUM }
+      D: {value: recommended, label: "Recommended", ttl: 365d, requires_review: false, priority: LOW }
+    compliance_frameworks:
+      - framework: Internal
+        controls: ["TBD"]
+
+  - key: security_testing
+    label: Security Testing
+    derived_from: security_rating
+    arb: security
+    rule:
+      A1: {value: external_pentest_annual+continuous_scans, label: "External pentest (annual) + continuous scans", ttl: 365d, requires_review: true, priority: CRITICAL }
+      A2: {value: internal_pentest_annual+continuous_scans, label: "Internal pentest (annual) + continuous scans", ttl: 365d, requires_review: true, priority: HIGH }
+      B: {value: sast+dast_quarterly_scan,                  label: "SAST + quarterly DAST",                         ttl: 90d, requires_review: true, priority: HIGH }
+      C: {value: sast_on_release,                           label: "SAST on release",                               ttl: 180d, requires_review: false, priority: MEDIUM }
+      D: {value: sast_optional,                             label: "SAST optional",                                 ttl: 365d, requires_review: false, priority: LOW }
+    compliance_frameworks:
+      - framework: Internal
+        controls: ["TBD"]
+
+  - key: secrets_management
+    label: Secrets Management
+    derived_from: security_rating
+    arb: security
+    rule:
+      A1: {value: centralized_required,    label: "Centralized (required)",    ttl: 90d, requires_review: true, priority: CRITICAL }
+      A2: {value: centralized_required,    label: "Centralized (required)",    ttl: 90d, requires_review: true, priority: HIGH }
+      B: {value: centralized_recommended, label: "Centralized (recommended)", ttl: 180d, requires_review: true, priority: HIGH }
+      C: {value: centralized_recommended, label: "Centralized (recommended)", ttl: 365d, requires_review: false, priority: MEDIUM }
+      D: {value: minimal_ok,              label: "Minimal acceptable",        ttl: 365d, requires_review: false, priority: LOW }
+    compliance_frameworks:
+      - framework: SOC2
+        controls: [ "CC6.1" ]
+      - framework: PCI_DSS
+        controls: [ "3.4" ]
+
+  - key: key_rotation_max
+    label: Key Rotation Max
+    derived_from: security_rating
+    arb: security
+    rule:
+      A1: {value: 90d,  label: "Rotate ≤ 90 days",  ttl: 90d, requires_review: true, priority: CRITICAL }
+      A2: {value: 180d, label: "Rotate ≤ 180 days", ttl: 180d, requires_review: true, priority: HIGH }
+      B: {value: 365d, label: "Rotate ≤ 365 days", ttl: 365d, requires_review: true, priority: HIGH }
+      C: {value: 365d, label: "Rotate ≤ 365 days", ttl: 365d, requires_review: false, priority: MEDIUM }
+      D: {value: n/a,  label: "Not applicable",    ttl: 0d, requires_review: false, priority: LOW }
+    compliance_frameworks:
+      - framework: Internal
+        controls: ["TBD"]
+
+  # ---- Integrity
+  - key: data_validation
+    label: Data Validation
+    derived_from: integrity_rating
+    arb: data
+    rule:
+      A: {value: dual_control,        label: "Dual control",        ttl: 90d, requires_review: true, priority: CRITICAL }
+      B: {value: strong_validation,   label: "Strong validation",   ttl: 90d, requires_review: true, priority: HIGH }
+      C: {value: standard_validation, label: "Standard validation", ttl: 180d, requires_review: false, priority: MEDIUM }
+      D: {value: minimal_validation,  label: "Minimal validation",  ttl: 365d, requires_review: false, priority: LOW }
+    compliance_frameworks:
+      - framework: Internal
+        controls: ["TBD"]
+
+  - key: reconciliation_frequency
+    label: Reconciliation Frequency
+    derived_from: integrity_rating
+    arb: data
+    rule:
+      A: {value: daily,       label: "Daily",        ttl: 90d, requires_review: true, priority: CRITICAL }
+      B: {value: weekly,      label: "Weekly",       ttl: 30d, requires_review: true, priority: HIGH }
+      C: {value: per_release, label: "Per release",  ttl: 180d, requires_review: false, priority: MEDIUM }
+      D: {value: ad_hoc,      label: "Ad hoc",       ttl: 180d, requires_review: false, priority: LOW }
+    compliance_frameworks:
+      - framework: Internal
+        controls: ["TBD"]
+
+  - key: audit_logging
+    label: Audit Logging
+    derived_from: integrity_rating
+    arb: data
+    rule:
+      A: {value: full_with_daily_review,      label: "Full logging + daily review",      ttl: 90d, requires_review: true, priority: CRITICAL }
+      B: {value: full_with_periodic_review,   label: "Full logging + periodic review",   ttl: 90d, requires_review: true, priority: HIGH }
+      C: {value: logging_enabled+sampled_review, label: "Logging enabled + sampled review", ttl: 180d, requires_review: false, priority: MEDIUM }
+      D: {value: basic_logging,               label: "Basic logging",                    ttl: 365d, requires_review: false, priority: LOW }
+    compliance_frameworks:
+      - framework: Internal
+        controls: ["TBD"]
+
+  - key: change_control
+    label: Change Control
+    derived_from: integrity_rating
+    arb: data
+    rule:
+      A: {value: independent_review+regression_suite, label: "Independent review + regression suite", ttl: 90d, requires_review: true, priority: CRITICAL }
+      B: {value: peer_review+regression_suite,        label: "Peer review + regression suite",        ttl: 90d, requires_review: true, priority: HIGH }
+      C: {value: peer_review+unit_tests,              label: "Peer review + unit tests",              ttl: 90d, requires_review: false, priority: MEDIUM }
+      D: {value: optional_peer_review,                label: "Optional peer review",                  ttl: 180d, requires_review: false, priority: LOW }
+    compliance_frameworks:
+      - framework: Internal
+        controls: ["TBD"]
+
+  - key: immutability_required
+    label: Immutability Required
+    derived_from: integrity_rating
+    arb: data
+    rule:
+      A: {value: yes, label: "Yes", ttl: 90d, requires_review: true, priority: CRITICAL }
+      B: {value: yes, label: "Yes", ttl: 90d, requires_review: true, priority: HIGH }
+      C: {value: no,  label: "No",  ttl: 180d, requires_review: false, priority: MEDIUM }
+      D: {value: no,  label: "No",  ttl: 365d, requires_review: false, priority: LOW }
+    compliance_frameworks:
+      - framework: Internal
+        controls: ["TBD"]
+
+  # ---- Availability
+  - key: rto_hours
+    label: RTO (hours)
+    derived_from: availability_rating
+    arb: operations
+    rule:
+      A: {value: 1,          label: "≤ 1 hour",          ttl: 90d, requires_review: true, priority: CRITICAL }
+      B: {value: 4,          label: "≤ 4 hours",         ttl: 90d, requires_review: true, priority: HIGH }
+      C: {value: 24,         label: "≤ 24 hours",        ttl: 180d, requires_review: false, priority: MEDIUM }
+      D: {value: best_effort,label: "Best effort",       ttl: 365d, requires_review: false, priority: LOW }
+    compliance_frameworks:
+      - framework: Internal
+        controls: ["TBD"]
+
+  - key: rpo_minutes
+    label: RPO (minutes)
+    derived_from: availability_rating
+    arb: operations
+    rule:
+      A: {value: 5,          label: "≤ 5 minutes",       ttl: 90d, requires_review: true, priority: CRITICAL }
+      B: {value: 60,         label: "≤ 60 minutes",      ttl: 90d, requires_review: true, priority: HIGH }
+      C: {value: 240,        label: "≤ 240 minutes",     ttl: 180d, requires_review: false, priority: MEDIUM }
+      D: {value: best_effort,label: "Best effort",       ttl: 365d, requires_review: false, priority: LOW }
+    compliance_frameworks:
+      - framework: Internal
+        controls: ["TBD"]
+
+  - key: ha_topology
+    label: HA Topology
+    derived_from: availability_rating
+    arb: operations
+    rule:
+      A: {value: active_active,  label: "Active-Active",  ttl: 90d, requires_review: true, priority: CRITICAL }
+      B: {value: active_passive, label: "Active-Passive", ttl: 90d, requires_review: true, priority: HIGH }
+      C: {value: backup_restore, label: "Backup/Restore", ttl: 180d, requires_review: false, priority: MEDIUM }
+      D: {value: none,           label: "None",           ttl: 365d, requires_review: false, priority: LOW }
+    compliance_frameworks:
+      - framework: Internal
+        controls: ["TBD"]
+
+  - key: monitoring_slos
+    label: Monitoring SLOs
+    derived_from: availability_rating
+    arb: operations
+    rule:
+      A: {value: "99.9+_with_alerting", label: "≥99.9% with alerting", ttl: 90d, requires_review: true, priority: CRITICAL }
+      B: {value: "99.5_with_alerting",  label: "≥99.5% with alerting", ttl: 90d, requires_review: true, priority: HIGH }
+      C: {value: "99.0",                label: "≥99.0%",               ttl: 180d, requires_review: false, priority: MEDIUM }
+      D: {value: none,                  label: "None",                  ttl: 365d, requires_review: false, priority: LOW }
+    compliance_frameworks:
+      - framework: Internal
+        controls: ["TBD"]
+
+  - key: oncall_coverage
+    label: On-call Coverage
+    derived_from: availability_rating
+    arb: operations
+    rule:
+      A: {value: "24x7",           label: "24×7",           ttl: 90d, requires_review: true, priority: CRITICAL }
+      B: {value: "16x5",           label: "16×5",           ttl: 90d, requires_review: true, priority: HIGH }
+      C: {value: "business_hours", label: "Business hours", ttl: 90d, requires_review: false, priority: MEDIUM }
+      D: {value: none,             label: "None",           ttl: 365d, requires_review: false, priority: LOW }
+    compliance_frameworks:
+      - framework: Internal
+        controls: ["TBD"]
+
+  # ---- Resilience
+  - key: dr_test_frequency
+    label: DR Test Frequency
+    derived_from: resilience_rating
+    arb: operations
+    rule:
+      "0": {value: semi_annual_live, ttl: 180d, label: "Semi-annual live", requires_review: true, priority: CRITICAL }
+      "1": {value: annual_live,      ttl: 365d, label: "Annual live", requires_review: true, priority: HIGH }
+      "2": {value: annual_tabletop,  ttl: 180d, label: "Annual tabletop", requires_review: false, priority: MEDIUM }
+      "3": {value: ad_hoc_tabletop,  ttl: 365d, label: "Ad-hoc tabletop", requires_review: false, priority: LOW }
+      "4": {value: none,             ttl: 0d,   label: "None", requires_review: false, priority: LOW }
+    compliance_frameworks:
+      - framework: Internal
+        controls: ["TBD"]
+
+  - key: backup_policy
+    label: Backup Policy
+    derived_from: resilience_rating
+    arb: operations
+    rule:
+      "0": {value: encrypted_geo_redundant+tested_restores, label: "Encrypted geo-redundant + tested restores", ttl: 90d, requires_review: true, priority: CRITICAL }
+      "1": {value: encrypted+tested_restores,                label: "Encrypted + tested restores",              ttl: 90d, requires_review: true, priority: HIGH }
+      "2": {value: standard_backups+periodic_restore_test,   label: "Standard + periodic restore test",         ttl: 180d, requires_review: false, priority: MEDIUM }
+      "3": {value: standard_backups,                         label: "Standard backups",                          ttl: 365d, requires_review: false, priority: LOW }
+      "4": {value: optional,                                 label: "Optional",                                  ttl: 0d, requires_review: false, priority: LOW }
+    compliance_frameworks:
+      - framework: Internal
+        controls: ["TBD"]
+
+  - key: failover_automation
+    label: Failover Automation
+    derived_from: resilience_rating
+    arb: operations
+    rule:
+      "0": {value: automatic,      label: "Automatic",      ttl: 90d, requires_review: true, priority: CRITICAL }
+      "1": {value: semi_automatic, label: "Semi-automatic", ttl: 90d, requires_review: true, priority: HIGH }
+      "2": {value: manual,         label: "Manual",         ttl: 180d, requires_review: false, priority: MEDIUM }
+      "3": {value: manual,         label: "Manual",         ttl: 365d, requires_review: false, priority: LOW }
+      "4": {value: best_effort,    label: "Best effort",    ttl: 0d, requires_review: false, priority: LOW }
+    compliance_frameworks:
+      - framework: Internal
+        controls: ["TBD"]
+
+  - key: runbook_maturity
+    label: Runbook Maturity
+    derived_from: resilience_rating
+    arb: operations
+    rule:
+      "0": {value: certified, label: "Certified", ttl: 90d, requires_review: true, priority: CRITICAL }
+      "1": {value: approved,  label: "Approved",  ttl: 90d, requires_review: true, priority: HIGH }
+      "2": {value: draft,     label: "Draft",     ttl: 30d, requires_review: false, priority: MEDIUM }
+      "3": {value: draft,     label: "Draft",     ttl: 30d, requires_review: false, priority: LOW }
+      "4": {value: none,      label: "None",      ttl: 0d, requires_review: false, priority: LOW }
+    compliance_frameworks:
+      - framework: Internal
+        controls: ["TBD"]
+
+  - key: chaos_testing
+    label: Chaos Testing
+    derived_from: resilience_rating
+    arb: operations
+    rule:
+      "0": {value: required,    label: "Required",    ttl: 90d, requires_review: true, priority: CRITICAL }
+      "1": {value: recommended, label: "Recommended", ttl: 180d, requires_review: true, priority: HIGH }
+      "2": {value: optional,    label: "Optional",    ttl: 365d, requires_review: false, priority: MEDIUM }
+      "3": {value: none,        label: "None",        ttl: 0d, requires_review: false, priority: LOW }
+      "4": {value: none,        label: "None",        ttl: 0d, requires_review: false, priority: LOW }
+    compliance_frameworks:
+      - framework: Internal
+        controls: ["TBD"]
+
+  # ---- Governance Artifacts (remapped to Security rating)
+  - key: product_vision
+    label: Product Vision
+    derived_from: app_criticality_assessment
+    arb: enterprise_architecture
+    rule:
+      A: {value: mandatory, label: "Mandatory", ttl: 90d, requires_review: true, priority: CRITICAL }
+      B: {value: mandatory, label: "Mandatory", ttl: 90d, requires_review: true, priority: HIGH }
+      C: {value: recommended, label: "Recommended", ttl: 180d, requires_review: false, priority: MEDIUM }
+      D: {value: optional, label: "Optional", ttl: 365d, requires_review: false, priority: LOW }
+    compliance_frameworks:
+      - framework: Internal
+        controls: ["TBD"]
+
+  - key: product_roadmap
+    label: Product Roadmap
+    derived_from: app_criticality_assessment
+    arb: enterprise_architecture
+    rule:
+      A: {value: mandatory, label: "Mandatory", ttl: 90d, requires_review: true, priority: CRITICAL }
+      B: {value: mandatory, label: "Mandatory", ttl: 90d, requires_review: true, priority: HIGH }
+      C: {value: recommended, label: "Recommended", ttl: 180d, requires_review: false, priority: MEDIUM }
+      D: {value: optional, label: "Optional", ttl: 365d, requires_review: false, priority: LOW }
+    compliance_frameworks:
+      - framework: Internal
+        controls: ["TBD"]
+
+  - key: architecture_vision
+    label: Architecture Vision
+    derived_from: app_criticality_assessment
+    arb: enterprise_architecture
+    rule:
+      A: {value: mandatory, label: "Mandatory", ttl: 90d, requires_review: true, priority: CRITICAL }
+      B: {value: mandatory, label: "Mandatory", ttl: 90d, requires_review: true, priority: HIGH }
+      C: {value: recommended, label: "Recommended", ttl: 180d, requires_review: false, priority: MEDIUM }
+      D: {value: optional, label: "Optional", ttl: 365d, requires_review: false, priority: LOW }
+    compliance_frameworks:
+      - framework: Internal
+        controls: ["TBD"]
+
+  - key: service_vision
+    label: Service Vision
+    derived_from: app_criticality_assessment
+    arb: enterprise_architecture
+    rule:
+      A: {value: mandatory, label: "Mandatory", ttl: 90d, requires_review: true, priority: CRITICAL }
+      B: {value: mandatory, label: "Mandatory", ttl: 90d, requires_review: true, priority: HIGH }
+      C: {value: recommended, label: "Recommended", ttl: 180d, requires_review: false, priority: MEDIUM }
+      D: {value: optional, label: "Optional", ttl: 365d, requires_review: false, priority: LOW }
+    compliance_frameworks:
+      - framework: Internal
+        controls: ["TBD"]
+
+  - key: security_vision
+    label: Security Vision
+    derived_from: app_criticality_assessment
+    arb: enterprise_architecture
+    rule:
+      A: {value: mandatory, label: "Mandatory", ttl: 90d, requires_review: true, priority: CRITICAL }
+      B: {value: mandatory, label: "Mandatory", ttl: 90d, requires_review: true, priority: HIGH }
+      C: {value: recommended, label: "Recommended", ttl: 180d, requires_review: false, priority: MEDIUM }
+      D: {value: optional, label: "Optional", ttl: 365d, requires_review: false, priority: LOW }
+    compliance_frameworks:
+      - framework: Internal
+        controls: ["TBD"]
+
+  - key: test_vision
+    label: Test Vision
+    derived_from: app_criticality_assessment
+    arb: enterprise_architecture
+    rule:
+      A: {value: mandatory, label: "Mandatory", ttl: 90d, requires_review: true, priority: CRITICAL }
+      B: {value: mandatory, label: "Mandatory", ttl: 90d, requires_review: true, priority: HIGH }
+      C: {value: recommended, label: "Recommended", ttl: 180d, requires_review: false, priority: MEDIUM }
+      D: {value: optional, label: "Optional", ttl: 365d, requires_review: false, priority: LOW }
+    compliance_frameworks:
+      - framework: Internal
+        controls: ["TBD"]
+
+  # =========================
+  # NEW: Identity & Access Mgmt
+  # =========================
+  - key: mfa_enforcement
+    label: Multi-Factor Authentication
+    derived_from: security_rating
+    arb: security
+    rule:
+      A1: {value: required,    label: "Required",    ttl: 90d, requires_review: true, priority: CRITICAL }
+      A2: {value: required,    label: "Required",    ttl: 90d, requires_review: true, priority: HIGH }
+      B: {value: recommended, label: "Recommended", ttl: 180d, requires_review: true, priority: HIGH }
+      C: {value: optional,    label: "Optional",    ttl: 365d, requires_review: false, priority: MEDIUM }
+      D: {value: n/a,         label: "Not applicable", ttl: 0d, requires_review: false, priority: LOW }
+    compliance_frameworks:
+      - framework: Internal
+        controls: ["TBD"]
+
+  - key: access_review
+    label: Access Review Cadence
+    derived_from: confidentiality_rating
+    arb: data
+    rule:
+      A: {value: quarterly,   label: "Quarterly",    ttl: 90d, requires_review: true, priority: CRITICAL }
+      B: {value: semi_annual, label: "Semi-annual",  ttl: 180d, requires_review: true, priority: HIGH }
+      C: {value: annual,      label: "Annual",       ttl: 365d, requires_review: false, priority: MEDIUM }
+      D: {value: n/a,         label: "Not applicable", ttl: 0d, requires_review: false, priority: LOW }
+    compliance_frameworks:
+      - framework: Internal
+        controls: ["TBD"]
+
+  - key: privileged_access_mgmt
+    label: Privileged Access Management
+    derived_from: security_rating
+    arb: security
+    rule:
+      A1: {value: centralized_required,    label: "Centralized (required)",    ttl: 90d, requires_review: true, priority: CRITICAL }
+      A2: {value: centralized_required,    label: "Centralized (required)",    ttl: 90d, requires_review: true, priority: HIGH }
+      B: {value: centralized_recommended, label: "Centralized (recommended)", ttl: 180d, requires_review: true, priority: HIGH }
+      C: {value: manual_ok,               label: "Manual OK",                 ttl: 365d, requires_review: false, priority: MEDIUM }
+      D: {value: n/a,                     label: "Not applicable",            ttl: 0d, requires_review: false, priority: LOW }
+    compliance_frameworks:
+      - framework: Internal
+        controls: ["TBD"]
+
+  # =========================
+  # NEW: Vulnerability & Patch Management
+  # =========================
+  - key: patching_sla
+    label: Patch Remediation SLA
+    derived_from: security_rating
+    arb: security
+    rule:
+      A1: {value: critical_30d, label: "Critical ≤30 days", ttl: 90d, requires_review: true, priority: CRITICAL }
+      A2: {value: critical_30d, label: "Critical ≤30 days", ttl: 90d, requires_review: true, priority: HIGH }
+      B: {value: critical_60d, label: "Critical ≤60 days", ttl: 180d, requires_review: true, priority: HIGH }
+      C: {value: best_effort,  label: "Best effort",       ttl: 365d, requires_review: false, priority: MEDIUM }
+      D: {value: n/a,          label: "Not applicable",    ttl: 0d, requires_review: false, priority: LOW }
+    compliance_frameworks:
+      - framework: Internal
+        controls: ["TBD"]
+
+  - key: dependency_management
+    label: Dependency / SBOM Management
+    derived_from: security_rating
+    arb: security
+    rule:
+      A1: {value: sbom_required,     label: "SBOM required",     ttl: 90d, requires_review: true, priority: CRITICAL }
+      A2: {value: sbom_required,     label: "SBOM required",     ttl: 180d, requires_review: true, priority: HIGH }
+      B: {value: sbom_recommended,  label: "SBOM recommended",  ttl: 365d, requires_review: true, priority: HIGH }
+      C: {value: optional,          label: "Optional",          ttl: 365d, requires_review: false, priority: MEDIUM }
+      D: {value: n/a,               label: "Not applicable",    ttl: 0d, requires_review: false, priority: LOW }
+    compliance_frameworks:
+      - framework: Internal
+        controls: ["TBD"]
+
+  # =========================
+  # NEW: Incident Response
+  # =========================
+  - key: ir_plan
+    label: Incident Response Plan
+    derived_from: resilience_rating
+    arb: operations
+    rule:
+      "0": {value: tested_quarterly, label: "Tested quarterly", ttl: 90d, requires_review: true, priority: CRITICAL }
+      "1": {value: tested_annually,  label: "Tested annually",  ttl: 365d, requires_review: true, priority: HIGH }
+      "2": {value: documented,       label: "Documented",       ttl: 365d, requires_review: false, priority: MEDIUM }
+      "3": {value: n/a,              label: "Not applicable",   ttl: 0d, requires_review: false, priority: LOW }
+      "4": {value: n/a,              label: "Not applicable",   ttl: 0d, requires_review: false, priority: LOW }
+    compliance_frameworks:
+      - framework: Internal
+        controls: ["TBD"]
+
+  - key: ir_exercise
+    label: Incident Response Exercise
+    derived_from: resilience_rating
+    arb: operations
+    rule:
+      "0": {value: annual_live, label: "Annual live", ttl: 365d, requires_review: true, priority: CRITICAL }
+      "1": {value: tabletop,    label: "Tabletop",    ttl: 365d, requires_review: true, priority: HIGH }
+      "2": {value: optional,    label: "Optional",    ttl: 365d, requires_review: false, priority: MEDIUM }
+      "3": {value: n/a,         label: "Not applicable", ttl: 0d, requires_review: false, priority: LOW }
+      "4": {value: n/a,         label: "Not applicable", ttl: 0d, requires_review: false, priority: LOW }
+    compliance_frameworks:
+      - framework: Internal
+        controls: ["TBD"]
+
+  # =========================
+  # NEW: Third-Party / TPSP Risk (PCI-relevant)
+  # =========================
+  - key: tpsp_attestation
+    label: Third-Party Service Provider Attestation
+    derived_from: confidentiality_rating
+    arb: data
+    rule:
+      A: {value: required,    label: "Required",    ttl: 365d, requires_review: true, priority: CRITICAL }
+      B: {value: required,    label: "Required",    ttl: 365d, requires_review: true, priority: HIGH }
+      C: {value: recommended, label: "Recommended", ttl: 365d, requires_review: false, priority: MEDIUM }
+      D: {value: n/a,         label: "Not applicable", ttl: 0d, requires_review: false, priority: LOW }
+    compliance_frameworks:
+      - framework: Internal
+        controls: ["TBD"]
+
+  # =========================
+  # NEW: Data Lifecycle & Privacy
+  # =========================
+  - key: data_retention_policy
+    label: Data Retention Policy
+    derived_from: confidentiality_rating
+    arb: data
+    rule:
+      A: {value: defined+enforced, label: "Defined & enforced", ttl: 365d, requires_review: true, priority: CRITICAL }
+      B: {value: defined,          label: "Defined",            ttl: 365d, requires_review: true, priority: HIGH }
+      C: {value: recommended,      label: "Recommended",        ttl: 365d, requires_review: false, priority: MEDIUM }
+      D: {value: n/a,              label: "Not applicable",     ttl: 0d, requires_review: false, priority: LOW }
+    compliance_frameworks:
+      - framework: Internal
+        controls: ["TBD"]
+
+  - key: data_deletion_evidence
+    label: Secure Data Deletion Evidence
+    derived_from: confidentiality_rating
+    arb: data
+    rule:
+      A: {value: required, label: "Required", ttl: 365d, requires_review: true, priority: CRITICAL }
+      B: {value: required, label: "Required", ttl: 365d, requires_review: true, priority: HIGH }
+      C: {value: optional, label: "Optional", ttl: 365d, requires_review: false, priority: MEDIUM }
+      D: {value: n/a,      label: "Not applicable", ttl: 0d, requires_review: false, priority: LOW }
+    compliance_frameworks:
+      - framework: Internal
+        controls: ["TBD"]
+
+  # =========================
+  # NEW: Network Security (internet-grade for A1/A2)
+  # =========================
+  - key: network_segmentation
+    label: Network Segmentation Evidence
+    derived_from: security_rating
+    arb: security
+    rule:
+      A1: {value: pci_cde_required,     label: "PCI/CDE segmentation required", ttl: 365d, requires_review: true, priority: CRITICAL }
+      A2: {value: segmentation_required,label: "Segmentation required",         ttl: 365d, requires_review: true, priority: HIGH }
+      B: {value: segmentation_required,label: "Segmentation required",         ttl: 365d, requires_review: true, priority: HIGH }
+      C: {value: recommended,          label: "Recommended",                   ttl: 365d, requires_review: false, priority: MEDIUM }
+      D: {value: n/a,                  label: "Not applicable",                ttl: 0d, requires_review: false, priority: LOW }
+    compliance_frameworks:
+      - framework: Internal
+        controls: ["TBD"]
+
+  - key: waf_protection
+    label: Web Application Firewall Evidence
+    derived_from: security_rating
+    arb: security
+    rule:
+      A1: {value: required,    label: "Required",    ttl: 90d, requires_review: true, priority: CRITICAL }
+      A2: {value: required,    label: "Required",    ttl: 90d, requires_review: true, priority: HIGH }
+      B: {value: required,    label: "Required",    ttl: 90d, requires_review: true, priority: HIGH }
+      C: {value: recommended, label: "Recommended", ttl: 180d, requires_review: false, priority: MEDIUM }
+      D: {value: n/a,         label: "Not applicable", ttl: 0d, requires_review: false, priority: LOW }
+    compliance_frameworks:
+      - framework: Internal
+        controls: ["TBD"]
+
+  # =========================
+  # NEW: Logging & Monitoring (extended)
+  # =========================
+  - key: log_retention
+    label: Log Retention Period
+    derived_from: integrity_rating
+    arb: data
+    rule:
+      A: {value: ">=1y",  label: "≥ 1 year", ttl: 365d, requires_review: true, priority: CRITICAL }
+      B: {value: ">=6m",  label: "≥ 6 months", ttl: 365d, requires_review: true, priority: HIGH }
+      C: {value: ">=90d", label: "≥ 90 days", ttl: 365d, requires_review: false, priority: MEDIUM }
+      D: {value: n/a,     label: "Not applicable", ttl: 0d, requires_review: false, priority: LOW }
+    compliance_frameworks:
+      - framework: Internal
+        controls: ["TBD"]
+
+  - key: siem_integration
+    label: SIEM / Central Log Integration
+    derived_from: security_rating
+    arb: security
+    rule:
+      A1: {value: required,    label: "Required",    ttl: 365d, requires_review: true, priority: CRITICAL }
+      A2: {value: required,    label: "Required",    ttl: 365d, requires_review: true, priority: HIGH }
+      B: {value: required,    label: "Required",    ttl: 365d, requires_review: true, priority: HIGH }
+      C: {value: recommended, label: "Recommended", ttl: 365d, requires_review: false, priority: MEDIUM }
+      D: {value: n/a,         label: "Not applicable", ttl: 0d, requires_review: false, priority: LOW }
+    compliance_frameworks:
+      - framework: Internal
+        controls: ["TBD"]

@@ -944,7 +944,7 @@ export const endpoints = {
             : (await api.get<RiskStory>(`/api/risks/${riskId}`)).data,
 
     /** Get all risks for application */
-    getAppRisks: async (appId: string, page?: number, size?: number, filters?: { status?: string; severity?: string; assignedSme?: string; search?: string }): Promise<unknown> => {
+    getAppRisks: async (appId: string, page?: number, size?: number, filters?: { status?: string; severity?: string; assignedSme?: string; search?: string; domain?: string }): Promise<unknown> => {
         if (USE_MOCK) {
             const allRisks = [
                 {
@@ -1094,6 +1094,7 @@ export const endpoints = {
             if (filters.severity) params.severity = filters.severity;
             if (filters.assignedSme) params.assignedSme = filters.assignedSme;
             if (filters.search) params.search = filters.search;
+            if (filters.domain) params.domain = filters.domain;
         }
         
         return (await api.get<unknown>(`/api/risks/search`, { params })).data;

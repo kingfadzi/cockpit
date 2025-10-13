@@ -304,20 +304,20 @@ export default function POHome() {
       </Stack>
 
       {/* Applications heading with Add button */}
-      <Stack 
-        direction="row" 
-        justifyContent="space-between" 
+      <Stack
+        direction="row"
+        justifyContent="space-between"
         alignItems="center"
         sx={{ mt: 2 }}
       >
         <Typography variant="h6">
-          Your Applications
+          My Applications
         </Typography>
-        <Button 
-          variant="contained" 
+        <Button
+          variant="contained"
           onClick={() => setAddAppOpen(true)}
         >
-          Add Application
+          + Create Application
         </Button>
       </Stack>
 
