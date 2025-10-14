@@ -10,23 +10,24 @@ import {
     MenuItem,
 } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
+import { useUser, UserRole, UserProvider } from './UserContext';
 
 /**
- * Top-level shell with a single AppBar.
- * Contains app title, search bar, and persona selector (PO/SME).
- * Removes the old side drawer entirely.
+ * Inner shell component that uses the user context
  */
-export const AppShell: React.FC = () => {
+const AppShellContent: React.FC = () => {
     const [search, setSearch] = useState('');
-    const [persona, setPersona] = useState<'PO' | 'SME'>('PO');
+    const { userRole, setUserRole } = useUser();
     const navigate = useNavigate();
 
-    const handlePersonaChange = (newPersona: 'PO' | 'SME') => {
-        setPersona(newPersona);
-        if (newPersona === 'PO') {
+    const handleViewChange = (newView: string) => {
+        const role = newView as UserRole;
+        setUserRole(role);
+        if (newView === 'PO') {
             navigate('/po');
         } else {
-            navigate('/sme');
+            // ARB views
+            navigate(`/sme/arb/${newView}`);
         }
     };
 
@@ -47,15 +48,18 @@ export const AppShell: React.FC = () => {
                         sx={{ mr: 2, display: { xs: 'none', sm: 'flex' }, maxWidth: 200 }}
                         InputProps={{ endAdornment: <SearchIcon /> }}
                     />
-                    {/* Persona selector */}
+                    {/* View selector */}
                     <Select
                         size="small"
-                        value={persona}
-                        onChange={(e) => handlePersonaChange(e.target.value as 'PO' | 'SME')}
-                        sx={{ minWidth: 120 }}
+                        value={userRole}
+                        onChange={(e) => handleViewChange(e.target.value as string)}
+                        sx={{ minWidth: 180 }}
                     >
-                        <MenuItem value="PO">PO View</MenuItem>
-                        <MenuItem value="SME">SME View</MenuItem>
+                        <MenuItem value="PO">PO</MenuItem>
+                        <MenuItem value="security">Security Guild</MenuItem>
+                        <MenuItem value="data">Data Guild</MenuItem>
+                        <MenuItem value="operations">Operations Guild</MenuItem>
+                        <MenuItem value="enterprise_architecture">Enterprise Architecture Guild</MenuItem>
                     </Select>
                 </Toolbar>
             </AppBar>
@@ -64,5 +68,18 @@ export const AppShell: React.FC = () => {
                 <Outlet />
             </Box>
         </Box>
+    );
+};
+
+/**
+ * Top-level shell with a single AppBar.
+ * Contains app title, search bar, and view selector (PO/ARBs).
+ * Removes the old side drawer entirely.
+ */
+export const AppShell: React.FC = () => {
+    return (
+        <UserProvider>
+            <AppShellContent />
+        </UserProvider>
     );
 };

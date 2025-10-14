@@ -63,24 +63,27 @@ interface DomainTableProps {
     appId: string;
     onTabChange?: (tab: string) => void;
     enableBulkAttestation?: boolean;
+    userRole?: 'po' | 'sme';
 }
 
-function FieldRow({ 
-    field, 
-    appId, 
+function FieldRow({
+    field,
+    appId,
     onTabChange,
     isSelectable = false,
     isSelected = false,
     onSelectionChange,
     showCheckboxColumn = false,
-}: { 
-    field: ProfileField; 
-    appId: string; 
+    userRole = 'po',
+}: {
+    field: ProfileField;
+    appId: string;
     onTabChange?: (tab: string) => void;
     isSelectable?: boolean;
     isSelected?: boolean;
     onSelectionChange?: (fieldId: string, selected: boolean) => void;
     showCheckboxColumn?: boolean;
+    userRole?: 'po' | 'sme';
 }) {
     const { label, policyRequirement, evidence, approvalStatus, freshnessStatus, risks, attestations, fieldKey, profileFieldId } = field as any;
     const activeEvidence = evidence.find((e) => e.status === 'active');
@@ -481,6 +484,8 @@ function FieldRow({
                 onClose={() => setRisksModalOpen(false)}
                 fieldLabel={label}
                 risks={risks}
+                userRole={userRole}
+                appId={appId}
             />
             
             {/* Attestations Modal */}
@@ -496,7 +501,7 @@ function FieldRow({
     );
 }
 
-export default function DomainTable({ domain, appId, onTabChange, enableBulkAttestation = true }: DomainTableProps) {
+export default function DomainTable({ domain, appId, onTabChange, enableBulkAttestation = true, userRole = 'po' }: DomainTableProps) {
     const { title, icon, driverLabel, driverValue, fields, domainKey, bulkAttestationEnabled } = domain;
     
     // Filter state for status filtering
@@ -715,15 +720,16 @@ export default function DomainTable({ domain, appId, onTabChange, enableBulkAtte
                     </TableHead>
                     <TableBody>
                         {filteredFields.map((field) => (
-                            <FieldRow 
-                                key={field.fieldKey} 
-                                field={field} 
-                                appId={appId} 
+                            <FieldRow
+                                key={field.fieldKey}
+                                field={field}
+                                appId={appId}
                                 onTabChange={onTabChange}
                                 showCheckboxColumn={enableBulkAttestation && bulkAttestationEnabled}
                                 isSelectable={enableBulkAttestation && bulkAttestationEnabled && bulkAttestation.canFieldBeSelected(field)}
                                 isSelected={bulkAttestation.isFieldSelected(field.profileFieldId)}
                                 onSelectionChange={handleFieldSelectionChange}
+                                userRole={userRole}
                             />
                         ))}
                     </TableBody>

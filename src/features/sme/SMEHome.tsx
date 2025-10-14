@@ -3,8 +3,8 @@ import { Stack, Typography, Card, CardContent, Button, Grid, Box } from '@mui/ma
 import {
   Security as SecurityIcon,
   Storage as DataIcon,
-  Transform as ServiceIcon,
-  AccountTree as EnterpriseIcon
+  Settings as OperationsIcon,
+  AccountTree as EnterpriseIcon,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import SectionHeader from '../../components/SectionHeader';
@@ -19,55 +19,60 @@ export default function SMEHome() {
       description: 'Review security controls, encryption, testing, and access management',
       icon: <SecurityIcon sx={{ fontSize: 40 }} />,
       color: 'error.main',
-      path: '/sme/security'
+      path: '/sme/security',
+      enabled: true
     },
     {
-      key: 'data-architecture', 
-      title: 'Data Architecture SME',
+      key: 'data',
+      title: 'Data SME',
       description: 'Review data validation, residency, retention, and privacy controls',
       icon: <DataIcon sx={{ fontSize: 40 }} />,
       color: 'info.main',
-      path: '/sme/data-architecture'
+      path: '/sme/data',
+      enabled: false
     },
     {
-      key: 'service-transition',
-      title: 'Service Transition SME', 
+      key: 'operations',
+      title: 'Operations SME',
       description: 'Review availability, monitoring, DR testing, and operational readiness',
-      icon: <ServiceIcon sx={{ fontSize: 40 }} />,
+      icon: <OperationsIcon sx={{ fontSize: 40 }} />,
       color: 'success.main',
-      path: '/sme/service-transition'
+      path: '/sme/operations',
+      enabled: false
     },
     {
-      key: 'enterprise-architecture',
+      key: 'enterprise_architecture',
       title: 'Enterprise Architecture SME',
       description: 'Review architecture vision, service vision, and governance artifacts',
       icon: <EnterpriseIcon sx={{ fontSize: 40 }} />,
-      color: 'warning.main', 
-      path: '/sme/enterprise-architecture'
+      color: 'warning.main',
+      path: '/sme/enterprise-architecture',
+      enabled: false
     }
   ];
 
   return (
-    <Stack spacing={3}>
-      <SectionHeader 
-        title="SME Dashboard" 
-        subtitle="Select your domain to review evidence and manage compliance" 
+    <Stack spacing={4}>
+      <SectionHeader
+        title="SME Review Dashboards"
+        subtitle="Select your domain to review evidence and manage compliance"
       />
-      
+
       <Grid container spacing={3}>
         {domains.map((domain) => (
           <Grid item xs={12} md={6} key={domain.key}>
-            <Card 
-              sx={{ 
+            <Card
+              sx={{
                 height: '100%',
-                cursor: 'pointer',
+                cursor: domain.enabled ? 'pointer' : 'default',
+                opacity: domain.enabled ? 1 : 0.6,
                 transition: 'all 0.2s',
-                '&:hover': {
+                '&:hover': domain.enabled ? {
                   transform: 'translateY(-2px)',
                   boxShadow: 3
-                }
+                } : {}
               }}
-              onClick={() => navigate(domain.path)}
+              onClick={() => domain.enabled && navigate(domain.path)}
             >
               <CardContent sx={{ p: 3, height: '100%' }}>
                 <Stack spacing={2} height="100%">
@@ -79,18 +84,18 @@ export default function SMEHome() {
                       {domain.title}
                     </Typography>
                   </Box>
-                  
+
                   <Typography variant="body2" color="text.secondary" sx={{ flexGrow: 1 }}>
                     {domain.description}
                   </Typography>
-                  
-                  <Button 
-                    variant="outlined" 
+
+                  <Button
+                    variant="outlined"
                     size="small"
                     sx={{ alignSelf: 'flex-start' }}
-                    disabled={domain.key !== 'security'}
+                    disabled={!domain.enabled}
                   >
-                    {domain.key === 'security' ? 'Enter Dashboard' : 'Coming Soon'}
+                    {domain.enabled ? 'Enter Dashboard' : 'Coming Soon'}
                   </Button>
                 </Stack>
               </CardContent>

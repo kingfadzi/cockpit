@@ -32,9 +32,10 @@ interface ProfileTabProps {
     profile: ProfileResponse;
     appId?: string;
     onTabChange?: (tab: string) => void;
+    userRole?: 'po' | 'sme';
 }
 
-export default function ProfileTab({ profile, appId = '', onTabChange }: ProfileTabProps) {
+export default function ProfileTab({ profile, appId = '', onTabChange, userRole = 'po' }: ProfileTabProps) {
     const [searchParams, setSearchParams] = useSearchParams();
 
     // Get all available domains
@@ -77,7 +78,7 @@ export default function ProfileTab({ profile, appId = '', onTabChange }: Profile
             return <Alert severity="info">No data available for this domain.</Alert>;
         }
 
-        return <DomainTable domain={selectedDomain} appId={appId} onTabChange={onTabChange} />;
+        return <DomainTable domain={selectedDomain} appId={appId} onTabChange={onTabChange} userRole={userRole} />;
     };
 
     if (!profile.domains || profile.domains.length === 0) {

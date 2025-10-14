@@ -8,10 +8,10 @@ export default defineConfig(({ mode, command }) => {
   const devServer = (command === 'serve')
       ? {
         host: '0.0.0.0',
-        port: 5173,
+        port: 5174,
         proxy: {
           '/api': {
-            target: env.VITE_API_BASE || 'http://localhost:8080',
+            target: env.VITE_API_BASE || 'http://mars:8181',
             changeOrigin: true,
             secure: false,
           },

@@ -45,10 +45,19 @@ import {
 } from '@mui/icons-material';
 import { useAppRisks, useCreateRisk, useAttachEvidenceToRisk } from '../../../api/hooks';
 import type { RiskStory, RiskStatus, RiskSeverity } from '../../../api/types';
+import SmeRiskItemModal from '../../sme/components/SmeRiskItemModal';
+import PoRiskItemModal from '../components/PoRiskItemModal';
+import { Link } from '@mui/material';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { endpoints } from '../../../api/client';
+import { useUser } from '../../../app/UserContext';
 
 interface RisksTabProps {
     appId: string;
+    appName?: string; // Optional application name to display in table
     userRole?: 'po' | 'sme'; // Determines which actions are available
+    smeId?: string; // Required when userRole='sme'
+    currentArb?: string; // Current ARB/Guild context (e.g., 'security', 'operations')
 }
 
 interface CreateRiskForm {
@@ -56,10 +65,12 @@ interface CreateRiskForm {
     description: string;
     severity: RiskSeverity;
     fieldKey: string;
-    assignedSme: string;
+    assignedTo: string;
 }
 
-export default function RisksTab({ appId, userRole = 'po' }: RisksTabProps) {
+export default function RisksTab({ appId, appName, userRole = 'po', smeId, currentArb }: RisksTabProps) {
+    const { userId } = useUser();
+    const currentUserId = smeId || userId; // Use smeId prop if provided, otherwise use context
     const [createDialogOpen, setCreateDialogOpen] = useState(false);
     const [detailsModalOpen, setDetailsModalOpen] = useState(false);
     const [selectedRisk, setSelectedRisk] = useState<RiskStory | null>(null);
@@ -67,35 +78,161 @@ export default function RisksTab({ appId, userRole = 'po' }: RisksTabProps) {
     const [statusFilter, setStatusFilter] = useState<string>('');
     const [severityFilter, setSeverityFilter] = useState<string>('');
     const [smeFilter, setSmeFilter] = useState<string>('');
+    const [riskRatingDimensionFilter, setRiskRatingDimensionFilter] = useState<string>('');
+    const [fieldKeyFilter, setFieldKeyFilter] = useState<string>('');
+    const [guildFilter, setGuildFilter] = useState<string>(currentArb || ''); // Initialize with current ARB context
     const [page, setPage] = useState(0);
-    const [rowsPerPage, setRowsPerPage] = useState(5);
+    const [rowsPerPage, setRowsPerPage] = useState(10);
     const [newRisk, setNewRisk] = useState<CreateRiskForm>({
         title: '',
         description: '',
         severity: 'medium',
         fieldKey: '',
-        assignedSme: ''
+        assignedTo: ''
     });
 
-    // Build filters object
-    const filters = {
-        ...(searchTerm && { search: searchTerm }),
-        ...(statusFilter && { status: statusFilter }),
-        ...(severityFilter && { severity: severityFilter }),
-        ...(smeFilter && { assignedSme: smeFilter === 'UNASSIGNED' ? '' : smeFilter })
+    // Map risk rating dimension (CIA+S+R) to Guild/ARB - define before use
+    const riskRatingDimensionToGuild: Record<string, string> = {
+        'security_rating': 'security',
+        'confidentiality_rating': 'data',
+        'integrity_rating': 'data',
+        'availability_rating': 'operations',
+        'resilience_rating': 'operations',
+        'app_criticality_assessment': 'enterprise_architecture', // Maps to EA guild
     };
+
+    // Build filters object
+    const filters = useMemo(() => {
+        // For SME role: send current user ID to enable backend OR logic (my guild OR assigned to me)
+        // Unless user manually filtered by a specific SME
+        const shouldIncludeCurrentUser = userRole === 'sme' && !smeFilter && currentUserId;
+
+        return {
+            ...(searchTerm && { search: searchTerm }),
+            ...(statusFilter && { status: statusFilter }),
+            ...(severityFilter && { severity: severityFilter }),
+            ...(smeFilter && { assignedTo: smeFilter === 'UNASSIGNED' ? '' : smeFilter }),
+            ...(shouldIncludeCurrentUser && { assignedTo: currentUserId }),
+            ...(riskRatingDimensionFilter && { riskRatingDimension: riskRatingDimensionFilter }),
+            ...(fieldKeyFilter && { fieldKey: fieldKeyFilter }),
+            ...(guildFilter && { arb: guildFilter }),
+            // Prioritize risks assigned to current SME (show them at the top)
+            ...(userRole === 'sme' && currentUserId && { prioritizeUserId: currentUserId }),
+        };
+    }, [searchTerm, statusFilter, severityFilter, smeFilter, riskRatingDimensionFilter, fieldKeyFilter, guildFilter, userRole, currentUserId]);
+
+    // Debug logging
+    console.log('[RisksTab] User Role:', userRole);
+    console.log('[RisksTab] Filters being sent:', filters);
 
     // API hooks
     const { data: risksData, isLoading, error } = useAppRisks(appId, page + 1, rowsPerPage, Object.keys(filters).length > 0 ? filters : undefined);
     const createRiskMutation = useCreateRisk(appId, newRisk.fieldKey);
-    
+    const queryClient = useQueryClient();
+
+    // Self-assign mutation
+    const selfAssignMutation = useMutation({
+        mutationFn: ({ riskItemId, userId }: { riskItemId: string; userId: string }) =>
+            endpoints.selfAssignRiskItem(riskItemId, userId),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['risks'] });
+        },
+    });
+
     const risks = risksData?.items || [];
     const totalRisks = risksData?.total || 0;
 
-    // Get unique SMEs for filter dropdown from current page results
+    // Get risk rating dimension from backend or fallback to extraction logic
+    const getRiskRatingDimension = (risk: RiskStory): string | null => {
+        // Use riskRatingDimension from backend if available (NEW field)
+        if (risk.riskRatingDimension) {
+            return risk.riskRatingDimension;
+        }
+
+        // Fallback: try to get from policy requirement snapshot active rule
+        const activeRule = risk.policyRequirementSnapshot?.activeRule;
+        if (activeRule) {
+            if (activeRule.security_rating) return 'security_rating';
+            if (activeRule.confidentiality_rating) return 'confidentiality_rating';
+            if (activeRule.availability_rating) return 'availability_rating';
+            if (activeRule.integrity_rating) return 'integrity_rating';
+            if (activeRule.resilience_rating) return 'resilience_rating';
+        }
+
+        // Fallback: derive from fieldKey if it contains domain keywords
+        const fieldKey = risk.fieldKey?.toLowerCase() || '';
+        if (fieldKey.includes('encrypt') || fieldKey.includes('security') || fieldKey.includes('mfa') || fieldKey.includes('auth')) return 'security_rating';
+        if (fieldKey.includes('confidential') || fieldKey.includes('privacy')) return 'confidentiality_rating';
+        if (fieldKey.includes('integrity') || fieldKey.includes('backup')) return 'integrity_rating';
+        if (fieldKey.includes('availability') || fieldKey.includes('uptime')) return 'availability_rating';
+        if (fieldKey.includes('rto') || fieldKey.includes('resilience') || fieldKey.includes('recovery')) return 'resilience_rating';
+        if (fieldKey.includes('criticality')) return 'app_criticality_assessment';
+
+        return null;
+    };
+
+    // Get Guild/ARB from risk rating dimension
+    const getGuildFromRisk = (risk: RiskStory): string | null => {
+        const dimension = getRiskRatingDimension(risk);
+        return dimension ? riskRatingDimensionToGuild[dimension] || null : null;
+    };
+
+    // Get unique SMEs for filter dropdown from current data
     const uniqueSmes = useMemo(() => {
-        return Array.from(new Set(risks.map(r => r.assignedSme).filter(Boolean))).sort();
+        return Array.from(new Set(risks.map(r => r.assignedTo).filter(Boolean))).sort();
     }, [risks]);
+
+    // Get unique risk rating dimensions available in current data
+    const availableRiskRatingDimensions = useMemo(() => {
+        const dimensions = risks
+            .map(r => getRiskRatingDimension(r))
+            .filter(Boolean) as string[];
+        return Array.from(new Set(dimensions)).sort();
+    }, [risks]);
+
+    // Get unique field keys (requirements) available in current data
+    const availableFieldKeys = useMemo(() => {
+        const fieldKeys = risks
+            .map(r => r.fieldKey)
+            .filter(Boolean) as string[];
+        return Array.from(new Set(fieldKeys)).sort();
+    }, [risks]);
+
+    // All available guilds (static list - always show all options)
+    const allGuilds = ['security', 'data', 'operations', 'enterprise_architecture'];
+
+    // Format dimension for display (removes _rating suffix and capitalizes)
+    const formatDimension = (dimension: string): string => {
+        const formatted: Record<string, string> = {
+            'security_rating': 'Security',
+            'confidentiality_rating': 'Confidentiality',
+            'integrity_rating': 'Integrity',
+            'availability_rating': 'Availability',
+            'resilience_rating': 'Resilience',
+            'app_criticality_assessment': 'App Criticality',
+        };
+        return formatted[dimension] || dimension.charAt(0).toUpperCase() + dimension.slice(1).replace(/_/g, ' ');
+    };
+
+    // Format fieldKey to human-readable format: abc_def_ghi → "Abc Def Ghi"
+    const formatFieldKey = (fieldKey: string): string => {
+        if (!fieldKey) return '—';
+        return fieldKey
+            .split('_')
+            .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+            .join(' ');
+    };
+
+    // Format guild for display
+    const formatGuild = (guild: string): string => {
+        const formatted: Record<string, string> = {
+            'security': 'Security',
+            'data': 'Data',
+            'operations': 'Operations',
+            'enterprise_architecture': 'Enterprise Architecture',
+        };
+        return formatted[guild] || guild.charAt(0).toUpperCase() + guild.slice(1);
+    };
 
     const handleCreateRisk = async () => {
         if (!newRisk.title || !newRisk.description || !newRisk.fieldKey) {
@@ -109,7 +246,7 @@ export default function RisksTab({ appId, userRole = 'po' }: RisksTabProps) {
                 description: '',
                 severity: 'medium',
                 fieldKey: '',
-                assignedSme: ''
+                assignedTo: ''
             });
             setCreateDialogOpen(false);
         } catch (err) {
@@ -201,6 +338,12 @@ export default function RisksTab({ appId, userRole = 'po' }: RisksTabProps) {
 
     const getRiskStatusColor = (status: RiskStatus) => {
         switch (status) {
+            case 'OPEN': return 'error';
+            case 'IN_PROGRESS': return 'warning';
+            case 'RESOLVED': return 'success';
+            case 'WAIVED': return 'default';
+            case 'CLOSED': return 'success';
+            // Legacy statuses for backward compatibility
             case 'open': return 'error';
             case 'under_review': return 'warning';
             case 'pending_evidence': return 'info';
@@ -233,6 +376,9 @@ export default function RisksTab({ appId, userRole = 'po' }: RisksTabProps) {
         setStatusFilter('');
         setSeverityFilter('');
         setSmeFilter('');
+        setRiskRatingDimensionFilter('');
+        setFieldKeyFilter('');
+        setGuildFilter('');
         setPage(0);
     };
 
@@ -257,19 +403,29 @@ export default function RisksTab({ appId, userRole = 'po' }: RisksTabProps) {
         setPage(0);
     };
 
+    const handleRiskRatingDimensionFilterChange = (newDimension: string) => {
+        setRiskRatingDimensionFilter(newDimension);
+        setPage(0);
+    };
+
+    const handleFieldKeyFilterChange = (newFieldKey: string) => {
+        setFieldKeyFilter(newFieldKey);
+        setPage(0);
+    };
+
+    const handleGuildFilterChange = (newGuild: string) => {
+        setGuildFilter(newGuild);
+        setPage(0);
+    };
+
     return (
         <Stack spacing={3}>
             {/* Header */}
             <Stack direction="row" alignItems="center" justifyContent="space-between">
-                <Stack>
-                    <Typography variant="h6" fontWeight={700}>
-                        Risk Stories
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                        Security and compliance risks identified for {appId}
-                    </Typography>
-                </Stack>
-                {userRole === 'po' && (
+                <Typography variant="h6" fontWeight={700}>
+                    Risk Items{appName && ` - ${appName}`}
+                </Typography>
+                {userRole === 'sme' && (
                     <Button
                         variant="contained"
                         startIcon={<AddIcon />}
@@ -283,90 +439,111 @@ export default function RisksTab({ appId, userRole = 'po' }: RisksTabProps) {
 
             {/* Search and Filter Controls */}
             <Paper variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
-                <Grid container spacing={2} alignItems="center">
-                    <Grid item xs={12} sm={4}>
-                        <TextField
-                            placeholder="Search risks..."
-                            value={searchTerm}
-                            onChange={(e) => handleSearchChange(e.target.value)}
-                            size="small"
-                            fullWidth
-                            InputProps={{
-                                startAdornment: (
-                                    <InputAdornment position="start">
-                                        <SearchIcon />
-                                    </InputAdornment>
-                                )
-                            }}
-                        />
-                    </Grid>
-                    <Grid item xs={6} sm={2}>
-                        <FormControl size="small" fullWidth>
-                            <InputLabel>Status</InputLabel>
-                            <Select
-                                value={statusFilter}
-                                label="Status"
-                                onChange={(e) => handleStatusFilterChange(e.target.value)}
-                            >
-                                <MenuItem value="">All</MenuItem>
-                                <MenuItem value="open">Open</MenuItem>
-                                <MenuItem value="under_review">Under Review</MenuItem>
-                                <MenuItem value="pending_evidence">Pending Evidence</MenuItem>
-                                <MenuItem value="PENDING_SME_REVIEW">Pending SME Review</MenuItem>
-                                <MenuItem value="resolved">Resolved</MenuItem>
-                                <MenuItem value="accepted">Accepted</MenuItem>
-                                <MenuItem value="SME_APPROVED">SME Approved</MenuItem>
-                                <MenuItem value="rejected">Rejected</MenuItem>
-                                <MenuItem value="SME_REJECTED">SME Rejected</MenuItem>
-                            </Select>
-                        </FormControl>
-                    </Grid>
-                    <Grid item xs={6} sm={2}>
-                        <FormControl size="small" fullWidth>
-                            <InputLabel>Severity</InputLabel>
-                            <Select
-                                value={severityFilter}
-                                label="Severity"
-                                onChange={(e) => handleSeverityFilterChange(e.target.value)}
-                            >
-                                <MenuItem value="">All</MenuItem>
-                                <MenuItem value="critical">Critical</MenuItem>
-                                <MenuItem value="high">High</MenuItem>
-                                <MenuItem value="medium">Medium</MenuItem>
-                                <MenuItem value="low">Low</MenuItem>
-                            </Select>
-                        </FormControl>
-                    </Grid>
-                    <Grid item xs={6} sm={2}>
-                        <FormControl size="small" fullWidth>
-                            <InputLabel>Assigned SME</InputLabel>
-                            <Select
-                                value={smeFilter}
-                                label="Assigned SME"
-                                onChange={(e) => handleSmeFilterChange(e.target.value)}
-                            >
-                                <MenuItem value="">All</MenuItem>
-                                <MenuItem value="UNASSIGNED">Unassigned</MenuItem>
-                                {uniqueSmes.map((sme) => (
-                                    <MenuItem key={sme} value={sme}>
-                                        {sme}
-                                    </MenuItem>
-                                ))}
-                            </Select>
-                        </FormControl>
-                    </Grid>
-                    <Grid item xs={6} sm={2}>
-                        <Button
-                            variant="outlined"
-                            size="small"
-                            onClick={clearFilters}
-                            disabled={!searchTerm && !statusFilter && !severityFilter && !smeFilter}
-                            fullWidth
+                <Stack direction="row" spacing={1.5} alignItems="center" sx={{ flexWrap: 'nowrap' }}>
+                    <TextField
+                        placeholder="Search risks..."
+                        value={searchTerm}
+                        onChange={(e) => handleSearchChange(e.target.value)}
+                        size="small"
+                        sx={{ width: 180 }}
+                        InputProps={{
+                            startAdornment: (
+                                <InputAdornment position="start">
+                                    <SearchIcon />
+                                </InputAdornment>
+                            )
+                        }}
+                    />
+                    <FormControl size="small" sx={{ width: 130 }}>
+                        <InputLabel>Guild</InputLabel>
+                        <Select
+                            value={guildFilter}
+                            label="Guild"
+                            onChange={(e) => handleGuildFilterChange(e.target.value)}
                         >
-                            Clear
-                        </Button>
-                    </Grid>
-                </Grid>
+                            <MenuItem value="">All</MenuItem>
+                            {allGuilds.map((guild) => (
+                                <MenuItem key={guild} value={guild}>
+                                    {formatGuild(guild)}
+                                </MenuItem>
+                            ))}
+                        </Select>
+                    </FormControl>
+                    <FormControl size="small" sx={{ width: 140 }}>
+                        <InputLabel>Requirement</InputLabel>
+                        <Select
+                            value={fieldKeyFilter}
+                            label="Requirement"
+                            onChange={(e) => handleFieldKeyFilterChange(e.target.value)}
+                            disabled={isLoading || availableFieldKeys.length === 0}
+                        >
+                            <MenuItem value="">All</MenuItem>
+                            {availableFieldKeys.length === 0 ? (
+                                <MenuItem disabled value="">No requirements available</MenuItem>
+                            ) : (
+                                availableFieldKeys.map((fieldKey) => (
+                                    <MenuItem key={fieldKey} value={fieldKey}>
+                                        {formatFieldKey(fieldKey)}
+                                    </MenuItem>
+                                ))
+                            )}
+                        </Select>
+                    </FormControl>
+                    <FormControl size="small" sx={{ width: 115 }}>
+                        <InputLabel>Status</InputLabel>
+                        <Select
+                            value={statusFilter}
+                            label="Status"
+                            onChange={(e) => handleStatusFilterChange(e.target.value)}
+                        >
+                            <MenuItem value="">All</MenuItem>
+                            <MenuItem value="OPEN">Open</MenuItem>
+                            <MenuItem value="IN_PROGRESS">In Progress</MenuItem>
+                            <MenuItem value="RESOLVED">Resolved</MenuItem>
+                            <MenuItem value="WAIVED">Waived</MenuItem>
+                            <MenuItem value="CLOSED">Closed</MenuItem>
+                        </Select>
+                    </FormControl>
+                    <FormControl size="small" sx={{ width: 110 }}>
+                        <InputLabel>Severity</InputLabel>
+                        <Select
+                            value={severityFilter}
+                            label="Severity"
+                            onChange={(e) => handleSeverityFilterChange(e.target.value)}
+                        >
+                            <MenuItem value="">All</MenuItem>
+                            <MenuItem value="critical">Critical</MenuItem>
+                            <MenuItem value="high">High</MenuItem>
+                            <MenuItem value="medium">Medium</MenuItem>
+                            <MenuItem value="low">Low</MenuItem>
+                        </Select>
+                    </FormControl>
+                    <FormControl size="small" sx={{ width: 130 }}>
+                        <InputLabel>Assigned SME</InputLabel>
+                        <Select
+                            value={smeFilter}
+                            label="Assigned SME"
+                            onChange={(e) => handleSmeFilterChange(e.target.value)}
+                        >
+                            <MenuItem value="">All</MenuItem>
+                            <MenuItem value="UNASSIGNED">Unassigned</MenuItem>
+                            {uniqueSmes.map((sme) => (
+                                <MenuItem key={sme} value={sme}>
+                                    {sme}
+                                </MenuItem>
+                            ))}
+                        </Select>
+                    </FormControl>
+                    <Button
+                        variant="outlined"
+                        size="small"
+                        onClick={clearFilters}
+                        disabled={!searchTerm && !statusFilter && !severityFilter && !smeFilter && !riskRatingDimensionFilter && !fieldKeyFilter && !guildFilter}
+                        sx={{ width: 85, whiteSpace: 'nowrap' }}
+                    >
+                        Clear
+                    </Button>
+                </Stack>
             </Paper>
 
             {/* Error Alert */}
@@ -381,12 +558,12 @@ export default function RisksTab({ appId, userRole = 'po' }: RisksTabProps) {
                 <Paper variant="outlined" sx={{ p: 6, textAlign: 'center', borderRadius: 3 }}>
                     <WarningIcon sx={{ fontSize: 64, color: 'text.disabled', mb: 3 }} />
                     <Typography variant="h6" color="text.secondary" gutterBottom>
-                        No Risk Stories
+                        No Risk Items
                     </Typography>
                     <Typography variant="body2" color="text.secondary" sx={{ mb: 3, maxWidth: 400, mx: 'auto' }}>
                         No security or compliance risks have been identified for this application yet.
                     </Typography>
-                    {userRole === 'po' && (
+                    {userRole === 'sme' && (
                         <Button
                             variant="contained"
                             size="large"
@@ -404,6 +581,8 @@ export default function RisksTab({ appId, userRole = 'po' }: RisksTabProps) {
                             <TableHead>
                                 <TableRow>
                                     <TableCell sx={{ minWidth: 250 }}>Risk Title</TableCell>
+                                    <TableCell sx={{ minWidth: 100 }}>Guild</TableCell>
+                                    <TableCell sx={{ minWidth: 150 }}>Requirement</TableCell>
                                     <TableCell sx={{ minWidth: 100 }}>Severity</TableCell>
                                     <TableCell sx={{ minWidth: 120 }}>Status</TableCell>
                                     <TableCell sx={{ minWidth: 120 }}>Assigned SME</TableCell>
@@ -416,6 +595,8 @@ export default function RisksTab({ appId, userRole = 'po' }: RisksTabProps) {
                                     [...Array(3)].map((_, index) => (
                                         <TableRow key={index}>
                                             <TableCell>Loading...</TableCell>
+                                            <TableCell>—</TableCell>
+                                            <TableCell>—</TableCell>
                                             <TableCell>—</TableCell>
                                             <TableCell>—</TableCell>
                                             <TableCell>—</TableCell>
@@ -436,20 +617,34 @@ export default function RisksTab({ appId, userRole = 'po' }: RisksTabProps) {
                                             }}
                                         >
                                             <TableCell>
-                                                <Stack>
-                                                    <Typography variant="body2" fontWeight={600}>
-                                                        {risk.title}
-                                                    </Typography>
-                                                    <Typography variant="caption" color="text.secondary" sx={{ 
-                                                        display: '-webkit-box',
-                                                        WebkitLineClamp: 2,
-                                                        WebkitBoxOrient: 'vertical',
-                                                        overflow: 'hidden',
-                                                        maxWidth: 400
-                                                    }}>
-                                                        {risk.description}
-                                                    </Typography>
-                                                </Stack>
+                                                <Typography variant="body2" fontWeight={600}>
+                                                    {risk.title}
+                                                </Typography>
+                                            </TableCell>
+                                            <TableCell>
+                                                {(() => {
+                                                    const guild = getGuildFromRisk(risk);
+                                                    if (!guild) {
+                                                        return (
+                                                            <Typography variant="body2" color="text.secondary">
+                                                                —
+                                                            </Typography>
+                                                        );
+                                                    }
+                                                    return (
+                                                        <Chip
+                                                            size="small"
+                                                            variant="outlined"
+                                                            label={formatGuild(guild)}
+                                                            color="primary"
+                                                        />
+                                                    );
+                                                })()}
+                                            </TableCell>
+                                            <TableCell>
+                                                <Typography variant="body2" color={risk.fieldKey ? 'text.primary' : 'text.secondary'}>
+                                                    {formatFieldKey(risk.fieldKey || '')}
+                                                </Typography>
                                             </TableCell>
                                             <TableCell>
                                                 <Chip
@@ -468,9 +663,35 @@ export default function RisksTab({ appId, userRole = 'po' }: RisksTabProps) {
                                                 />
                                             </TableCell>
                                             <TableCell>
-                                                <Typography variant="body2">
-                                                    {risk.assignedSme || 'Unassigned'}
-                                                </Typography>
+                                                {risk.assignedTo ? (
+                                                    <Typography variant="body2">
+                                                        {risk.assignedTo}
+                                                    </Typography>
+                                                ) : userRole === 'sme' ? (
+                                                    <Link
+                                                        component="button"
+                                                        variant="body2"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            // Handle both riskItemId (new) and riskId (legacy) for backward compatibility
+                                                            const riskId = risk.riskItemId || (risk as any).riskId;
+                                                            if (currentUserId && riskId) {
+                                                                selfAssignMutation.mutate({
+                                                                    riskItemId: riskId,
+                                                                    userId: currentUserId
+                                                                });
+                                                            }
+                                                        }}
+                                                        sx={{ cursor: 'pointer' }}
+                                                        disabled={selfAssignMutation.isPending}
+                                                    >
+                                                        {selfAssignMutation.isPending ? 'assigning...' : 'assign to me'}
+                                                    </Link>
+                                                ) : (
+                                                    <Typography variant="body2" color="text.secondary">
+                                                        Unassigned
+                                                    </Typography>
+                                                )}
                                             </TableCell>
                                             <TableCell>
                                                 {(() => {
@@ -505,342 +726,27 @@ export default function RisksTab({ appId, userRole = 'po' }: RisksTabProps) {
                 </Paper>
             )}
 
-            {/* Enhanced Risk Details Modal */}
-            <Dialog open={detailsModalOpen} onClose={() => setDetailsModalOpen(false)} maxWidth="lg" fullWidth>
-                <DialogTitle>
-                    <Stack direction="row" alignItems="center" justifyContent="space-between">
-                        <Stack>
-                            <Typography variant="h6">
-                                Risk Story Details
-                            </Typography>
-                            {selectedRisk && (
-                                <Typography variant="caption" color="text.secondary">
-                                    Risk ID: {selectedRisk.riskId}
-                                </Typography>
-                            )}
-                        </Stack>
-                        <IconButton onClick={() => setDetailsModalOpen(false)} size="small">
-                            <CloseIcon />
-                        </IconButton>
-                    </Stack>
-                </DialogTitle>
-                <DialogContent>
-                    {selectedRisk && (
-                        <Grid container spacing={2}>
-                            {/* Left Column - Main Content */}
-                            <Grid item xs={12} md={8}>
-                                <Stack spacing={2}>
-                                    {/* Risk Header */}
-                                    <Paper variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
-                                        <Stack spacing={1.5}>
-                                            <Typography variant="h6">
-                                                {selectedRisk.title}
-                                            </Typography>
-                                            <Stack direction="row" spacing={1} flexWrap="wrap">
-                                                <Chip
-                                                    size="small"
-                                                    color={getRiskSeverityColor(selectedRisk.severity)}
-                                                    label={`${selectedRisk.severity.toUpperCase()} SEVERITY`}
-                                                />
-                                                <Chip
-                                                    size="small"
-                                                    color={getRiskStatusColor(selectedRisk.status)}
-                                                    label={formatStatusLabel(selectedRisk.status)}
-                                                />
-                                                <Chip
-                                                    size="small"
-                                                    variant="outlined"
-                                                    color={selectedRisk.creationType === 'SYSTEM_AUTO_CREATION' ? 'info' : 'default'}
-                                                    label={selectedRisk.creationType === 'SYSTEM_AUTO_CREATION' ? 'AUTO-CREATED' : 'MANUAL'}
-                                                />
-                                            </Stack>
-                                        </Stack>
-                                    </Paper>
-
-                                    {/* Risk Assessment - If/Then Logic */}
-                                    <Paper variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
-                                        <Typography variant="h6" sx={{ mb: 1.5 }}>
-                                            Risk Assessment
-                                        </Typography>
-                                        <Stack spacing={1.5}>
-                                            <Box>
-                                                <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 0.5 }}>
-                                                    HYPOTHESIS
-                                                </Typography>
-                                                <Typography variant="body2">
-                                                    {selectedRisk.hypothesis}
-                                                </Typography>
-                                            </Box>
-                                            
-                                            <Box sx={{ bgcolor: 'grey.50', p: 1.5, borderRadius: 1, border: '1px solid', borderColor: 'grey.200' }}>
-                                                <Typography variant="subtitle2" color="warning.main" fontWeight={600} sx={{ mb: 0.5 }}>
-                                                    RISK CONDITION
-                                                </Typography>
-                                                <Typography variant="body2" color="warning.dark">
-                                                    {selectedRisk.condition}
-                                                </Typography>
-                                            </Box>
-
-                                            <Box sx={{ bgcolor: 'error.50', p: 1.5, borderRadius: 1, border: '1px solid', borderColor: 'error.200' }}>
-                                                <Typography variant="subtitle2" color="error.main" fontWeight={600} sx={{ mb: 0.5 }}>
-                                                    POTENTIAL CONSEQUENCE
-                                                </Typography>
-                                                <Typography variant="body2" color="error.dark">
-                                                    {selectedRisk.consequence}
-                                                </Typography>
-                                            </Box>
-                                        </Stack>
-                                    </Paper>
-
-                                    {/* Policy Context */}
-                                    {selectedRisk.policyRequirementSnapshot && (
-                                        <Paper variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
-                                            <Typography variant="h6" sx={{ mb: 1.5 }}>
-                                                Policy Context
-                                            </Typography>
-                                            <Stack spacing={1.5}>
-                                                <Grid container spacing={1.5}>
-                                                    <Grid item xs={6}>
-                                                        <Typography variant="subtitle2" sx={{ mb: 0.5 }}>Field</Typography>
-                                                        <Typography variant="body2">
-                                                            {selectedRisk.policyRequirementSnapshot.fieldLabel}
-                                                        </Typography>
-                                                    </Grid>
-                                                    <Grid item xs={6}>
-                                                        <Typography variant="subtitle2" sx={{ mb: 0.5 }}>Requirement</Typography>
-                                                        <Typography variant="body2">
-                                                            {selectedRisk.policyRequirementSnapshot?.activeRule?.label || selectedRisk.policyRequirementSnapshot?.activeRule?.value || '—'}
-                                                        </Typography>
-                                                    </Grid>
-                                                    <Grid item xs={6}>
-                                                        <Typography variant="subtitle2" sx={{ mb: 0.5 }}>App Rating</Typography>
-                                                        {(() => {
-                                                            const ratingInfo = getRatingInfo(selectedRisk.policyRequirementSnapshot.activeRule);
-                                                            return ratingInfo ? (
-                                                                <Chip 
-                                                                    size="small" 
-                                                                    variant="outlined"
-                                                                    label={`${ratingInfo.type}: ${ratingInfo.value}`}
-                                                                />
-                                                            ) : (
-                                                                <Typography variant="body2">—</Typography>
-                                                            );
-                                                        })()}
-                                                    </Grid>
-                                                    <Grid item xs={6}>
-                                                        <Typography variant="subtitle2" sx={{ mb: 0.5 }}>TTL</Typography>
-                                                        <Typography variant="body2">
-                                                            {selectedRisk.policyRequirementSnapshot.activeRule.ttl}
-                                                        </Typography>
-                                                    </Grid>
-                                                </Grid>
-
-                                                {/* Compliance Frameworks */}
-                                                {selectedRisk.policyRequirementSnapshot.complianceFrameworks.length > 0 && (
-                                                    <Box>
-                                                        <Typography variant="subtitle2" sx={{ mb: 0.5 }}>
-                                                            Compliance Frameworks
-                                                        </Typography>
-                                                        <Stack direction="row" spacing={0.5} flexWrap="wrap" useFlexGap>
-                                                            {selectedRisk.policyRequirementSnapshot.complianceFrameworks.map((framework, index) => (
-                                                                <Tooltip 
-                                                                    key={index}
-                                                                    title={`Controls: ${framework.controls.join(', ')}`}
-                                                                >
-                                                                    <Chip
-                                                                        size="small"
-                                                                        variant="outlined"
-                                                                        label={framework.framework}
-                                                                        color="primary"
-                                                                    />
-                                                                </Tooltip>
-                                                            ))}
-                                                        </Stack>
-                                                    </Box>
-                                                )}
-                                            </Stack>
-                                        </Paper>
-                                    )}
-
-                                    {/* Evidence Section */}
-                                    {selectedRisk.triggeringEvidenceId && (
-                                        <Paper variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
-                                            <Typography variant="h6" sx={{ mb: 1 }}>
-                                                Triggering Evidence
-                                            </Typography>
-                                            <Stack direction="row" alignItems="center" spacing={1.5}>
-                                                <Chip 
-                                                    size="small" 
-                                                    icon={<ViewIcon />}
-                                                    label={`Evidence ID: ${selectedRisk.triggeringEvidenceId}`}
-                                                    variant="outlined"
-                                                    clickable
-                                                    onClick={() => console.log('View evidence:', selectedRisk.triggeringEvidenceId)}
-                                                />
-                                                <Typography variant="body2" color="text.secondary">
-                                                    Click to view the evidence that triggered this risk
-                                                </Typography>
-                                            </Stack>
-                                        </Paper>
-                                    )}
-                                </Stack>
-                            </Grid>
-
-                            {/* Right Column - Metadata & Actions */}
-                            <Grid item xs={12} md={4}>
-                                <Stack spacing={2}>
-                                    {/* Assignment & Timeline */}
-                                    <Paper variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
-                                        <Typography variant="h6" sx={{ mb: 1.5 }}>
-                                            Assignment & Timeline
-                                        </Typography>
-                                        <Stack spacing={1.5}>
-                                            <Box>
-                                                <Typography variant="subtitle2" sx={{ mb: 0.5 }}>Assigned SME</Typography>
-                                                <Typography variant="body2" fontWeight={600}>
-                                                    {selectedRisk.assignedSme || 'Unassigned'}
-                                                </Typography>
-                                            </Box>
-                                            
-                                            <Box>
-                                                <Typography variant="subtitle2" sx={{ mb: 0.5 }}>Raised By</Typography>
-                                                <Typography variant="body2">
-                                                    {selectedRisk.raisedBy}
-                                                </Typography>
-                                            </Box>
-
-                                            <Box>
-                                                <Typography variant="subtitle2" sx={{ mb: 0.5 }}>Opened</Typography>
-                                                <Typography variant="body2">
-                                                    {formatDate(selectedRisk.openedAt)}
-                                                </Typography>
-                                            </Box>
-
-                                            {selectedRisk.assignedAt && (
-                                                <Box>
-                                                    <Typography variant="subtitle2" sx={{ mb: 0.5 }}>Assigned</Typography>
-                                                    <Typography variant="body2">
-                                                        {formatDate(selectedRisk.assignedAt)}
-                                                    </Typography>
-                                                </Box>
-                                            )}
-
-                                            {selectedRisk.lastReviewedAt && (
-                                                <Box>
-                                                    <Typography variant="subtitle2" sx={{ mb: 0.5 }}>Last Reviewed</Typography>
-                                                    <Typography variant="body2">
-                                                        {formatDate(selectedRisk.lastReviewedAt)}
-                                                    </Typography>
-                                                    <Typography variant="caption" color="text.secondary">
-                                                        by {selectedRisk.lastReviewedBy}
-                                                    </Typography>
-                                                </Box>
-                                            )}
-                                        </Stack>
-                                    </Paper>
-
-                                    {/* Quick Actions */}
-                                    <Paper variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
-                                        <Typography variant="h6" sx={{ mb: 1.5 }}>
-                                            Actions
-                                        </Typography>
-                                        <Stack spacing={1}>
-                                            {userRole === 'sme' && selectedRisk.status === 'PENDING_SME_REVIEW' && (
-                                                <>
-                                                    <Button
-                                                        variant="contained"
-                                                        color="success"
-                                                        startIcon={<ApproveIcon />}
-                                                        onClick={() => handleApproveRisk(selectedRisk)}
-                                                        fullWidth
-                                                    >
-                                                        Approve Risk
-                                                    </Button>
-                                                    <Button
-                                                        variant="contained"
-                                                        color="error"
-                                                        startIcon={<RejectIcon />}
-                                                        onClick={() => handleRejectRisk(selectedRisk)}
-                                                        fullWidth
-                                                    >
-                                                        Reject Risk
-                                                    </Button>
-                                                </>
-                                            )}
-                                            
-                                            {userRole === 'po' && (selectedRisk.status === 'pending_evidence' || selectedRisk.status === 'open') && (
-                                                <Button
-                                                    variant="outlined"
-                                                    startIcon={<AttachFileIcon />}
-                                                    onClick={() => handleAttachEvidence(selectedRisk)}
-                                                    fullWidth
-                                                >
-                                                    Attach Evidence
-                                                </Button>
-                                            )}
-
-                                            {userRole === 'sme' && (
-                                                <>
-                                                    <Button
-                                                        variant="outlined"
-                                                        startIcon={<AssignIcon />}
-                                                        onClick={() => console.log('Reassign risk:', selectedRisk.riskId)}
-                                                        fullWidth
-                                                    >
-                                                        Reassign
-                                                    </Button>
-                                                    <Button
-                                                        variant="outlined"
-                                                        startIcon={<EditIcon />}
-                                                        onClick={() => console.log('Edit risk:', selectedRisk.riskId)}
-                                                        fullWidth
-                                                    >
-                                                        Edit Risk
-                                                    </Button>
-                                                </>
-                                            )}
-                                        </Stack>
-                                    </Paper>
-
-                                    {/* Technical Details */}
-                                    <Paper variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
-                                        <Typography variant="h6" sx={{ mb: 1.5 }}>
-                                            Technical Details
-                                        </Typography>
-                                        <Stack spacing={1}>
-                                            <Box>
-                                                <Typography variant="caption" color="text.secondary">Field Key</Typography>
-                                                <Typography variant="body2">{selectedRisk.fieldKey || '—'}</Typography>
-                                            </Box>
-                                            <Box>
-                                                <Typography variant="caption" color="text.secondary">Evidence Count</Typography>
-                                                <Typography variant="body2">{selectedRisk.evidenceCount || 0} pieces</Typography>
-                                            </Box>
-                                            <Box>
-                                                <Typography variant="caption" color="text.secondary">Created</Typography>
-                                                <Typography variant="body2">{formatDate(selectedRisk.createdAt)}</Typography>
-                                            </Box>
-                                            <Box>
-                                                <Typography variant="caption" color="text.secondary">Last Updated</Typography>
-                                                <Typography variant="body2">{formatDate(selectedRisk.updatedAt)}</Typography>
-                                            </Box>
-                                        </Stack>
-                                    </Paper>
-                                </Stack>
-                            </Grid>
-                        </Grid>
-                    )}
-                </DialogContent>
-                <DialogActions>
-                    <Button onClick={() => setDetailsModalOpen(false)}>
-                        Close
-                    </Button>
-                </DialogActions>
-            </Dialog>
+            {/* Risk Item Details Modals - Conditional based on user role */}
+            {userRole === 'sme' ? (
+                <SmeRiskItemModal
+                    open={detailsModalOpen}
+                    onClose={() => setDetailsModalOpen(false)}
+                    risk={selectedRisk}
+                    smeId={currentUserId || 'unknown_sme'}
+                />
+            ) : (
+                <PoRiskItemModal
+                    open={detailsModalOpen}
+                    onClose={() => setDetailsModalOpen(false)}
+                    risk={selectedRisk}
+                    appId={appId}
+                    onAttachEvidence={handleAttachEvidence}
+                />
+            )}
 
             {/* Create Risk Dialog */}
             <Dialog open={createDialogOpen} onClose={() => setCreateDialogOpen(false)} maxWidth="sm" fullWidth>
-                <DialogTitle>Create New Risk Story</DialogTitle>
+                <DialogTitle>Create New Risk Item</DialogTitle>
                 <DialogContent>
                     <Stack spacing={2} sx={{ mt: 1 }}>
                         <TextField
@@ -890,8 +796,8 @@ export default function RisksTab({ appId, userRole = 'po' }: RisksTabProps) {
 
                         <TextField
                             label="Assigned SME"
-                            value={newRisk.assignedSme}
-                            onChange={(e) => setNewRisk({ ...newRisk, assignedSme: e.target.value })}
+                            value={newRisk.assignedTo}
+                            onChange={(e) => setNewRisk({ ...newRisk, assignedTo: e.target.value })}
                             placeholder="e.g., security_sme_001"
                             fullWidth
                         />
@@ -905,7 +811,7 @@ export default function RisksTab({ appId, userRole = 'po' }: RisksTabProps) {
                             description: '',
                             severity: 'medium',
                             fieldKey: '',
-                            assignedSme: ''
+                            assignedTo: ''
                         });
                     }}>
                         Cancel

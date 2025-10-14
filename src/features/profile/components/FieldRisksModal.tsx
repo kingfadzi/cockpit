@@ -22,22 +22,26 @@ import {
 } from '@mui/icons-material';
 import type { Risk } from '../../../api/types';
 import { useRisk } from '../../../api/hooks';
-import RiskStoryModal from '../../sme/components/RiskStoryModal';
+import SmeRiskItemModal from '../../sme/components/SmeRiskItemModal';
+import PoRiskItemModal from './PoRiskItemModal';
 
 interface FieldRisksModalProps {
     open: boolean;
     onClose: () => void;
     fieldLabel: string;
     risks: Risk[];
+    userRole?: 'po' | 'sme';
+    appId?: string;
 }
 
-export default function FieldRisksModal({ open, onClose, fieldLabel, risks }: FieldRisksModalProps) {
+export default function FieldRisksModal({ open, onClose, fieldLabel, risks, userRole = 'po', appId }: FieldRisksModalProps) {
     const [selectedRiskId, setSelectedRiskId] = useState<string | null>(null);
     const { data: selectedRisk, isLoading: riskLoading } = useRisk(selectedRiskId || '');
 
     const handleRiskClick = (risk: any) => {
         console.log('Risk object:', risk);
-        setSelectedRiskId(risk.risk_id);
+        // Handle both camelCase (riskId) and snake_case (risk_id) field names
+        setSelectedRiskId(risk.riskId || risk.risk_id);
     };
 
     const handleRiskModalClose = () => {
@@ -147,13 +151,23 @@ export default function FieldRisksModal({ open, onClose, fieldLabel, risks }: Fi
                 </Button>
             </DialogActions>
             
-            {/* Risk Detail Modal */}
-            <RiskStoryModal
-                open={!!selectedRiskId}
-                onClose={handleRiskModalClose}
-                risk={selectedRisk}
-                smeId="current-user-id"
-            />
+            {/* Risk Detail Modal - Conditional based on user role */}
+            {userRole === 'sme' ? (
+                <SmeRiskItemModal
+                    open={!!selectedRiskId}
+                    onClose={handleRiskModalClose}
+                    risk={selectedRisk}
+                    smeId="current-user-id"
+                />
+            ) : (
+                <PoRiskItemModal
+                    open={!!selectedRiskId}
+                    onClose={handleRiskModalClose}
+                    risk={selectedRisk}
+                    appId={appId || ''}
+                    onAttachEvidence={() => {}}
+                />
+            )}
         </Dialog>
     );
 }
