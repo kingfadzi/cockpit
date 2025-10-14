@@ -84,7 +84,7 @@ export default function HeadsUpDisplay({ metrics, currentScope }: HeadsUpDisplay
   };
 
   const healthColor = getHealthColor(metrics.healthGrade);
-  const netChange = metrics.recentActivity.newRisksLast7Days - metrics.recentActivity.resolvedLast7Days;
+  const netChange = metrics.recentActivity.appsWithNewRisks7d - metrics.recentActivity.appsWithResolutions7d;
   const isPositiveTrend = netChange <= 0;
 
   return (
@@ -113,30 +113,30 @@ export default function HeadsUpDisplay({ metrics, currentScope }: HeadsUpDisplay
           }}
         >
           <RibbonMetric
-            label="Critical"
-            value={metrics.criticalCount}
+            label="Critical Apps"
+            value={metrics.criticalApplications}
             color="error"
-            highlight={metrics.criticalCount > 0}
-            badge={metrics.criticalCount > 0 ? { label: 'Urgent', color: 'error' } : undefined}
+            highlight={metrics.criticalApplications > 0}
+            badge={metrics.criticalApplications > 0 ? { label: 'Urgent', color: 'error' } : undefined}
           />
 
           <RibbonMetric
-            label="In Progress"
-            value={metrics.openItemsCount}
+            label="Total Open Items"
+            value={metrics.totalOpenItems}
             color="warning"
             customColor="#5c6bc0"
           />
 
           <RibbonMetric
             label="Awaiting Triage"
-            value={metrics.pendingReviewCount}
+            value={metrics.applicationsAwaitingTriage}
             color="info"
             customColor="#26a69a"
           />
 
           <RibbonMetric
-            label="Risk Score"
-            value={metrics.averageRiskScore}
+            label="Avg Items/App"
+            value={metrics.averageItemsPerApp.toFixed(1)}
             color={healthColor}
             badge={{ label: `Grade ${metrics.healthGrade}`, color: healthColor }}
           />
@@ -145,7 +145,7 @@ export default function HeadsUpDisplay({ metrics, currentScope }: HeadsUpDisplay
             label={`Net Change (7d)`}
             value={`${netChange > 0 ? '+' : ''}${netChange}`}
             color={isPositiveTrend ? 'success' : 'warning'}
-            badge={{ label: `${metrics.recentActivity.newRisksLast7Days}↑ ${metrics.recentActivity.resolvedLast7Days}↓`, color: 'default' }}
+            badge={{ label: `${metrics.recentActivity.appsWithNewRisks7d}↑ ${metrics.recentActivity.appsWithResolutions7d}↓`, color: 'default' }}
           />
         </Stack>
       </Paper>

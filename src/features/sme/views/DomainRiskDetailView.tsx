@@ -140,7 +140,7 @@ export default function DomainRiskDetailView({ domainRiskId, onBack, onSelectRis
                         <Grid item xs={12} sm={6} md={3}>
                             <Paper variant="outlined" sx={{ p: 2 }}>
                                 <Typography variant="caption" color="text.secondary">
-                                    ARB
+                                    Guild
                                 </Typography>
                                 <Typography variant="h6" fontWeight={600}>
                                     {domainRisk.arb}

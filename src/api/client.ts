@@ -10,6 +10,12 @@ import type {
     AppKpis,
     AttachDocumentResponse,
     RiskStory,
+    RiskItem,
+    RiskItemSearchParams,
+    RiskItemSearchResponse,
+    CreateRiskItemPayload,
+    RiskPriority,
+    RiskSeverity,
     AppsWithKpis,
     BulkAttestationRequest,
     BulkAttestationResponse,
@@ -921,9 +927,262 @@ export const endpoints = {
             }
             : (await api.get<unknown>(`/api/profile-fields/${profileFieldId}/evidence`)).data,
 
-    // Risk Management Endpoints
+    // ==========================================
+    // Risk Management Endpoints (NEW API)
+    // ==========================================
 
-    /** Get individual risk item */
+    /** NEW: Unified risk item search endpoint */
+    searchRiskItems: async (params: RiskItemSearchParams): Promise<RiskItemSearchResponse> => {
+        if (USE_MOCK) {
+            // Create comprehensive mock data with new field structure
+            const allMockRisks: RiskItem[] = [
+                {
+                    riskItemId: 'risk_04c51349-ed55-43f5-afb5-93b69ac7a9eb',
+                    appId: params.appId || 'CORR-12356',
+                    fieldKey: 'encryption_at_rest',
+                    riskDimension: 'security',
+                    triggeringEvidenceId: 'ev_be6dc1a423b74494be60ca6f02e3b913',
+                    creationType: 'SYSTEM_AUTO_CREATION',
+                    assignedTo: 'security_sme_001',
+                    title: 'Auto-created risk for encryption_at_rest field',
+                    hypothesis: 'Evidence may indicate risk in encryption_at_rest implementation',
+                    condition: 'IF the attached evidence reveals security gaps',
+                    consequence: 'THEN security posture may be compromised',
+                    severity: 'high',
+                    priority: 'HIGH',
+                    priorityScore: 85,
+                    status: 'OPEN',
+                    raisedBy: 'SYSTEM_AUTO_CREATION',
+                    openedAt: '2025-09-01T19:37:29.216084Z',
+                    assignedAt: '2025-09-01T19:37:29.216089Z',
+                    policyRequirementSnapshot: {
+                        fieldKey: 'encryption_at_rest',
+                        activeRule: {
+                            ttl: '90d',
+                            label: 'Required',
+                            value: 'required',
+                            security_rating: 'A2',
+                            requiresReview: true
+                        },
+                        fieldLabel: 'Encryption at Rest',
+                        snapshotTimestamp: 1756755449216,
+                        complianceFrameworks: [
+                            { controls: ['SC-28', 'SC-8'], framework: 'NIST' },
+                            { controls: ['A.10.1.1'], framework: 'ISO27001' }
+                        ]
+                    },
+                    createdAt: '2025-09-01T19:37:28.547524Z',
+                    updatedAt: '2025-09-01T19:37:28.547524Z',
+                    evidenceCount: 1
+                },
+                {
+                    riskItemId: 'risk_002',
+                    appId: params.appId || 'CORR-12356',
+                    fieldKey: 'key_rotation_max',
+                    riskDimension: 'security',
+                    creationType: 'MANUAL',
+                    assignedTo: 'security_sme_002',
+                    title: 'Key Rotation Period Exceeds Policy',
+                    hypothesis: 'Current key rotation practices may not align with security policy',
+                    condition: 'IF key rotation period exceeds 90 days',
+                    consequence: 'THEN cryptographic keys become vulnerable to compromise',
+                    severity: 'medium',
+                    priority: 'MEDIUM',
+                    priorityScore: 65,
+                    status: 'IN_PROGRESS',
+                    raisedBy: 'po_user_001',
+                    openedAt: '2024-01-10T09:15:00Z',
+                    assignedAt: '2024-01-10T10:00:00Z',
+                    createdAt: '2024-01-10T09:15:00Z',
+                    updatedAt: '2024-01-18T11:45:00Z',
+                    evidenceCount: 2,
+                    lastReviewedAt: '2024-01-18T11:45:00Z',
+                    lastReviewedBy: 'security_sme_002'
+                },
+                {
+                    riskItemId: 'risk_003',
+                    appId: params.appId || 'CORR-12356',
+                    fieldKey: 'rto_hours',
+                    riskDimension: 'availability',
+                    creationType: 'MANUAL',
+                    assignedTo: 'ops_sme_001',
+                    title: 'Recovery Time Objective Exceeds Target',
+                    hypothesis: 'Current RTO configuration may not meet business requirements',
+                    condition: 'IF recovery time exceeds 4 hours',
+                    consequence: 'THEN business operations may be significantly impacted during outages',
+                    severity: 'medium',
+                    priority: 'MEDIUM',
+                    priorityScore: 55,
+                    status: 'OPEN',
+                    raisedBy: 'audit_system',
+                    openedAt: '2024-01-12T16:00:00Z',
+                    createdAt: '2024-01-12T16:00:00Z',
+                    updatedAt: '2024-01-12T16:00:00Z',
+                    evidenceCount: 1
+                }
+            ];
+
+            // Apply filters
+            let filtered = allMockRisks;
+
+            if (params.appId) {
+                filtered = filtered.filter(r => r.appId === params.appId);
+            }
+            if (params.assignedTo) {
+                filtered = filtered.filter(r => r.assignedTo === params.assignedTo);
+            }
+            if (params.status) {
+                const statuses = params.status.split(',');
+                filtered = filtered.filter(r => statuses.includes(r.status));
+            }
+            if (params.priority) {
+                const priorities = params.priority.split(',');
+                filtered = filtered.filter(r => priorities.includes(r.priority));
+            }
+            if (params.fieldKey) {
+                filtered = filtered.filter(r => r.fieldKey === params.fieldKey);
+            }
+            if (params.severity) {
+                filtered = filtered.filter(r => r.severity === params.severity);
+            }
+            if (params.creationType) {
+                const types = params.creationType.split(',');
+                filtered = filtered.filter(r => types.includes(r.creationType));
+            }
+            if (params.triggeringEvidenceId) {
+                filtered = filtered.filter(r => r.triggeringEvidenceId === params.triggeringEvidenceId);
+            }
+            if (params.riskDimension) {
+                console.log('[Mock API] Filtering by riskDimension:', params.riskDimension);
+                filtered = filtered.filter(r => r.riskDimension === params.riskDimension);
+                console.log('[Mock API] Filtered risks:', filtered.length);
+            }
+
+            // Apply sorting
+            const sortBy = params.sortBy || 'priorityScore';
+            const sortOrder = params.sortOrder || 'DESC';
+            filtered.sort((a, b) => {
+                const aVal = a[sortBy as keyof RiskItem] as number;
+                const bVal = b[sortBy as keyof RiskItem] as number;
+                const comparison = aVal < bVal ? -1 : aVal > bVal ? 1 : 0;
+                return sortOrder === 'ASC' ? comparison : -comparison;
+            });
+
+            // Apply pagination (0-indexed)
+            const page = params.page || 0;
+            const size = params.size || 20;
+            const start = page * size;
+            const paginatedItems = filtered.slice(start, start + size);
+
+            return {
+                items: paginatedItems,
+                currentPage: page,
+                pageSize: size,
+                totalElements: filtered.length,
+                totalPages: Math.ceil(filtered.length / size),
+                first: page === 0,
+                last: start + size >= filtered.length
+            };
+        }
+
+        // Build query params for real API
+        const queryParams = new URLSearchParams();
+        Object.entries(params).forEach(([key, value]) => {
+            if (value !== undefined && value !== null) {
+                queryParams.set(key, String(value));
+            }
+        });
+
+        const response = await api.get<RiskItemSearchResponse>(
+            `/api/v1/risk-items/search?${queryParams.toString()}`
+        );
+
+        return response.data;
+    },
+
+    /** NEW: Get single risk item by ID */
+    getRiskItem: async (riskItemId: string): Promise<RiskItem> => {
+        if (USE_MOCK) {
+            return {
+                riskItemId,
+                appId: 'CORR-12356',
+                fieldKey: 'encryption_at_rest',
+                profileFieldId: 'pf_001',
+                title: 'Encryption at Rest Not Implemented',
+                description: 'Application does not have proper encryption at rest implementation.',
+                status: 'OPEN',
+                priority: 'HIGH',
+                severity: 'high',
+                priorityScore: 85,
+                assignedTo: 'security_sme_001',
+                creationType: 'SYSTEM_AUTO_CREATION',
+                raisedBy: 'SYSTEM',
+                openedAt: new Date().toISOString(),
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
+                evidenceCount: 0
+            };
+        }
+
+        const response = await api.get<RiskItem>(`/api/v1/risk-items/${riskItemId}`);
+        return response.data;
+    },
+
+    /** NEW: Create risk item */
+    createRiskItem: async (payload: CreateRiskItemPayload): Promise<RiskItem> => {
+        if (USE_MOCK) {
+            return {
+                riskItemId: 'risk_new_' + Date.now(),
+                appId: payload.appId,
+                fieldKey: payload.fieldKey,
+                title: payload.title,
+                description: payload.description,
+                hypothesis: payload.hypothesis,
+                condition: payload.condition,
+                consequence: payload.consequence,
+                status: 'OPEN',
+                priority: payload.priority || 'MEDIUM',
+                severity: payload.severity,
+                priorityScore: 50,
+                assignedTo: payload.assignedTo,
+                creationType: payload.creationType || 'MANUAL',
+                raisedBy: payload.raisedBy || 'current_user',
+                openedAt: new Date().toISOString(),
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
+                evidenceCount: 0
+            };
+        }
+
+        const response = await api.post<RiskItem>('/api/v1/risk-items', payload);
+        return response.data;
+    },
+
+    /** Convenience: Get risks for an app */
+    getRiskItemsByApp: async (appId: string, page = 0, size = 20): Promise<RiskItemSearchResponse> => {
+        return endpoints.searchRiskItems({ appId, page, size });
+    },
+
+    /** Convenience: Get risks for a field */
+    getRiskItemsByField: async (appId: string, fieldKey: string): Promise<RiskItem[]> => {
+        const result = await endpoints.searchRiskItems({
+            appId,
+            fieldKey,
+            size: 1000 // Get all for a specific field
+        });
+        return result.items;
+    },
+
+    /** Convenience: Get risks assigned to user */
+    getRiskItemsByAssignee: async (assignedTo: string, status?: string, page = 0, size = 20): Promise<RiskItemSearchResponse> => {
+        return endpoints.searchRiskItems({ assignedTo, status, page, size });
+    },
+
+    // ==========================================
+    // LEGACY Risk Endpoints (Deprecated - use searchRiskItems instead)
+    // ==========================================
+
+    /** @deprecated Use getRiskItem instead */
     getRisk: async (riskId: string): Promise<RiskStory> =>
         USE_MOCK
             ? {
@@ -943,7 +1202,7 @@ export const endpoints = {
             }
             : (await api.get<RiskStory>(`/api/risks/${riskId}`)).data,
 
-    /** Get all risks for application */
+    /** @deprecated Use searchRiskItems or getRiskItemsByApp instead */
     getAppRisks: async (appId: string, page?: number, size?: number, filters?: { status?: string; severity?: string; assignedSme?: string; search?: string; domain?: string }): Promise<unknown> => {
         if (USE_MOCK) {
             const allRisks = [
@@ -1063,6 +1322,43 @@ export const endpoints = {
                     createdAt: '2024-01-12T16:00:00Z',
                     updatedAt: '2024-01-12T16:00:00Z',
                     evidenceCount: 1
+                },
+                {
+                    riskId: 'risk_004',
+                    appId,
+                    fieldKey: 'security_testing',
+                    creationType: 'MANUAL',
+                    assignedSme: null,  // Unassigned
+                    assignedTo: null,
+                    title: 'Security Testing Not Performed',
+                    hypothesis: 'Application has not undergone security testing',
+                    condition: 'IF security testing has not been performed in the last 6 months',
+                    consequence: 'THEN vulnerabilities may exist undetected',
+                    severity: 'high',
+                    status: 'open',
+                    raisedBy: 'audit_system',
+                    openedAt: '2024-01-15T10:00:00Z',
+                    policyRequirementSnapshot: {
+                        fieldKey: 'security_testing',
+                        activeRule: {
+                            ttl: '180d',
+                            label: 'Required every 6 months',
+                            value: 'required',
+                            security_rating: 'A1',
+                            requiresReview: true
+                        },
+                        fieldLabel: 'Security Testing',
+                        snapshotTimestamp: 1705315200000,
+                        complianceFrameworks: [
+                            {
+                                controls: ['CA-2', 'CA-8'],
+                                framework: 'NIST'
+                            }
+                        ]
+                    },
+                    createdAt: '2024-01-15T10:00:00Z',
+                    updatedAt: '2024-01-15T10:00:00Z',
+                    evidenceCount: 0
                 }
             ];
             
@@ -1100,7 +1396,7 @@ export const endpoints = {
         return (await api.get<unknown>(`/api/risks/search`, { params })).data;
     },
 
-    /** Get risks by field key */
+    /** @deprecated Use getRiskItemsByField instead */
     getFieldRisks: async (appId: string, fieldKey: string): Promise<RiskStory[]> =>
         USE_MOCK
             ? [
@@ -1122,13 +1418,13 @@ export const endpoints = {
             ]
             : (await api.get<RiskStory[]>(`/api/apps/${appId}/fields/${fieldKey}/risks`)).data,
 
-    /** Get risks by profile field ID */
+    /** @deprecated Use searchRiskItems with profileFieldId filter instead */
     getProfileFieldRisks: async (profileFieldId: string): Promise<RiskStory[]> =>
         USE_MOCK
             ? []
             : (await api.get<RiskStory[]>(`/api/profile-fields/${profileFieldId}/risks`)).data,
 
-    /** Create new risk item */
+    /** @deprecated Use createRiskItem instead */
     createRisk: async (appId: string, fieldKey: string, payload: unknown): Promise<RiskStory> =>
         USE_MOCK
             ? {
@@ -1147,13 +1443,13 @@ export const endpoints = {
             }
             : (await api.post<RiskStory>(`/api/apps/${appId}/fields/${fieldKey}/risks`, payload)).data,
 
-    /** Attach evidence to risk */
+    /** @deprecated Will be replaced with new risk item evidence management endpoints */
     attachEvidenceToRisk: async (riskId: string, payload: unknown): Promise<unknown> =>
         USE_MOCK
             ? { success: true, evidenceId: 'ev_' + Date.now() }
             : (await api.post<unknown>(`/api/risks/${riskId}/evidence`, payload)).data,
 
-    /** Detach evidence from risk */
+    /** @deprecated Will be replaced with new risk item evidence management endpoints */
     detachEvidenceFromRisk: async (riskId: string, evidenceId: string): Promise<unknown> =>
         USE_MOCK
             ? { success: true }
@@ -1166,7 +1462,7 @@ export const endpoints = {
             ? [
                 {
                     riskId: "risk_123",
-                    appId: "CORR-12356", 
+                    appId: "CORR-12356",
                     title: "Encryption at Rest Not Implemented",
                     severity: "high",
                     status: "PENDING_SME_REVIEW",
@@ -1180,7 +1476,7 @@ export const endpoints = {
                     appId: "PAY-7890",
                     title: "MFA Not Enforced",
                     severity: "medium",
-                    status: "PENDING_SME_REVIEW", 
+                    status: "PENDING_SME_REVIEW",
                     fieldKey: "mfa_enforcement",
                     assignedAt: "2025-01-11T14:00:00Z",
                     dueDate: "2025-01-18T14:00:00Z",
@@ -1198,7 +1494,7 @@ export const endpoints = {
                     appName: "Authentication Service"
                 }
             ]
-            : coerceArray((await api.get<unknown[]>(`/api/risks/search?assignedSme=${smeId}&status=PENDING_SME_REVIEW`)).data),
+            : coerceArray((await api.get<unknown[]>(`/api/risks/search?assignedTo=${smeId}&status=PENDING_SME_REVIEW`)).data),
 
     /** Get all security-related risks assigned to this SME across all apps */
     getSmeSecurityDomainRisks: async (smeId: string): Promise<unknown[]> =>
@@ -1259,7 +1555,7 @@ export const endpoints = {
                     appName: "File Sharing Service"
                 }
             ]
-            : coerceArray((await api.get<unknown[]>(`/api/risks/search?assignedSme=${smeId}&domain=security`)).data),
+            : coerceArray((await api.get<unknown[]>(`/api/risks/search?assignedTo=${smeId}&domain=security`)).data),
 
     /** Get risks from other domains assigned to this SME */
     getSmeCrossDomainRisks: async (smeId: string): Promise<unknown[]> =>
@@ -1299,7 +1595,7 @@ export const endpoints = {
                     appName: "Data Lake Platform"
                 }
             ]
-            : coerceArray((await api.get<unknown[]>(`/api/risks/search?assignedSme=${smeId}&domain=availability,integrity,compliance`)).data),
+            : coerceArray((await api.get<unknown[]>(`/api/risks/search?assignedTo=${smeId}&domain=availability,integrity,compliance`)).data),
 
     /** Get all open risks assigned to SME (for Open Risks table) */
     getSmeAllOpenRisks: async (smeId: string): Promise<unknown[]> =>
@@ -1362,7 +1658,7 @@ export const endpoints = {
                     appName: "Backup System"
                 }
             ]
-            : coerceArray((await api.get<unknown[]>(`/api/risks/search?assignedSme=${smeId}&status=PENDING_SME_REVIEW,UNDER_REVIEW`)).data),
+            : coerceArray((await api.get<unknown[]>(`/api/risks/search?assignedTo=${smeId}&status=PENDING_SME_REVIEW,UNDER_REVIEW`)).data),
 
     /** SME approves or rejects a risk */
     submitSmeReview: async (riskId: string, payload: { action: 'approve' | 'reject'; comments: string; smeId: string }): Promise<unknown> =>
@@ -1808,5 +2104,26 @@ export const endpoints = {
         }
 
         return (await api.patch<RiskItemResponse>(`/api/v1/risk-items/${riskItemId}/status`, payload)).data;
+    },
+
+    /** Self-assign risk item */
+    selfAssignRiskItem: async (riskItemId: string, userId: string): Promise<{ riskItemId: string; assignedTo: string; assignedBy: string; assignedAt: string; assignmentType: string; message: string }> => {
+        if (USE_MOCK) {
+            await new Promise(resolve => setTimeout(resolve, 300));
+            return {
+                riskItemId,
+                assignedTo: userId,
+                assignedBy: userId,
+                assignedAt: new Date().toISOString(),
+                assignmentType: 'SELF_ASSIGN',
+                message: 'Risk item successfully self-assigned'
+            };
+        }
+
+        return (await api.post(`/api/v1/risk-items/${riskItemId}/assign/self`, {}, {
+            headers: {
+                'X-User-Id': userId
+            }
+        })).data;
     },
 };

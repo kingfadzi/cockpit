@@ -20,13 +20,19 @@ import {
   MenuItem,
   CircularProgress,
   Alert,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
 } from '@mui/material';
 import { useParams, useNavigate } from 'react-router-dom';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import PersonAddIcon from '@mui/icons-material/PersonAdd';
+import PersonRemoveIcon from '@mui/icons-material/PersonRemove';
 import CriticalityBadge from '../../components/CriticalityBadge';
 import { USE_MOCK_DATA } from './config';
 import { getMockArbDashboard, currentMockUser } from './mocks/mockArbData';
-import { getArbApplications } from './api/arbDashboardApi';
+import { getArbApplications, assignRiskToMe, unassignRisk } from './api/arbDashboardApi';
 import { Application, Risk } from './api/types';
 
 interface AppSummaryMetrics {
@@ -363,12 +369,11 @@ export default function ArbAppProfile() {
                 onChange={(e) => setStatusFilter(e.target.value)}
               >
                 <MenuItem value="">All</MenuItem>
-                <MenuItem value="NEW">New</MenuItem>
-                <MenuItem value="PENDING_REVIEW">Pending Review</MenuItem>
                 <MenuItem value="OPEN">Open</MenuItem>
                 <MenuItem value="IN_PROGRESS">In Progress</MenuItem>
                 <MenuItem value="RESOLVED">Resolved</MenuItem>
-                <MenuItem value="ACCEPTED">Accepted</MenuItem>
+                <MenuItem value="WAIVED">Waived</MenuItem>
+                <MenuItem value="CLOSED">Closed</MenuItem>
               </Select>
             </FormControl>
 
@@ -418,7 +423,14 @@ export default function ArbAppProfile() {
             )}
 
             {filteredRisks.map((risk) => (
-              <RiskCard key={risk.id} risk={risk} />
+              <RiskCard
+                key={risk.id}
+                risk={risk}
+                onRiskUpdate={() => {
+                  // Trigger a reload of the application data
+                  setApplication({ ...application });
+                }}
+              />
             ))}
           </Stack>
         </Box>
@@ -428,94 +440,244 @@ export default function ArbAppProfile() {
 }
 
 // Risk Card Component
-function RiskCard({ risk }: { risk: Risk }) {
+function RiskCard({ risk, onRiskUpdate }: { risk: Risk; onRiskUpdate: () => void }) {
   const [expanded, setExpanded] = useState(false);
+  const [assignDialogOpen, setAssignDialogOpen] = useState(false);
+  const [isAssigning, setIsAssigning] = useState(false);
+  const [assignError, setAssignError] = useState<string | null>(null);
+
+  // Determine if current user is assigned (using mock user for now)
+  const isAssignedToMe = risk.assignedTo === currentMockUser.id;
+
+  const handleAssignMe = async () => {
+    setIsAssigning(true);
+    setAssignError(null);
+
+    try {
+      // In mock mode, simulate the assignment
+      if (USE_MOCK_DATA) {
+        // Simulate API delay
+        await new Promise(resolve => setTimeout(resolve, 500));
+
+        // Update the risk in place
+        risk.assignedTo = currentMockUser.id;
+        risk.assignedToName = currentMockUser.name;
+      } else {
+        // Real API call
+        await assignRiskToMe(risk.id);
+      }
+
+      setAssignDialogOpen(false);
+      onRiskUpdate(); // Trigger parent refresh
+    } catch (error) {
+      console.error('Failed to assign risk:', error);
+      setAssignError(error instanceof Error ? error.message : 'Failed to assign risk');
+    } finally {
+      setIsAssigning(false);
+    }
+  };
+
+  const handleUnassign = async () => {
+    setIsAssigning(true);
+    setAssignError(null);
+
+    try {
+      // In mock mode, simulate the unassignment
+      if (USE_MOCK_DATA) {
+        // Simulate API delay
+        await new Promise(resolve => setTimeout(resolve, 500));
+
+        // Update the risk in place
+        risk.assignedTo = null;
+        risk.assignedToName = null;
+      } else {
+        // Real API call
+        await unassignRisk(risk.id);
+      }
+
+      setAssignDialogOpen(false);
+      onRiskUpdate(); // Trigger parent refresh
+    } catch (error) {
+      console.error('Failed to unassign risk:', error);
+      setAssignError(error instanceof Error ? error.message : 'Failed to unassign risk');
+    } finally {
+      setIsAssigning(false);
+    }
+  };
 
   return (
-    <Card
-      variant="outlined"
-      sx={{
-        p: 2,
-        cursor: 'pointer',
-        '&:hover': {
-          boxShadow: 2,
-        },
-      }}
-      onClick={() => setExpanded(!expanded)}
-    >
-      <Stack spacing={1}>
-        {/* Header row */}
-        <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
-          <Chip
-            label={risk.priority}
-            size="small"
-            color={getPriorityColor(risk.priority)}
-            sx={{ fontWeight: 600 }}
-          />
-          <Chip
-            label={risk.status.replace('_', ' ')}
-            size="small"
-            variant="outlined"
-            sx={{ fontWeight: 500 }}
-          />
-          <Chip
-            label={getDomainDisplayName(risk.arbDomain)}
-            size="small"
-            variant="outlined"
-          />
-          {risk.isAutoGenerated && (
+    <>
+      <Card
+        variant="outlined"
+        sx={{
+          p: 2,
+          cursor: 'pointer',
+          '&:hover': {
+            boxShadow: 2,
+          },
+        }}
+        onClick={() => setExpanded(!expanded)}
+      >
+        <Stack spacing={1}>
+          {/* Header row */}
+          <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
             <Chip
-              label="Auto-Generated"
+              label={risk.priority}
               size="small"
-              icon={<span>🤖</span>}
-              sx={{ fontSize: '0.75rem' }}
+              color={getPriorityColor(risk.priority)}
+              sx={{ fontWeight: 600 }}
             />
-          )}
-        </Stack>
+            <Chip
+              label={risk.status.replace('_', ' ')}
+              size="small"
+              variant="outlined"
+              sx={{ fontWeight: 500 }}
+            />
+            <Chip
+              label={getDomainDisplayName(risk.arbDomain)}
+              size="small"
+              variant="outlined"
+            />
+            {risk.isAutoGenerated && (
+              <Chip
+                label="Auto-Generated"
+                size="small"
+                icon={<span>🤖</span>}
+                sx={{ fontSize: '0.75rem' }}
+              />
+            )}
+            {isAssignedToMe && (
+              <Chip
+                label="Assigned to me"
+                size="small"
+                color="primary"
+                sx={{ fontSize: '0.75rem' }}
+              />
+            )}
+          </Stack>
 
-        {/* Title */}
-        <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-          {risk.title}
-        </Typography>
+          {/* Title */}
+          <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+            {risk.title}
+          </Typography>
 
-        {/* Metadata */}
-        <Stack direction="row" spacing={2} flexWrap="wrap">
-          <Typography variant="caption" color="text.secondary">
-            {risk.id}
-          </Typography>
-          <Typography variant="caption" color="text.secondary">
-            Created {formatRelativeTime(risk.createdDate)}
-          </Typography>
-          {risk.assignedToName && (
+          {/* Metadata */}
+          <Stack direction="row" spacing={2} flexWrap="wrap">
             <Typography variant="caption" color="text.secondary">
-              Assigned: {risk.assignedToName}
+              {risk.id}
             </Typography>
+            <Typography variant="caption" color="text.secondary">
+              Created {formatRelativeTime(risk.createdDate)}
+            </Typography>
+            {risk.assignedToName && (
+              <Typography variant="caption" color="text.secondary">
+                Assigned: {risk.assignedToName}
+              </Typography>
+            )}
+          </Stack>
+
+          {/* Expanded content */}
+          {expanded && (
+            <>
+              {/* Action buttons */}
+              <Stack direction="row" spacing={1} sx={{ mt: 2 }}>
+                <Button size="small" variant="outlined" disabled>
+                  Update Status
+                </Button>
+                <Button
+                  size="small"
+                  variant="outlined"
+                  startIcon={isAssignedToMe ? <PersonRemoveIcon /> : <PersonAddIcon />}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setAssignDialogOpen(true);
+                  }}
+                >
+                  {isAssignedToMe ? 'Reassign' : 'Assign Me'}
+                </Button>
+                <Button size="small" variant="outlined" disabled>
+                  Comment
+                </Button>
+              </Stack>
+            </>
           )}
         </Stack>
+      </Card>
 
-        {/* Expanded content */}
-        {expanded && (
-          <>
-            <Typography variant="body2" sx={{ mt: 1 }}>
-              {risk.description}
+      {/* Assignment Dialog */}
+      <Dialog
+        open={assignDialogOpen}
+        onClose={() => !isAssigning && setAssignDialogOpen(false)}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <DialogTitle>
+          {isAssignedToMe ? 'Reassign Risk' : 'Assign Risk'}
+        </DialogTitle>
+        <DialogContent>
+          <Stack spacing={2}>
+            {assignError && (
+              <Alert severity="error">{assignError}</Alert>
+            )}
+
+            <Typography variant="body2">
+              <strong>{risk.title}</strong>
             </Typography>
 
-            {/* Action buttons */}
-            <Stack direction="row" spacing={1} sx={{ mt: 2 }}>
-              <Button size="small" variant="outlined" disabled>
-                Update Status
-              </Button>
-              <Button size="small" variant="outlined" disabled>
-                Assign
-              </Button>
-              <Button size="small" variant="outlined" disabled>
-                Comment
-              </Button>
-            </Stack>
-          </>
-        )}
-      </Stack>
-    </Card>
+            {risk.assignedToName && (
+              <Typography variant="body2" color="text.secondary">
+                Currently assigned to: {risk.assignedToName}
+              </Typography>
+            )}
+
+            <Typography variant="body2">
+              {isAssignedToMe
+                ? 'Would you like to unassign this risk or assign it to someone else?'
+                : 'Would you like to assign this risk to yourself?'}
+            </Typography>
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button
+            onClick={(e) => {
+              e.stopPropagation();
+              setAssignDialogOpen(false);
+            }}
+            disabled={isAssigning}
+          >
+            Cancel
+          </Button>
+
+          {isAssignedToMe && (
+            <Button
+              onClick={(e) => {
+                e.stopPropagation();
+                handleUnassign();
+              }}
+              color="error"
+              variant="outlined"
+              disabled={isAssigning}
+              startIcon={isAssigning ? <CircularProgress size={16} /> : <PersonRemoveIcon />}
+            >
+              Unassign
+            </Button>
+          )}
+
+          {(!risk.assignedTo || !isAssignedToMe) && (
+            <Button
+              onClick={(e) => {
+                e.stopPropagation();
+                handleAssignMe();
+              }}
+              variant="contained"
+              disabled={isAssigning}
+              startIcon={isAssigning ? <CircularProgress size={16} /> : <PersonAddIcon />}
+            >
+              Assign Me
+            </Button>
+          )}
+        </DialogActions>
+      </Dialog>
+    </>
   );
 }
 

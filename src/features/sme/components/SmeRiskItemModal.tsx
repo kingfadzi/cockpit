@@ -151,6 +151,12 @@ export default function SmeRiskItemModal({ open, onClose, risk, smeId }: SmeRisk
 
     const getStatusColor = (status: string) => {
         switch (status) {
+            case 'OPEN': return 'warning';
+            case 'IN_PROGRESS': return 'info';
+            case 'RESOLVED': return 'success';
+            case 'WAIVED': return 'default';
+            case 'CLOSED': return 'success';
+            // Legacy statuses (for backward compatibility)
             case 'PENDING_SME_REVIEW': return 'warning';
             case 'UNDER_REVIEW': return 'info';
             case 'SME_APPROVED': return 'success';
@@ -159,7 +165,11 @@ export default function SmeRiskItemModal({ open, onClose, risk, smeId }: SmeRisk
         }
     };
 
-    const canTakeAction = enhancedRisk?.status === 'PENDING_SME_REVIEW' || enhancedRisk?.status === 'UNDER_REVIEW';
+    // SMEs can take action on OPEN and IN_PROGRESS risks
+    const canTakeAction = enhancedRisk?.status === 'OPEN' ||
+                          enhancedRisk?.status === 'IN_PROGRESS' ||
+                          enhancedRisk?.status === 'PENDING_SME_REVIEW' ||
+                          enhancedRisk?.status === 'UNDER_REVIEW';
 
     const getLastUpdatedText = () => {
         if (!mockJiraData?.lastUpdated) return 'Unknown';
@@ -184,9 +194,9 @@ export default function SmeRiskItemModal({ open, onClose, risk, smeId }: SmeRisk
         >
             <DialogTitle>
                 <Stack direction="row" alignItems="center" justifyContent="space-between">
-                    <Stack direction="row" alignItems="center" spacing={2}>
-                        <Typography variant="h6" fontWeight={600}>
-                            Risk Item Review
+                    <Stack direction="row" alignItems="center" spacing={2} sx={{ flex: 1, minWidth: 0 }}>
+                        <Typography variant="h6" fontWeight={600} sx={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            {enhancedRisk?.title}
                         </Typography>
                         {mockJiraData && (
                             <Chip
@@ -198,7 +208,7 @@ export default function SmeRiskItemModal({ open, onClose, risk, smeId }: SmeRisk
                                 href={mockJiraData.url}
                                 target="_blank"
                                 clickable
-                                sx={{ fontFamily: 'monospace' }}
+                                sx={{ fontFamily: 'monospace', flexShrink: 0 }}
                             />
                         )}
                     </Stack>
@@ -222,24 +232,19 @@ export default function SmeRiskItemModal({ open, onClose, risk, smeId }: SmeRisk
                             <Stack spacing={2}>
                                 {/* Header with dates */}
                                 <Box sx={{ pb: 1 }}>
-                                    <Stack direction="row" alignItems="center" justifyContent="space-between">
-                                        <Typography variant="h6" fontWeight={600}>
-                                            {enhancedRisk?.title}
-                                        </Typography>
-                                        <Stack direction="row" spacing={2}>
-                                            <Box>
-                                                <Typography variant="caption" color="text.secondary" display="block">Assigned</Typography>
-                                                <Typography variant="body2">
-                                                    {enhancedRisk.assignedAt ? new Date(enhancedRisk.assignedAt).toLocaleDateString() : '—'}
-                                                </Typography>
-                                            </Box>
-                                            <Box>
-                                                <Typography variant="caption" color="text.secondary" display="block">Due Date</Typography>
-                                                <Typography variant="body2" color={enhancedRisk.dueDate && new Date(enhancedRisk.dueDate) < new Date() ? 'error.main' : 'text.primary'}>
-                                                    {enhancedRisk.dueDate ? new Date(enhancedRisk.dueDate).toLocaleDateString() : '—'}
-                                                </Typography>
-                                            </Box>
-                                        </Stack>
+                                    <Stack direction="row" alignItems="center" justifyContent="flex-end" spacing={2}>
+                                        <Box>
+                                            <Typography variant="caption" color="text.secondary" display="block">Assigned</Typography>
+                                            <Typography variant="body2">
+                                                {enhancedRisk.assignedAt ? new Date(enhancedRisk.assignedAt).toLocaleDateString() : '—'}
+                                            </Typography>
+                                        </Box>
+                                        <Box>
+                                            <Typography variant="caption" color="text.secondary" display="block">Due Date</Typography>
+                                            <Typography variant="body2" color={enhancedRisk.dueDate && new Date(enhancedRisk.dueDate) < new Date() ? 'error.main' : 'text.primary'}>
+                                                {enhancedRisk.dueDate ? new Date(enhancedRisk.dueDate).toLocaleDateString() : '—'}
+                                            </Typography>
+                                        </Box>
                                     </Stack>
                                 </Box>
 
@@ -572,8 +577,8 @@ export default function SmeRiskItemModal({ open, onClose, risk, smeId }: SmeRisk
                                                         <>
                                                             {evidenceData.items.slice(0, 3).map((evidence: any) => (
                                                                 <Box key={evidence.evidenceId}>
-                                                                    <Link href={evidence.uri} target="_blank" variant="body2">
-                                                                        {evidence.documentId || evidence.type.replace('_', ' ')}
+                                                                    <Link href={evidence.urlAtVersion || evidence.uri} target="_blank" variant="body2">
+                                                                        {evidence.documentTitle || evidence.documentId || evidence.type?.replace('_', ' ') || 'Unknown Document'}
                                                                     </Link>
                                                                     <Typography component="span" variant="caption" color="text.secondary">
                                                                         {' '}({new Date(evidence.createdAt).toLocaleDateString()})

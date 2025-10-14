@@ -13,13 +13,19 @@ import {
     Paper,
     Grid,
     Tooltip,
+    Link,
+    List,
+    ListItem,
+    ListItemText,
 } from '@mui/material';
 import {
     Close as CloseIcon,
     AttachFile as AttachFileIcon,
     Visibility as ViewIcon,
+    Description as DocumentIcon,
 } from '@mui/icons-material';
 import type { RiskStory, RiskStatus, RiskSeverity } from '../../../api/types';
+import { useProfileFieldEvidence } from '../../../api/hooks';
 
 interface PoRiskItemModalProps {
     open: boolean;
@@ -38,6 +44,9 @@ export default function PoRiskItemModal({
 }: PoRiskItemModalProps) {
 
     if (!risk) return null;
+
+    // Fetch evidence for the profile field
+    const { data: evidenceData } = useProfileFieldEvidence(risk?.profileFieldId);
 
     const formatDate = (dateString: string) => {
         return new Date(dateString).toLocaleDateString('en-US', {
@@ -150,40 +159,59 @@ export default function PoRiskItemModal({
                                 </Stack>
                             </Paper>
 
-                            {/* Risk Assessment - If/Then Logic */}
-                            <Paper variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
-                                <Typography variant="h6" sx={{ mb: 1.5 }}>
-                                    Risk Assessment
-                                </Typography>
-                                <Stack spacing={1.5}>
-                                    <Box>
-                                        <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 0.5 }}>
-                                            HYPOTHESIS
-                                        </Typography>
-                                        <Typography variant="body2">
-                                            {risk.hypothesis}
-                                        </Typography>
-                                    </Box>
+                            {/* Risk Assessment - If/Then Logic (only show if at least one field has content) */}
+                            {(risk.hypothesis || risk.condition || risk.consequence || risk.description) && (
+                                <Paper variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
+                                    <Typography variant="h6" sx={{ mb: 1.5 }}>
+                                        Risk Assessment
+                                    </Typography>
+                                    <Stack spacing={1.5}>
+                                        {risk.hypothesis && (
+                                            <Box>
+                                                <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 0.5 }}>
+                                                    HYPOTHESIS
+                                                </Typography>
+                                                <Typography variant="body2">
+                                                    {risk.hypothesis}
+                                                </Typography>
+                                            </Box>
+                                        )}
 
-                                    <Box sx={{ bgcolor: 'grey.50', p: 1.5, borderRadius: 1, border: '1px solid', borderColor: 'grey.200' }}>
-                                        <Typography variant="subtitle2" color="warning.main" fontWeight={600} sx={{ mb: 0.5 }}>
-                                            RISK CONDITION
-                                        </Typography>
-                                        <Typography variant="body2" color="warning.dark">
-                                            {risk.condition}
-                                        </Typography>
-                                    </Box>
+                                        {risk.condition && (
+                                            <Box sx={{ bgcolor: 'grey.50', p: 1.5, borderRadius: 1, border: '1px solid', borderColor: 'grey.200' }}>
+                                                <Typography variant="subtitle2" color="warning.main" fontWeight={600} sx={{ mb: 0.5 }}>
+                                                    RISK CONDITION
+                                                </Typography>
+                                                <Typography variant="body2" color="warning.dark">
+                                                    {risk.condition}
+                                                </Typography>
+                                            </Box>
+                                        )}
 
-                                    <Box sx={{ bgcolor: 'error.50', p: 1.5, borderRadius: 1, border: '1px solid', borderColor: 'error.200' }}>
-                                        <Typography variant="subtitle2" color="error.main" fontWeight={600} sx={{ mb: 0.5 }}>
-                                            POTENTIAL CONSEQUENCE
-                                        </Typography>
-                                        <Typography variant="body2" color="error.dark">
-                                            {risk.consequence}
-                                        </Typography>
-                                    </Box>
-                                </Stack>
-                            </Paper>
+                                        {risk.consequence && (
+                                            <Box sx={{ bgcolor: 'error.50', p: 1.5, borderRadius: 1, border: '1px solid', borderColor: 'error.200' }}>
+                                                <Typography variant="subtitle2" color="error.main" fontWeight={600} sx={{ mb: 0.5 }}>
+                                                    POTENTIAL CONSEQUENCE
+                                                </Typography>
+                                                <Typography variant="body2" color="error.dark">
+                                                    {risk.consequence}
+                                                </Typography>
+                                            </Box>
+                                        )}
+
+                                        {!risk.hypothesis && !risk.condition && !risk.consequence && risk.description && (
+                                            <Box>
+                                                <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 0.5 }}>
+                                                    DESCRIPTION
+                                                </Typography>
+                                                <Typography variant="body2">
+                                                    {risk.description}
+                                                </Typography>
+                                            </Box>
+                                        )}
+                                    </Stack>
+                                </Paper>
+                            )}
 
                             {/* Policy Context */}
                             {risk.policyRequirementSnapshot && (
@@ -255,27 +283,70 @@ export default function PoRiskItemModal({
                                 </Paper>
                             )}
 
-                            {/* Evidence Section */}
-                            {risk.triggeringEvidenceId && (
-                                <Paper variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
-                                    <Typography variant="h6" sx={{ mb: 1 }}>
-                                        Triggering Evidence
+                            {/* Supporting Evidence */}
+                            <Paper variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
+                                <Typography variant="h6" sx={{ mb: 1.5 }}>
+                                    Supporting Evidence
+                                </Typography>
+                                {evidenceData && evidenceData.items && evidenceData.items.length > 0 ? (
+                                    <List disablePadding>
+                                        {evidenceData.items.map((evidence: any, index: number) => (
+                                            <ListItem
+                                                key={evidence.evidenceId || index}
+                                                disablePadding
+                                                sx={{
+                                                    py: 1,
+                                                    borderBottom: index < evidenceData.items.length - 1 ? '1px solid' : 'none',
+                                                    borderColor: 'divider'
+                                                }}
+                                            >
+                                                <DocumentIcon fontSize="small" sx={{ mr: 1.5, color: 'text.secondary' }} />
+                                                <ListItemText
+                                                    primary={
+                                                        <Link
+                                                            href={evidence.urlAtVersion || evidence.uri}
+                                                            target="_blank"
+                                                            variant="body2"
+                                                            sx={{
+                                                                fontWeight: 500,
+                                                                textDecoration: 'none',
+                                                                '&:hover': { textDecoration: 'underline' }
+                                                            }}
+                                                        >
+                                                            {evidence.documentTitle || evidence.documentId || evidence.type?.replace('_', ' ') || 'Unknown Document'}
+                                                        </Link>
+                                                    }
+                                                    secondary={
+                                                        <Stack direction="row" spacing={1} sx={{ mt: 0.5 }}>
+                                                            {evidence.type && (
+                                                                <Chip
+                                                                    size="small"
+                                                                    label={evidence.type.replace('_', ' ')}
+                                                                    variant="outlined"
+                                                                    sx={{ height: 20, fontSize: '0.7rem' }}
+                                                                />
+                                                            )}
+                                                            {evidence.status && (
+                                                                <Chip
+                                                                    size="small"
+                                                                    label={evidence.status}
+                                                                    color={evidence.status === 'active' ? 'success' : 'default'}
+                                                                    variant="outlined"
+                                                                    sx={{ height: 20, fontSize: '0.7rem' }}
+                                                                />
+                                                            )}
+                                                        </Stack>
+                                                    }
+                                                />
+                                            </ListItem>
+                                        ))}
+                                    </List>
+                                ) : (
+                                    <Typography variant="body2" color="text.secondary">
+                                        No evidence attached yet
                                     </Typography>
-                                    <Stack direction="row" alignItems="center" spacing={1.5}>
-                                        <Chip
-                                            size="small"
-                                            icon={<ViewIcon />}
-                                            label={`Evidence ID: ${risk.triggeringEvidenceId}`}
-                                            variant="outlined"
-                                            clickable
-                                            onClick={() => console.log('View evidence:', risk.triggeringEvidenceId)}
-                                        />
-                                        <Typography variant="body2" color="text.secondary">
-                                            Click to view the evidence that triggered this risk
-                                        </Typography>
-                                    </Stack>
-                                </Paper>
-                            )}
+                                )}
+                            </Paper>
                         </Stack>
                     </Grid>
 
@@ -368,7 +439,9 @@ export default function PoRiskItemModal({
                                     </Box>
                                     <Box>
                                         <Typography variant="caption" color="text.secondary">Evidence Count</Typography>
-                                        <Typography variant="body2">{risk.evidenceCount || 0} pieces</Typography>
+                                        <Typography variant="body2">
+                                            {evidenceData?.items?.length || risk.evidenceCount || 0} {(evidenceData?.items?.length || risk.evidenceCount || 0) === 1 ? 'piece' : 'pieces'}
+                                        </Typography>
                                     </Box>
                                     <Box>
                                         <Typography variant="caption" color="text.secondary">Created</Typography>

@@ -34,14 +34,20 @@ interface ApplicationWatchlistProps {
   applications: Application[];
   currentScope: DashboardScope;
   domainDisplayName?: string;
-  arbName?: string; // ARB domain name for navigation
+  arbName?: string; // Guild domain name for navigation
   headerAction?: React.ReactNode; // Optional action button for header
 }
 
-type SortField = 'name' | 'transactionCycle' | 'owner' | 'aggregatedRiskScore' | 'totalOpenItems' | 'lastActivityDate';
+type SortField = 'name' | 'transactionCycle' | 'owner' | 'aggregatedRiskScore' | 'lastActivityDate';
 type SortDirection = 'asc' | 'desc';
 
-export default function ApplicationWatchlist({ applications, currentScope, domainDisplayName = 'My Domain', arbName, headerAction }: ApplicationWatchlistProps) {
+export default function ApplicationWatchlist({
+  applications,
+  currentScope,
+  domainDisplayName = 'My Domain',
+  arbName,
+  headerAction
+}: ApplicationWatchlistProps) {
   const navigate = useNavigate();
   const [sortField, setSortField] = useState<SortField>('aggregatedRiskScore');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
@@ -143,8 +149,6 @@ export default function ApplicationWatchlist({ applications, currentScope, domai
           return modifier * a.owner.localeCompare(b.owner);
         case 'aggregatedRiskScore':
           return modifier * (a.aggregatedRiskScore - b.aggregatedRiskScore);
-        case 'totalOpenItems':
-          return modifier * (a.totalOpenItems - b.totalOpenItems);
         case 'lastActivityDate':
           return modifier * (new Date(a.lastActivityDate).getTime() - new Date(b.lastActivityDate).getTime());
         default:
@@ -166,7 +170,7 @@ export default function ApplicationWatchlist({ applications, currentScope, domai
       setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
     } else {
       setSortField(field);
-      setSortDirection(field === 'aggregatedRiskScore' || field === 'totalOpenItems' ? 'desc' : 'asc');
+      setSortDirection(field === 'aggregatedRiskScore' ? 'desc' : 'asc');
     }
   };
 
@@ -226,7 +230,7 @@ export default function ApplicationWatchlist({ applications, currentScope, domai
       case 'my-domain':
         return `${domainDisplayName} Watchlist`;
       case 'all-domains':
-        return 'All Domains Watchlist';
+        return 'All Guilds Watchlist';
       default:
         return 'My Watchlist';
     }
@@ -369,8 +373,6 @@ export default function ApplicationWatchlist({ applications, currentScope, domai
                   Transaction Cycle
                 </TableSortLabel>
               </TableCell>
-              {/* Domain column - only for All Domains */}
-              {currentScope === 'all-domains' && <TableCell>Domain(s)</TableCell>}
               <TableCell>
                 <TableSortLabel
                   active={sortField === 'owner'}
@@ -389,16 +391,8 @@ export default function ApplicationWatchlist({ applications, currentScope, domai
                   Risk Score
                 </TableSortLabel>
               </TableCell>
-              <TableCell align="center">Risk Breakdown</TableCell>
-              <TableCell align="center">
-                <TableSortLabel
-                  active={sortField === 'totalOpenItems'}
-                  direction={sortField === 'totalOpenItems' ? sortDirection : 'desc'}
-                  onClick={() => handleSort('totalOpenItems')}
-                >
-                  Open Items
-                </TableSortLabel>
-              </TableCell>
+              <TableCell align="center">Total Risks</TableCell>
+              <TableCell align="center">Assigned to Me</TableCell>
               <TableCell>
                 <TableSortLabel
                   active={sortField === 'lastActivityDate'}
@@ -466,23 +460,6 @@ export default function ApplicationWatchlist({ applications, currentScope, domai
                 <TableCell>
                   <Typography variant="body2">{app.transactionCycle}</Typography>
                 </TableCell>
-                {/* Domain cell - only for All Domains */}
-                {currentScope === 'all-domains' && (
-                  <TableCell>
-                    <Stack direction="row" spacing={0.5} flexWrap="wrap" useFlexGap>
-                      {app.domains.map((domain) => (
-                        <Chip
-                          key={domain}
-                          label={domain.charAt(0).toUpperCase() + domain.slice(1).replace(/_/g, ' ')}
-                          size="small"
-                          variant="outlined"
-                          color="primary"
-                          sx={{ fontSize: '0.7rem', height: 22 }}
-                        />
-                      ))}
-                    </Stack>
-                  </TableCell>
-                )}
                 <TableCell>
                   <Typography variant="body2">{app.owner}</Typography>
                 </TableCell>
@@ -502,7 +479,7 @@ export default function ApplicationWatchlist({ applications, currentScope, domai
                       fontSize: '1rem'
                     }}
                   >
-                    {app.aggregatedRiskScore}
+                    {Math.round(app.aggregatedRiskScore)}
                   </Box>
                 </TableCell>
                 <TableCell align="center">
@@ -550,9 +527,65 @@ export default function ApplicationWatchlist({ applications, currentScope, domai
                   </Stack>
                 </TableCell>
                 <TableCell align="center">
-                  <Typography variant="body1" sx={{ fontWeight: 700 }}>
-                    {app.totalOpenItems}
-                  </Typography>
+                  {(() => {
+                    const hasAssigned = app.assignedToMeBreakdown.critical > 0 ||
+                                       app.assignedToMeBreakdown.high > 0 ||
+                                       app.assignedToMeBreakdown.medium > 0 ||
+                                       app.assignedToMeBreakdown.low > 0;
+
+                    if (!hasAssigned) {
+                      return (
+                        <Typography variant="body2" color="text.secondary">
+                          —
+                        </Typography>
+                      );
+                    }
+
+                    return (
+                      <Stack direction="row" spacing={0.5} justifyContent="center">
+                        {app.assignedToMeBreakdown.critical > 0 && (
+                          <Tooltip title={`${app.assignedToMeBreakdown.critical} Critical`}>
+                            <Chip
+                              label={app.assignedToMeBreakdown.critical}
+                              size="small"
+                              color="error"
+                              sx={{ fontWeight: 600, minWidth: 32 }}
+                            />
+                          </Tooltip>
+                        )}
+                        {app.assignedToMeBreakdown.high > 0 && (
+                          <Tooltip title={`${app.assignedToMeBreakdown.high} High`}>
+                            <Chip
+                              label={app.assignedToMeBreakdown.high}
+                              size="small"
+                              color="warning"
+                              sx={{ fontWeight: 600, minWidth: 32 }}
+                            />
+                          </Tooltip>
+                        )}
+                        {app.assignedToMeBreakdown.medium > 0 && (
+                          <Tooltip title={`${app.assignedToMeBreakdown.medium} Medium`}>
+                            <Chip
+                              label={app.assignedToMeBreakdown.medium}
+                              size="small"
+                              color="info"
+                              sx={{ fontWeight: 600, minWidth: 32 }}
+                            />
+                          </Tooltip>
+                        )}
+                        {app.assignedToMeBreakdown.low > 0 && (
+                          <Tooltip title={`${app.assignedToMeBreakdown.low} Low`}>
+                            <Chip
+                              label={app.assignedToMeBreakdown.low}
+                              size="small"
+                              color="success"
+                              sx={{ fontWeight: 600, minWidth: 32 }}
+                            />
+                          </Tooltip>
+                        )}
+                      </Stack>
+                    );
+                  })()}
                 </TableCell>
                 <TableCell>
                   <Typography variant="body2" color="text.secondary">
@@ -583,7 +616,7 @@ export default function ApplicationWatchlist({ applications, currentScope, domai
             {applications.length === 0 ? (
               <>
                 {currentScope === 'my-queue' && 'You have no assigned risks at this time'}
-                {currentScope === 'my-domain' && 'No applications in your domain'}
+                {currentScope === 'my-domain' && 'No applications in your guild'}
                 {currentScope === 'all-domains' && 'No applications available'}
               </>
             ) : (

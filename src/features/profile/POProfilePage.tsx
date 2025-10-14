@@ -105,11 +105,11 @@ export default function POProfilePage() {
             case 'overview':
                 return <OverviewTab appId={appId!} onTabChange={handleTabChangeFromChild} />;
             case 'profile':
-                return <ProfileTab profile={profile} appId={appId!} onTabChange={handleTabChangeFromChild} />;
+                return <ProfileTab profile={profile} appId={appId!} onTabChange={handleTabChangeFromChild} userRole="po" />;
             case 'evidence':
                 return <EvidenceTab appId={appId!} />;
             case 'risks':
-                return <RisksTab appId={appId!} userRole="po" />;
+                return <RisksTab appId={appId!} appName={profile.name} userRole="po" />;
             case 'contacts':
                 return <ContactsTab appId={appId!} />;
             default:

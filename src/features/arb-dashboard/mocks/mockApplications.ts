@@ -104,6 +104,14 @@ function generateApplication(
     low: risks.filter(r => r.priority === 'LOW' && r.status !== 'RESOLVED').length,
   };
 
+  // Calculate assigned to me breakdown (current user: user-002 - John Doe)
+  const assignedToMeBreakdown = {
+    critical: risks.filter(r => r.priority === 'CRITICAL' && r.status !== 'RESOLVED' && r.assignedTo === 'user-002').length,
+    high: risks.filter(r => r.priority === 'HIGH' && r.status !== 'RESOLVED' && r.assignedTo === 'user-002').length,
+    medium: risks.filter(r => r.priority === 'MEDIUM' && r.status !== 'RESOLVED' && r.assignedTo === 'user-002').length,
+    low: risks.filter(r => r.priority === 'LOW' && r.status !== 'RESOLVED' && r.assignedTo === 'user-002').length,
+  };
+
   const totalOpenItems = Object.values(riskBreakdown).reduce((sum, count) => sum + count, 0);
 
   // Determine domains (which ARBs have risks for this app)
@@ -128,6 +136,7 @@ function generateApplication(
     aggregatedRiskScore: calculateAggregatedRiskScore(riskBreakdown),
     totalOpenItems,
     riskBreakdown,
+    assignedToMeBreakdown,
     domains,
     hasAssignedRisks,
     lastActivityDate: lastActivity,
@@ -189,6 +198,7 @@ export function generateMockApplications(): Application[] {
     aggregatedRiskScore: 15,
     totalOpenItems: 0,
     riskBreakdown: { critical: 0, high: 0, medium: 0, low: 0 },
+    assignedToMeBreakdown: { critical: 0, high: 0, medium: 0, low: 0 },
     domains: [],
     hasAssignedRisks: false,
     lastActivityDate: getRandomDate(60),
@@ -204,6 +214,12 @@ export function generateMockApplications(): Application[] {
     high: manualOnlyApp.risks.filter(r => r.priority === 'HIGH').length,
     medium: manualOnlyApp.risks.filter(r => r.priority === 'MEDIUM').length,
     low: manualOnlyApp.risks.filter(r => r.priority === 'LOW').length,
+  };
+  manualOnlyApp.assignedToMeBreakdown = {
+    critical: manualOnlyApp.risks.filter(r => r.priority === 'CRITICAL' && r.assignedTo === 'user-002').length,
+    high: manualOnlyApp.risks.filter(r => r.priority === 'HIGH' && r.assignedTo === 'user-002').length,
+    medium: manualOnlyApp.risks.filter(r => r.priority === 'MEDIUM' && r.assignedTo === 'user-002').length,
+    low: manualOnlyApp.risks.filter(r => r.priority === 'LOW' && r.assignedTo === 'user-002').length,
   };
   applications.push(manualOnlyApp);
 

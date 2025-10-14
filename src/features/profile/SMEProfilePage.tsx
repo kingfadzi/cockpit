@@ -68,9 +68,9 @@ export default function SMEProfilePage() {
         }
     }, [searchParams, activeTab]);
 
-    // Get ARB display name
+    // Get Guild display name
     const getArbDisplayName = (arb?: string) => {
-        if (!arb) return 'ARB';
+        if (!arb) return 'Guild';
         const names: Record<string, string> = {
             'security': 'Security',
             'data': 'Data',
@@ -117,11 +117,11 @@ export default function SMEProfilePage() {
             case 'overview':
                 return <OverviewTab appId={appId!} onTabChange={handleTabChangeFromChild} />;
             case 'profile':
-                return <ProfileTab profile={profile} appId={appId!} onTabChange={handleTabChangeFromChild} />;
+                return <ProfileTab profile={profile} appId={appId!} onTabChange={handleTabChangeFromChild} userRole="sme" />;
             case 'evidence':
                 return <EvidenceTab appId={appId!} />;
             case 'risks':
-                return <RisksTab appId={appId!} userRole="sme" smeId="security_sme_001" />;
+                return <RisksTab appId={appId!} appName={profile.name} userRole="sme" currentArb={arbName} />;
             case 'contacts':
                 return <ContactsTab appId={appId!} />;
             default:
@@ -155,7 +155,7 @@ export default function SMEProfilePage() {
                         }}
                     >
                         <HomeIcon sx={{ mr: 0.5 }} fontSize="inherit" />
-                        {arbDisplayName} ARB
+                        {arbDisplayName} Guild
                     </Link>
                     <Typography color="text.primary" sx={{ display: 'flex', alignItems: 'center' }}>
                         {profile.name || appId}

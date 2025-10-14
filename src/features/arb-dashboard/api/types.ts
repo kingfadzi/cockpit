@@ -19,8 +19,14 @@ export interface Application {
     medium: number;
     low: number;
   };
+  assignedToMeBreakdown: {
+    critical: number;
+    high: number;
+    medium: number;
+    low: number;
+  };
   domains: string[]; // ['security', 'data', 'operations', 'enterprise_architecture', 'resilience']
-  hasAssignedRisks: boolean; // for current user
+  hasAssignedRisks: boolean; // True if current user has any risks assigned to them in this app
   lastActivityDate: string; // ISO 8601
   risks: Risk[];
 }
@@ -68,19 +74,32 @@ export interface Comment {
 }
 
 export interface RecentActivity {
-  newRisksLast7Days: number;
-  resolvedLast7Days: number;
-  newRisksLast30Days: number;
-  resolvedLast30Days: number;
+  appsWithNewRisks7d: number;
+  appsWithResolutions7d: number;
+  appsWithNewRisks30d: number;
+  appsWithResolutions30d: number;
+}
+
+export interface ApplicationsByRiskLevel {
+  CRITICAL: number;
+  HIGH: number;
+  MEDIUM: number;
+  LOW: number;
 }
 
 export interface DashboardMetrics {
-  criticalCount: number;
-  openItemsCount: number;
-  pendingReviewCount: number;
-  averageRiskScore: number;
-  healthGrade: 'A' | 'B' | 'C' | 'D' | 'F';
+  scope: DashboardScope;
+  arbName: string;
+  userId?: string;
+  applicationsAtRisk: number;
+  criticalApplications: number;
+  highRiskApplications: number;
+  applicationsAwaitingTriage: number;
+  totalOpenItems: number;
+  averageItemsPerApp: number;
+  applicationsByRiskLevel: ApplicationsByRiskLevel;
   recentActivity: RecentActivity;
+  healthGrade: 'A' | 'B' | 'C' | 'D' | 'F';
 }
 
 export interface Insight {

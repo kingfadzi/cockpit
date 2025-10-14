@@ -8,6 +8,26 @@ import { mockApplications } from './mockApplications';
 import { currentMockUser } from './mockUsers';
 
 /**
+ * Recalculate assignedToMeBreakdown and hasAssignedRisks for a given userId
+ */
+function updateApplicationForUser(app: Application, userId: string): Application {
+  const assignedToMeBreakdown = {
+    critical: app.risks.filter(r => r.priority === 'CRITICAL' && r.status !== 'RESOLVED' && r.assignedTo === userId).length,
+    high: app.risks.filter(r => r.priority === 'HIGH' && r.status !== 'RESOLVED' && r.assignedTo === userId).length,
+    medium: app.risks.filter(r => r.priority === 'MEDIUM' && r.status !== 'RESOLVED' && r.assignedTo === userId).length,
+    low: app.risks.filter(r => r.priority === 'LOW' && r.status !== 'RESOLVED' && r.assignedTo === userId).length,
+  };
+
+  const hasAssignedRisks = app.risks.some(r => r.assignedTo === userId);
+
+  return {
+    ...app,
+    assignedToMeBreakdown,
+    hasAssignedRisks,
+  };
+}
+
+/**
  * Filter applications based on scope
  */
 function filterApplicationsByScope(
@@ -16,25 +36,28 @@ function filterApplicationsByScope(
   userId: string,
   userDomain: ArbDomain
 ): Application[] {
+  // First, update all applications with current user's data
+  const updatedApps = applications.map(app => updateApplicationForUser(app, userId));
+
   switch (scope) {
     case 'my-queue':
       // Only apps with risks assigned to current user
-      return applications.filter(app =>
+      return updatedApps.filter(app =>
         app.risks.some(risk => risk.assignedTo === userId && risk.status !== 'RESOLVED')
       );
 
     case 'my-domain':
       // Apps with risks in user's ARB domain
-      return applications.filter(app =>
+      return updatedApps.filter(app =>
         app.risks.some(risk => risk.arbDomain === userDomain)
       );
 
     case 'all-domains':
       // All applications
-      return applications;
+      return updatedApps;
 
     default:
-      return applications;
+      return updatedApps;
   }
 }
 

@@ -1,5 +1,5 @@
 /**
- * ARB Dashboard View - Main Container
+ * Guild Dashboard View - Main Container
  * Phase 1: Mock Data & UI/UX
  */
 
@@ -37,6 +37,7 @@ import { getMockArbDashboard, currentMockUser } from './mocks/mockArbData';
 import { fetchArbDashboard, createRiskItem } from './api/arbDashboardApi';
 import HeadsUpDisplay from './components/HeadsUpDisplay';
 import ApplicationWatchlist from './components/ApplicationWatchlist';
+import { useUser } from '../../app/UserContext';
 
 interface ArbDashboardViewProps {
   arbDomain?: string; // For compatibility with old routing
@@ -44,10 +45,12 @@ interface ArbDashboardViewProps {
 }
 
 export default function ArbDashboardView({ arbDomain, domainDisplayName = 'My Domain' }: ArbDashboardViewProps) {
+  const { userId } = useUser();
   const [currentScope, setCurrentScope] = useState<DashboardScope>('my-queue');
   const [dashboardData, setDashboardData] = useState<ArbDashboardResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [applicationCounts, setApplicationCounts] = useState({ myQueue: 0, myDomain: 0, allDomains: 0 });
 
   // Create Risk Dialog state
   const [createRiskDialogOpen, setCreateRiskDialogOpen] = useState(false);
@@ -58,14 +61,69 @@ export default function ArbDashboardView({ arbDomain, domainDisplayName = 'My Do
     fieldKey: '',
   });
 
-  // Load dashboard data
+  // Load dashboard data and counts
   useEffect(() => {
     loadDashboardData();
-  }, [currentScope]);
+  }, [currentScope, userId, arbDomain]);
+
+  // Load counts for all scopes on initial mount
+  useEffect(() => {
+    loadApplicationCounts();
+  }, [userId, arbDomain]);
+
+  const loadApplicationCounts = async () => {
+    if (!arbDomain) return;
+
+    try {
+      console.log('[ARB Dashboard] Loading application counts for all scopes');
+
+      if (USE_MOCK_DATA) {
+        // Mock counts
+        const myQueueData = getMockArbDashboard('my-queue', userId, arbDomain);
+        const myDomainData = getMockArbDashboard('my-domain', userId, arbDomain);
+        const allDomainsData = getMockArbDashboard('all-domains', userId, arbDomain);
+
+        setApplicationCounts({
+          myQueue: myQueueData.applications.length,
+          myDomain: myDomainData.applications.length,
+          allDomains: allDomainsData.applications.length
+        });
+      } else {
+        // Fetch counts for all three scopes
+        const [myQueueData, myDomainData, allDomainsData] = await Promise.all([
+          fetchArbDashboard(arbDomain, 'my-queue', userId),
+          fetchArbDashboard(arbDomain, 'my-domain', userId),
+          fetchArbDashboard(arbDomain, 'all-domains', userId)
+        ]);
+
+        setApplicationCounts({
+          myQueue: myQueueData.applications.length,
+          myDomain: myDomainData.applications.length,
+          allDomains: allDomainsData.applications.length
+        });
+
+        console.log('[ARB Dashboard] Counts loaded:', {
+          myQueue: myQueueData.applications.length,
+          myDomain: myDomainData.applications.length,
+          allDomains: allDomainsData.applications.length
+        });
+      }
+    } catch (err) {
+      console.error('[ARB Dashboard] Error loading counts:', err);
+      // Don't set error state, just log it - counts are not critical
+    }
+  };
 
   const loadDashboardData = async () => {
     setIsLoading(true);
     setError(null);
+
+    console.log('[ARB Dashboard] Loading data:', {
+      arbDomain,
+      currentScope,
+      userId,
+      useMock: USE_MOCK_DATA
+    });
 
     try {
       if (USE_MOCK_DATA) {
@@ -74,21 +132,29 @@ export default function ArbDashboardView({ arbDomain, domainDisplayName = 'My Do
 
         const data = getMockArbDashboard(
           currentScope,
-          currentMockUser.id,
-          currentMockUser.arbDomain
+          userId,
+          arbDomain || 'security'
         );
+
+        console.log('[ARB Dashboard] Mock data received:', {
+          applicationCount: data.applications.length,
+          metrics: data.metrics
+        });
 
         setDashboardData(data);
       } else {
         // Real API call
         if (!arbDomain) {
-          throw new Error('ARB domain is required');
+          throw new Error('Guild domain is required');
         }
 
-        // Get current user ID - in production, this would come from auth context
-        const userId = currentMockUser.id; // TODO: Replace with real user ID from auth
-
+        console.log('[ARB Dashboard] Calling API:', `/api/v1/domain-risks/arb/${arbDomain}/applications`);
+        // Always pass userId to populate "Assigned to Me" breakdown for all scopes
         const data = await fetchArbDashboard(arbDomain, currentScope, userId);
+        console.log('[ARB Dashboard] API data received:', {
+          applicationCount: data.applications.length,
+          metrics: data.metrics
+        });
         setDashboardData(data);
       }
     } catch (err) {
@@ -130,7 +196,7 @@ export default function ArbDashboardView({ arbDomain, domainDisplayName = 'My Do
           description: newRisk.description,
           priority: newRisk.severity.toUpperCase() as 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL',
           fieldKey: newRisk.fieldKey,
-          createdBy: currentMockUser.id // TODO: Replace with real user ID from auth
+          createdBy: userId
         };
 
         await createRiskItem(payload);
@@ -181,12 +247,6 @@ export default function ArbDashboardView({ arbDomain, domainDisplayName = 'My Do
     );
   }
 
-  const applicationCounts = {
-    myQueue: dashboardData.applications.filter(app => app.hasAssignedRisks).length,
-    myDomain: dashboardData.applications.length,
-    allDomains: dashboardData.applications.length // TODO: Get real all domains count
-  };
-
   return (
     <Card variant="outlined" sx={{ borderRadius: 3 }}>
       {/* Scoping Tabs */}
@@ -222,7 +282,7 @@ export default function ArbDashboardView({ arbDomain, domainDisplayName = 'My Do
           iconPosition="start"
           label={
             <>
-              {domainDisplayName} Domain{' '}
+              {domainDisplayName} Guild{' '}
               <Chip
                 label={applicationCounts.myDomain}
                 size="small"
@@ -238,7 +298,7 @@ export default function ArbDashboardView({ arbDomain, domainDisplayName = 'My Do
           iconPosition="start"
           label={
             <>
-              All Domains{' '}
+              All Guilds{' '}
               <Chip
                 label={applicationCounts.allDomains}
                 size="small"

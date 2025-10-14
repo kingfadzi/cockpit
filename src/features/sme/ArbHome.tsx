@@ -5,9 +5,9 @@ import ArbDashboardView from '../arb-dashboard/ArbDashboardView';
 export default function ArbHome() {
     const { arbName } = useParams<{ arbName: string }>();
 
-    // Get ARB display name
+    // Get Guild display name
     const getArbDisplayName = (arb?: string) => {
-        if (!arb) return 'ARB';
+        if (!arb) return 'Guild';
         const names: Record<string, string> = {
             'security': 'Security',
             'data': 'Data',

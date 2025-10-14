@@ -75,7 +75,7 @@ export default function ArbDashboardView({ arbName, status }: ArbDashboardViewPr
     if (isError) {
         return (
             <Alert severity="error">
-                Failed to load ARB dashboard: {error?.message || 'Unknown error'}
+                Failed to load Guild dashboard: {error?.message || 'Unknown error'}
             </Alert>
         );
     }
@@ -93,7 +93,7 @@ export default function ArbDashboardView({ arbName, status }: ArbDashboardViewPr
     return (
         <Stack spacing={3}>
             <SectionHeader
-                title={`${getArbDisplayName(arbName)} ARB Dashboard`}
+                title={`${getArbDisplayName(arbName)} Guild Dashboard`}
                 subtitle="Strategic view of domain risks and key metrics"
                 icon={<DashboardIcon />}
             />

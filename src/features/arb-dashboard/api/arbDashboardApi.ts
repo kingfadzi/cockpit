@@ -61,9 +61,16 @@ export async function getArbApplications(
     queryParams.set('size', params.size.toString());
   }
 
-  const response = await api.get<GetArbApplicationsResponse>(
-    `/api/v1/domain-risks/arb/${arbName}/applications?${queryParams.toString()}`
-  );
+  const url = `/api/v1/domain-risks/arb/${arbName}/applications?${queryParams.toString()}`;
+  console.log('[API] GET', url);
+
+  const response = await api.get<GetArbApplicationsResponse>(url);
+
+  console.log('[API] Response:', {
+    url,
+    applicationCount: response.data.applications?.length || 0,
+    totalCount: response.data.totalCount
+  });
 
   return response.data;
 }
@@ -82,9 +89,12 @@ export async function getArbMetrics(
     queryParams.set('userId', params.userId);
   }
 
-  const response = await api.get<GetArbMetricsResponse>(
-    `/api/v1/domain-risks/arb/${arbName}/metrics?${queryParams.toString()}`
-  );
+  const url = `/api/v1/domain-risks/arb/${arbName}/app-metrics?${queryParams.toString()}`;
+  console.log('[API] GET', url);
+
+  const response = await api.get<GetArbMetricsResponse>(url);
+
+  console.log('[API] Metrics Response:', response.data);
 
   return response.data;
 }
@@ -129,3 +139,40 @@ export async function createRiskItem(payload: CreateRiskPayload): Promise<unknow
   const response = await api.post('/api/v1/risk-items', payload);
   return response.data;
 }
+
+/**
+ * Assign a risk to a user
+ */
+export interface AssignRiskPayload {
+  assignedTo: string;
+  assignedToName: string;
+}
+
+export async function assignRisk(
+  riskId: string,
+  payload: AssignRiskPayload
+): Promise<{ id: string; assignedTo: string; assignedToName: string; updatedDate: string }> {
+  const response = await api.post(`/api/v1/risks/${riskId}/assign`, payload);
+  return response.data;
+}
+
+/**
+ * Self-assign a risk (uses current user from auth token)
+ */
+export async function assignRiskToMe(
+  riskId: string
+): Promise<{ id: string; assignedTo: string; assignedToName: string; updatedDate: string }> {
+  const response = await api.post(`/api/v1/risks/${riskId}/assign-me`, {});
+  return response.data;
+}
+
+/**
+ * Unassign a risk
+ */
+export async function unassignRisk(
+  riskId: string
+): Promise<{ id: string; assignedTo: null; assignedToName: null; updatedDate: string }> {
+  const response = await api.delete(`/api/v1/risks/${riskId}/assignment`);
+  return response.data;
+}
+

@@ -15,6 +15,10 @@ import type {
     WorkbenchEvidenceItem,
     EvidenceSearchParams,
     EvidenceSearchResult,
+    RiskItem,
+    RiskItemSearchResponse,
+    RiskItemSearchParams,
+    CreateRiskItemPayload,
 } from './types';
 
 const commonQuery = { staleTime: 60_000, refetchOnWindowFocus: false as const };
@@ -212,15 +216,46 @@ export const useProfileFieldEvidence = (profileFieldId: string) =>
 export const useRisk = (riskId: string) =>
     useQuery({
         queryKey: ['risk', riskId],
-        queryFn: () => endpoints.getRisk(riskId),
+        queryFn: () => endpoints.getRiskItem(riskId),
         enabled: !!riskId,
         ...commonQuery,
     });
 
-export const useAppRisks = (appId: string, page?: number, size?: number, filters?: { status?: string; severity?: string; assignedSme?: string; search?: string; domain?: string }) =>
+export const useAppRisks = (appId: string, page?: number, size?: number, filters?: { status?: string; severity?: string; assignedSme?: string; assignedTo?: string; search?: string; domain?: string; riskRatingDimension?: string; arb?: string; prioritizeUserId?: string; fieldKey?: string }) =>
     useQuery({
         queryKey: ['risks', appId, page, size, filters],
-        queryFn: () => endpoints.getAppRisks(appId, page, size, filters),
+        queryFn: async () => {
+            // Convert 1-indexed page to 0-indexed for new API
+            const zeroIndexedPage = page ? page - 1 : 0;
+
+            // Build params for new API, mapping old field names to new ones
+            const params: RiskItemSearchParams = {
+                appId,
+                page: zeroIndexedPage,
+                size: size || 20,
+                ...(filters?.status && { status: filters.status }),
+                ...(filters?.severity && { severity: filters.severity }),
+                ...(filters?.assignedSme && { assignedTo: filters.assignedSme }), // Map old field to new
+                ...(filters?.assignedTo && { assignedTo: filters.assignedTo }),
+                ...(filters?.search && { search: filters.search }),
+                ...(filters?.domain && { riskRatingDimension: filters.domain }), // Legacy: Map domain to riskRatingDimension
+                ...(filters?.riskRatingDimension && { riskRatingDimension: filters.riskRatingDimension }), // Risk Rating Dimension filter
+                ...(filters?.arb && { arb: filters.arb }), // ARB/Guild filter
+                ...(filters?.prioritizeUserId && { prioritizeUserId: filters.prioritizeUserId }), // Prioritize risks assigned to user
+                ...(filters?.fieldKey && { fieldKey: filters.fieldKey }), // Field key filter
+            };
+
+            // Call new endpoint
+            const response = await endpoints.searchRiskItems(params);
+
+            // Transform response to match old format for backward compatibility
+            return {
+                items: response.items,
+                page: response.currentPage + 1, // Convert back to 1-indexed
+                pageSize: response.pageSize,
+                total: response.totalElements
+            };
+        },
         enabled: !!appId,
         ...commonQuery,
     });
@@ -228,7 +263,7 @@ export const useAppRisks = (appId: string, page?: number, size?: number, filters
 export const useFieldRisks = (appId: string, fieldKey: string) =>
     useQuery({
         queryKey: ['fieldRisks', appId, fieldKey],
-        queryFn: () => endpoints.getFieldRisks(appId, fieldKey),
+        queryFn: () => endpoints.getRiskItemsByField(appId, fieldKey),
         enabled: !!appId && !!fieldKey,
         ...commonQuery,
     });
@@ -244,10 +279,24 @@ export const useProfileFieldRisks = (profileFieldId: string) =>
 export const useCreateRisk = (appId: string, fieldKey: string) => {
     const qc = useQueryClient();
     return useMutation({
-        mutationFn: (payload: unknown) => endpoints.createRisk(appId, fieldKey, payload),
+        mutationFn: (payload: unknown) => {
+            // Transform old payload format to new CreateRiskItemPayload format
+            const newPayload: CreateRiskItemPayload = {
+                appId,
+                fieldKey,
+                title: (payload as any).title,
+                description: (payload as any).description,
+                severity: (payload as any).severity,
+                assignedTo: (payload as any).assignedTo || (payload as any).assignedSme, // Support both field names
+                ...(payload as any)
+            };
+            return endpoints.createRiskItem(newPayload);
+        },
         onSuccess: () => {
             qc.invalidateQueries({ queryKey: ['risks', appId] });
+            qc.invalidateQueries({ queryKey: ['riskItems', 'app', appId] });
             qc.invalidateQueries({ queryKey: ['fieldRisks', appId, fieldKey] });
+            qc.invalidateQueries({ queryKey: ['riskItems', 'field', appId, fieldKey] });
         },
     });
 };
@@ -269,6 +318,70 @@ export const useDetachEvidenceFromRisk = (riskId: string) => {
         mutationFn: (evidenceId: string) => endpoints.detachEvidenceFromRisk(riskId, evidenceId),
         onSuccess: () => {
             qc.invalidateQueries({ queryKey: ['risk', riskId] });
+            qc.invalidateQueries({ queryKey: ['risks'] });
+        },
+    });
+};
+
+// ==========================================
+// NEW Risk Item Hooks (using new API)
+// ==========================================
+
+/** Search risk items with comprehensive filtering and pagination */
+export const useSearchRiskItems = (params: RiskItemSearchParams) =>
+    useQuery<RiskItemSearchResponse>({
+        queryKey: ['riskItems', 'search', params],
+        queryFn: () => endpoints.searchRiskItems(params),
+        enabled: !!params,
+        ...commonQuery,
+    });
+
+/** Get single risk item by ID */
+export const useRiskItem = (riskItemId: string) =>
+    useQuery<RiskItem>({
+        queryKey: ['riskItem', riskItemId],
+        queryFn: () => endpoints.getRiskItem(riskItemId),
+        enabled: !!riskItemId,
+        ...commonQuery,
+    });
+
+/** Get all risk items for an app with pagination */
+export const useRiskItemsByApp = (appId: string, page = 0, size = 20) =>
+    useQuery<RiskItemSearchResponse>({
+        queryKey: ['riskItems', 'app', appId, page, size],
+        queryFn: () => endpoints.getRiskItemsByApp(appId, page, size),
+        enabled: !!appId,
+        ...commonQuery,
+    });
+
+/** Get risk items for a specific field */
+export const useRiskItemsByField = (appId: string, fieldKey: string) =>
+    useQuery<RiskItem[]>({
+        queryKey: ['riskItems', 'field', appId, fieldKey],
+        queryFn: () => endpoints.getRiskItemsByField(appId, fieldKey),
+        enabled: !!appId && !!fieldKey,
+        ...commonQuery,
+    });
+
+/** Get risk items assigned to a user */
+export const useRiskItemsByAssignee = (assignedTo: string, status?: string, page = 0, size = 20) =>
+    useQuery<RiskItemSearchResponse>({
+        queryKey: ['riskItems', 'assignee', assignedTo, status, page, size],
+        queryFn: () => endpoints.getRiskItemsByAssignee(assignedTo, status, page, size),
+        enabled: !!assignedTo,
+        ...commonQuery,
+    });
+
+/** Create a new risk item */
+export const useCreateRiskItem = () => {
+    const qc = useQueryClient();
+    return useMutation<RiskItem, Error, CreateRiskItemPayload>({
+        mutationFn: (payload: CreateRiskItemPayload) => endpoints.createRiskItem(payload),
+        onSuccess: (data) => {
+            // Invalidate all risk item queries
+            qc.invalidateQueries({ queryKey: ['riskItems'] });
+            qc.invalidateQueries({ queryKey: ['riskItem', data.riskItemId] });
+            // Also invalidate legacy queries for backward compatibility
             qc.invalidateQueries({ queryKey: ['risks'] });
         },
     });
@@ -480,6 +593,19 @@ export const useUpdateRiskStatus = (riskItemId: string) => {
             qc.invalidateQueries({ queryKey: ['risks'] });
             qc.invalidateQueries({ queryKey: ['sme', 'domain-risks'] });
             qc.invalidateQueries({ queryKey: ['sme', 'arb-dashboard'] });
+        },
+    });
+};
+
+export const useSelfAssignRisk = (riskItemId: string) => {
+    const qc = useQueryClient();
+    return useMutation({
+        mutationFn: (userId: string) => endpoints.selfAssignRiskItem(riskItemId, userId),
+        onSuccess: () => {
+            qc.invalidateQueries({ queryKey: ['risks'] });
+            qc.invalidateQueries({ queryKey: ['riskItems'] });
+            qc.invalidateQueries({ queryKey: ['risk', riskItemId] });
+            qc.invalidateQueries({ queryKey: ['riskItem', riskItemId] });
         },
     });
 };

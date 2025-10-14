@@ -172,13 +172,25 @@ export type AttachDocumentResponse = {
 
 export type RiskStatus = 'open' | 'under_review' | 'pending_evidence' | 'resolved' | 'accepted' | 'rejected' | 'PENDING_SME_REVIEW' | 'SME_APPROVED' | 'SME_REJECTED';
 
-export type RiskSeverity = 'low' | 'medium' | 'high' | 'critical';
+// Backend returns capitalized severity values (e.g., "Critical", "High")
+// Frontend uses lowercase for consistency
+export type RiskSeverity = 'low' | 'medium' | 'high' | 'critical' | 'Low' | 'Medium' | 'High' | 'Critical';
 
-export type RiskCreationType = 'MANUAL' | 'SYSTEM_AUTO_CREATION';
+export type RiskCreationType = 'MANUAL' | 'SYSTEM_AUTO_CREATION' | 'MANUAL_CREATION' | 'MANUAL_SME_INITIATED' | 'AUTO';
 
+export type RiskPriority = 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW';
+
+// Policy requirement snapshot - supports both legacy and new backend formats
 export type PolicyRequirementSnapshot = {
-  fieldKey: string;
-  activeRule: {
+  // New simplified format (from /api/v1/risk-items/search)
+  requirementId?: string;
+  evaluatedAt?: string;
+  rule?: string;
+  ttl?: string;
+
+  // Legacy format fields (for backward compatibility)
+  fieldKey?: string;
+  activeRule?: {
     ttl: string;
     label: string;
     value: string;
@@ -190,43 +202,115 @@ export type PolicyRequirementSnapshot = {
     integrity_rating?: string;
     resilience_rating?: string;
   };
-  fieldLabel: string;
-  snapshotTimestamp: number;
-  complianceFrameworks: Array<{
+  fieldLabel?: string;
+  snapshotTimestamp?: number;
+  complianceFrameworks?: Array<{
     controls: string[];
     framework: string;
   }>;
 };
 
-export type RiskStory = {
-  riskId: string;
+// New unified RiskItem type (aligns with /api/v1/risk-items/search)
+export interface RiskItem {
+  riskItemId: string;           // Changed from riskId
+  domainRiskId?: string;
   appId: string;
   fieldKey?: string;
   profileFieldId?: string;
   triggeringEvidenceId?: string;
-  creationType: RiskCreationType;
-  assignedSme?: string;
+  trackId?: string | null;
+  riskDimension?: string;           // DEPRECATED: Use riskRatingDimension instead
+  riskRatingDimension?: string;     // Risk rating dimension with _rating suffix (e.g., 'security_rating', 'confidentiality_rating', 'app_criticality_assessment')
+
   title: string;
-  hypothesis: string;
-  condition: string;
-  consequence: string;
+  description?: string;
+  hypothesis?: string;
+  condition?: string;
+  consequence?: string;
+  controlRefs?: string;         // Compliance control references (e.g., "PCI-DSS.4.1, NIST.SC-8")
+
+  priority: RiskPriority;
   severity: RiskSeverity;
-  status: RiskStatus;
+  priorityScore: number;
+  evidenceStatus?: string;
+
+  status: RiskItemStatus;       // Changed from RiskStatus
+  resolution?: string | null;
+  resolutionComment?: string | null;
+
+  creationType: RiskCreationType;
   raisedBy: string;
+  assignedTo?: string;          // Changed from assignedSme
+  assignedBy?: string;          // Who assigned the risk
+
   openedAt: string;
   assignedAt?: string;
+  resolvedAt?: string | null;
+
   policyRequirementSnapshot?: PolicyRequirementSnapshot;
+
   createdAt: string;
   updatedAt: string;
-  // Legacy fields for backward compatibility
-  description?: string;
-  createdBy?: string;
+
+  // Legacy/optional fields
   evidenceCount?: number;
   lastReviewedAt?: string;
   lastReviewedBy?: string;
-  resolution?: string;
   dueDate?: string;
-};
+}
+
+// Backward compatibility alias (old code still uses RiskStory)
+export type RiskStory = RiskItem;
+
+// Risk Item Search Parameters (for /api/v1/risk-items/search)
+export interface RiskItemSearchParams {
+  appId?: string;                   // Filter by application ID
+  assignedTo?: string;              // Filter by assigned user (changed from assignedSme)
+  status?: string;                  // Comma-separated status values: OPEN,IN_PROGRESS,RESOLVED,WAIVED,CLOSED
+  priority?: string;                // Comma-separated priority values: CRITICAL,HIGH,MEDIUM,LOW
+  fieldKey?: string;                // Filter by profile field key
+  severity?: string;                // Filter by severity: Critical, High, Medium, Low (or lowercase)
+  creationType?: string;            // Comma-separated creation types: SYSTEM_AUTO_CREATION,MANUAL,etc
+  triggeringEvidenceId?: string;    // Filter by evidence that triggered the risk
+  riskDimension?: string;           // DEPRECATED: Use riskRatingDimension instead
+  riskRatingDimension?: string;     // Filter by risk rating dimension: security_rating, confidentiality_rating, integrity_rating, availability_rating, resilience_rating, app_criticality_assessment
+  arb?: string;                     // Filter by ARB/Guild assignment: security, data, operations, enterprise_architecture
+  search?: string;                  // Text search (case-insensitive) across risk titles, descriptions
+  prioritizeUserId?: string;        // Prioritize risks assigned to this user (appear at top of results)
+  sortBy?: string;                  // Field to sort by (default: priorityScore)
+  sortOrder?: 'ASC' | 'DESC';       // Sort direction (default: DESC)
+  page?: number;                    // Page number, 0-indexed (default: 0)
+  size?: number;                    // Page size (default: 20)
+}
+
+// Risk Item Search Response (from /api/v1/risk-items/search)
+export interface RiskItemSearchResponse {
+  items: RiskItem[];
+  currentPage: number;
+  pageSize: number;
+  totalElements: number;
+  totalPages: number;
+  first: boolean;
+  last: boolean;
+}
+
+// Create Risk Item Payload
+export interface CreateRiskItemPayload {
+  appId: string;
+  fieldKey: string;
+  title: string;
+  description?: string;
+  hypothesis?: string;
+  condition?: string;
+  consequence?: string;
+  severity: RiskSeverity;
+  priority?: RiskPriority;
+  assignedTo?: string;              // Changed from assignedSme
+  triggeringEvidenceId?: string;    // Link evidence at creation time
+  creationType?: RiskCreationType;
+  raisedBy?: string;
+}
+
 export type BulkAttestationRequest = {
   fields: {
     profileFieldId: string;
