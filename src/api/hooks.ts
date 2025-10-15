@@ -203,10 +203,10 @@ export const useDetachDocument = (appId: string, profileFieldId: string) => {
     });
 };
 
-export const useProfileFieldEvidence = (profileFieldId: string) =>
+export const useProfileFieldEvidence = (profileFieldId: string | undefined) =>
     useQuery({
         queryKey: ['profileFieldEvidence', profileFieldId],
-        queryFn: () => endpoints.getProfileFieldEvidence(profileFieldId),
+        queryFn: () => endpoints.getProfileFieldEvidence(profileFieldId!),
         enabled: !!profileFieldId,
         ...commonQuery,
     });
@@ -217,6 +217,18 @@ export const useRisk = (riskId: string) =>
     useQuery({
         queryKey: ['risk', riskId],
         queryFn: () => endpoints.getRiskItem(riskId),
+        enabled: !!riskId,
+        ...commonQuery,
+    });
+
+/**
+ * Get status history for a risk item
+ * Returns chronological timeline of all status transitions
+ */
+export const useRiskStatusHistory = (riskId: string) =>
+    useQuery({
+        queryKey: ['risk', riskId, 'status-history'],
+        queryFn: () => endpoints.getRiskStatusHistory(riskId),
         enabled: !!riskId,
         ...commonQuery,
     });
@@ -420,16 +432,38 @@ export const useSmeAllOpenRisks = (smeId: string) =>
         ...commonQuery 
     });
 
+/**
+ * Submit SME review action on a risk item
+ * Supports all actions from the risk state machine:
+ * - approve, approve_with_mitigation, reject, request_info
+ * - assign_other, escalate, approve_remediation, reject_remediation, resolve_escalation
+ */
 export const useSubmitSmeReview = () => {
     const qc = useQueryClient();
     return useMutation({
-        mutationFn: ({ riskId, payload }: { riskId: string; payload: { action: 'approve' | 'reject'; comments: string; smeId: string } }) => 
+        mutationFn: ({ riskId, payload }: {
+            riskId: string;
+            payload: {
+                action: string; // RiskAction from riskActionsConfig
+                comments: string;
+                smeId: string;
+                // Optional fields based on action type
+                assignToSme?: string;  // For assign_other action
+                mitigationPlan?: string;  // For approve_with_mitigation action
+                evidenceId?: string;  // For submit_evidence action (PO)
+            }
+        }) =>
             endpoints.submitSmeReview(riskId, payload),
         onSuccess: (_, variables) => {
             // Invalidate all SME-related queries
             qc.invalidateQueries({ queryKey: ['sme'] });
             qc.invalidateQueries({ queryKey: ['risk', variables.riskId] });
             qc.invalidateQueries({ queryKey: ['risks'] });
+            qc.invalidateQueries({ queryKey: ['riskItems'] });
+            qc.invalidateQueries({ queryKey: ['riskItem', variables.riskId] });
+            // Invalidate domain risk queries (risk may move between queues)
+            qc.invalidateQueries({ queryKey: ['sme', 'domain-risks'] });
+            qc.invalidateQueries({ queryKey: ['sme', 'arb-dashboard'] });
         },
     });
 };

@@ -44,6 +44,7 @@ import type {
     RiskComment,
     RiskCommentType,
     RiskCommentRequest,
+    RiskStatusHistoryResponse,
 } from './types';
 
 // For production builds, use relative URLs that work with nginx proxy
@@ -1660,16 +1661,119 @@ export const endpoints = {
             ]
             : coerceArray((await api.get<unknown[]>(`/api/risks/search?assignedTo=${smeId}&status=PENDING_SME_REVIEW,UNDER_REVIEW`)).data),
 
-    /** SME approves or rejects a risk */
-    submitSmeReview: async (riskId: string, payload: { action: 'approve' | 'reject'; comments: string; smeId: string }): Promise<unknown> =>
+    /**
+     * Submit SME review action on a risk item
+     * Supports all actions from the risk state machine
+     */
+    submitSmeReview: async (
+        riskId: string,
+        payload: {
+            action: string;  // RiskAction from riskActionsConfig
+            comments: string;
+            smeId: string;
+            // Optional fields based on action type
+            assignToSme?: string;
+            mitigationPlan?: string;
+            evidenceId?: string;
+        }
+    ): Promise<unknown> =>
         USE_MOCK
             ? {
                 riskId,
-                status: payload.action === 'approve' ? 'SME_APPROVED' : 'SME_REJECTED',
+                // Map actions to resulting statuses based on state machine
+                status:
+                    payload.action === 'approve' ? 'SME_APPROVED' :
+                    payload.action === 'approve_with_mitigation' ? 'SME_APPROVED' :
+                    payload.action === 'reject' ? 'AWAITING_REMEDIATION' :
+                    payload.action === 'escalate' ? 'ESCALATED' :
+                    payload.action === 'approve_remediation' ? 'REMEDIATED' :
+                    payload.action === 'reject_remediation' ? 'AWAITING_REMEDIATION' :
+                    payload.action === 'resolve_escalation' ? 'SME_APPROVED' :
+                    payload.action === 'assign_other' ? 'UNDER_SME_REVIEW' :
+                    'UNDER_SME_REVIEW',
                 reviewedBy: payload.smeId,
-                reviewedAt: new Date().toISOString()
+                reviewedAt: new Date().toISOString(),
+                ...(payload.assignToSme && { assignedTo: payload.assignToSme }),
+                ...(payload.mitigationPlan && { mitigationPlan: payload.mitigationPlan })
             }
             : (await api.put<unknown>(`/api/risks/${riskId}/sme-review`, payload)).data,
+
+    /**
+     * Get status history for a risk item
+     * Returns chronological timeline of status transitions
+     */
+    getRiskStatusHistory: async (riskId: string): Promise<RiskStatusHistoryResponse> => {
+        if (USE_MOCK) {
+            return {
+                riskItemId: riskId,
+                totalCount: 3,
+                history: [
+                    {
+                        historyId: 'hist_001',
+                        riskItemId: riskId,
+                        fromStatus: null,
+                        toStatus: 'PENDING_REVIEW' as RiskItemStatus,
+                        changedBy: 'system',
+                        changedByName: 'System',
+                        actionTaken: 'create',
+                        changeReason: 'Risk automatically created by policy engine',
+                        timestamp: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
+                        createdAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
+                    },
+                    {
+                        historyId: 'hist_002',
+                        riskItemId: riskId,
+                        fromStatus: 'PENDING_REVIEW' as RiskItemStatus,
+                        toStatus: 'UNDER_SME_REVIEW' as RiskItemStatus,
+                        changedBy: 'sme_user_001',
+                        changedByName: 'Security Analyst 001',
+                        actionTaken: 'assign',
+                        changeReason: 'Risk assigned to security analyst for review',
+                        comments: 'Taking this one for review',
+                        timestamp: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
+                        createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
+                    },
+                    {
+                        historyId: 'hist_003',
+                        riskItemId: riskId,
+                        fromStatus: 'UNDER_SME_REVIEW' as RiskItemStatus,
+                        toStatus: 'AWAITING_REMEDIATION' as RiskItemStatus,
+                        changedBy: 'sme_user_001',
+                        changedByName: 'Security Analyst 001',
+                        actionTaken: 'reject',
+                        changeReason: 'Evidence does not meet security requirements',
+                        comments: 'The encryption implementation needs to use AES-256. Please update and resubmit.',
+                        timestamp: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+                        createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+                    }
+                ]
+            };
+        }
+
+        // Backend returns array directly, transform to expected format
+        const historyArray = (await api.get<any[]>(`/api/v1/risk-items/${riskId}/status-history`)).data;
+
+        // Transform backend response to match frontend format
+        const transformedHistory = historyArray.map(entry => ({
+            historyId: entry.historyId,
+            riskItemId: entry.riskItemId,
+            fromStatus: entry.fromStatus || null,
+            toStatus: entry.toStatus,
+            changedBy: entry.changedBy,
+            changedByName: entry.changedByName,
+            changeReason: entry.resolution || entry.changeReason,
+            actionTaken: entry.actionTaken,
+            comments: entry.resolutionComment || entry.comments,
+            timestamp: entry.changedAt || entry.timestamp,
+            createdAt: entry.createdAt
+        }));
+
+        return {
+            riskItemId: riskId,
+            history: transformedHistory,
+            totalCount: historyArray.length
+        };
+    },
 
     /** Bulk Attestation */
     submitBulkAttestation: async (appId: string, request: BulkAttestationRequest): Promise<BulkAttestationResponse> => {
