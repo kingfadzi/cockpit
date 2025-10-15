@@ -9,6 +9,8 @@ import {
   WorkbenchEvidenceItem,
   EvidenceSearchParams,
   EvidenceStateKey,
+  PortfolioRiskSummary,
+  CriticalApp,
 } from './types';
 import { realApps, realAppKpis, realProfiles, realPortfolioKpis } from './realMockData';
 
@@ -1589,6 +1591,43 @@ export const mockApi = {
       missingEvidence: Math.round(realPortfolioKpis.missingEvidence * ratio),
       pendingReview: Math.round(realPortfolioKpis.pendingReview * ratio),
       riskBlocked: Math.round(realPortfolioKpis.riskBlocked * ratio)
+    };
+  },
+  getPortfolioRiskSummary: async (): Promise<PortfolioRiskSummary> => {
+    await delay(120);
+    // Mock data for portfolio risk summary
+    return {
+      actionRequired: 8,
+      blockingCompliance: 12,
+      missingEvidence: 23,
+      pendingReview: 15,
+      escalated: 3,
+      recentWins: 7,
+      criticalApps: [
+        {
+          appId: 'APM100001',
+          appName: 'Application Performance Monitor',
+          criticalCount: 5,
+          highCount: 3,
+          riskScore: 87
+        },
+        {
+          appId: 'CORR-12356',
+          appName: 'Correlation Engine',
+          criticalCount: 4,
+          highCount: 2,
+          riskScore: 75
+        },
+        {
+          appId: 'DEVTOOLS',
+          appName: 'Developer Portal',
+          criticalCount: 3,
+          highCount: 4,
+          riskScore: 68
+        }
+      ],
+      totalApps: realApps.length,
+      appsWithRisks: Math.round(realApps.length * 0.6)
     };
   },
   getAppKpis: async (appId: string): Promise<AppKpis> => {

@@ -25,7 +25,7 @@ import {
   Tooltip,
 } from '@mui/material';
 import CriticalityBadge from '../../components/CriticalityBadge';
-import { useApps } from '../../api/hooks';
+import { useApps, usePortfolioRiskSummary } from '../../api/hooks';
 import { useNavigate, Link as RouterLink } from 'react-router-dom';
 import AddApplicationDialog from './AddApplicationDialog';
 
@@ -135,10 +135,12 @@ export default function POHome() {
   const { data: allAppsData } = useApps();
   const allApps = allAppsData?.apps || [];
 
-  // Get filtered apps and KPIs
+  // Get filtered apps and risk summary
   const { data: filteredAppsData, isLoading } = useApps(filterParams);
   const apps = filteredAppsData?.apps || [];
-  const kpis = filteredAppsData?.kpis;
+
+  // Get portfolio risk summary for KPIs
+  const { data: riskSummary } = usePortfolioRiskSummary();
   
   const applicationTypes = useMemo(() => {
     const set = new Set<string>();
@@ -176,32 +178,44 @@ export default function POHome() {
     return params.toString();
   };
 
-  // KPI metrics definitions with backend-calculated counts and URLs
+  // KPI metrics definitions using new risk-based metrics
   const filterQuery = getFilterParams();
   const kpiMetrics: KpiMetric[] = [
     {
-      label: 'Compliant Evidence',
-      severity: 'success',
-      count: kpis?.compliant ?? 0,
-      to: `/po/kpis/compliant${filterQuery ? `?${filterQuery}` : ''}`,
+      label: 'Action Required',
+      severity: 'error',
+      count: riskSummary?.actionRequired ?? 0,
+      to: `/po/risks?status=awaiting_remediation${filterQuery ? `&${filterQuery}` : ''}`,
+    },
+    {
+      label: 'Blocking Compliance',
+      severity: 'error',
+      count: riskSummary?.blockingCompliance ?? 0,
+      to: `/po/risks?severity=critical,high${filterQuery ? `&${filterQuery}` : ''}`,
     },
     {
       label: 'Missing Evidence',
-      severity: 'error',
-      count: kpis?.missingEvidence ?? 0,
+      severity: 'warning',
+      count: riskSummary?.missingEvidence ?? 0,
       to: `/po/kpis/missing${filterQuery ? `?${filterQuery}` : ''}`,
     },
     {
       label: 'Pending Review',
-      severity: 'warning',
-      count: kpis?.pendingReview ?? 0,
-      to: `/po/kpis/pending${filterQuery ? `?${filterQuery}` : ''}`,
+      severity: 'info',
+      count: riskSummary?.pendingReview ?? 0,
+      to: `/po/risks?status=under_sme_review${filterQuery ? `&${filterQuery}` : ''}`,
     },
     {
-      label: 'Risk Blocked',
-      severity: 'info',
-      count: kpis?.riskBlocked ?? 0,
-      to: `/po/kpis/riskBlocked${filterQuery ? `?${filterQuery}` : ''}`,
+      label: 'Escalated',
+      severity: 'error',
+      count: riskSummary?.escalated ?? 0,
+      to: `/po/risks?status=escalated${filterQuery ? `&${filterQuery}` : ''}`,
+    },
+    {
+      label: 'Recent Wins',
+      severity: 'success',
+      count: riskSummary?.recentWins ?? 0,
+      to: `/po/risks?status=resolved${filterQuery ? `&${filterQuery}` : ''}`,
     },
   ];
 
@@ -215,6 +229,104 @@ export default function POHome() {
 
   return (
     <Stack spacing={3}>
+      {/* Critical Apps Alert */}
+      {riskSummary && riskSummary.criticalApps && riskSummary.criticalApps.length > 0 && (
+        <Card
+          variant="outlined"
+          sx={{
+            borderColor: 'error.main',
+            bgcolor: 'error.50',
+            borderWidth: 2,
+          }}
+        >
+          <CardContent>
+            <Stack spacing={2}>
+              <Stack direction="row" alignItems="center" spacing={1}>
+                <Box
+                  sx={{
+                    width: 8,
+                    height: 8,
+                    borderRadius: '50%',
+                    bgcolor: 'error.main',
+                    animation: 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                    '@keyframes pulse': {
+                      '0%, 100%': { opacity: 1 },
+                      '50%': { opacity: 0.5 },
+                    },
+                  }}
+                />
+                <Typography variant="h6" fontWeight={700} color="error.dark">
+                  Priority Applications Requiring Attention ({riskSummary.criticalApps.length})
+                </Typography>
+              </Stack>
+              <Typography variant="body2" color="text.secondary">
+                These applications have critical or high-priority risks that require immediate action.
+              </Typography>
+              <Stack spacing={1}>
+                {riskSummary.criticalApps.map((app) => (
+                  <Paper
+                    key={app.appId}
+                    elevation={0}
+                    sx={{
+                      p: 1.5,
+                      border: 1,
+                      borderColor: 'divider',
+                      cursor: 'pointer',
+                      '&:hover': {
+                        bgcolor: 'action.hover',
+                      },
+                    }}
+                    onClick={() => navigate(`/po/apps/${app.appId}?tab=profile&subtab=risks`)}
+                  >
+                    <Stack direction="row" justifyContent="space-between" alignItems="center">
+                      <Box>
+                        <Typography variant="body2" fontWeight={600}>
+                          {app.appName}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          {app.appId}
+                        </Typography>
+                      </Box>
+                      <Stack direction="row" spacing={1} alignItems="center">
+                        {app.criticalCount > 0 && (
+                          <Chip
+                            label={`${app.criticalCount} Critical`}
+                            size="small"
+                            color="error"
+                            sx={{ fontWeight: 600 }}
+                          />
+                        )}
+                        {app.highCount > 0 && (
+                          <Chip
+                            label={`${app.highCount} High`}
+                            size="small"
+                            color="warning"
+                            sx={{ fontWeight: 600 }}
+                          />
+                        )}
+                        <Box
+                          sx={{
+                            px: 1.5,
+                            py: 0.5,
+                            borderRadius: 1,
+                            bgcolor: getRiskScoreBgColor(app.riskScore),
+                            color: 'white',
+                            fontWeight: 700,
+                            fontSize: '0.875rem',
+                          }}
+                        >
+                          {Math.round(app.riskScore)}
+                        </Box>
+                      </Stack>
+                    </Stack>
+                  </Paper>
+                ))}
+              </Stack>
+            </Stack>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Single Card containing everything */}
       <Card variant="outlined">
         {/* Status Overview Section */}
@@ -405,7 +517,7 @@ export default function POHome() {
                         key={app.appId}
                         hover
                         sx={{ cursor: 'pointer' }}
-                        onClick={() => navigate(`/po/apps/${app.appId}`)}
+                        onClick={() => navigate(`/po/apps/${app.appId}?tab=profile`)}
                       >
                         <TableCell>
                           <Stack direction="row" spacing={1} alignItems="center">
