@@ -402,7 +402,7 @@ export default function SecuritySmeView() {
                                     <TableBody>
                                         {paginatedAssignments.map((assignment) => (
                                             <TableRow
-                                                key={`${assignment.riskId}`}
+                                                key={`${(assignment as any).riskItemId || assignment.riskId}`}
                                                 hover
                                                 sx={{ cursor: 'pointer' }}
                                                 onClick={() => openRiskItemModal(assignment)}
@@ -665,7 +665,7 @@ export default function SecuritySmeView() {
                                     <TableBody>
                                         {paginatedRisks.map((risk) => (
                                             <TableRow
-                                                key={risk.riskId}
+                                                key={(risk as any).riskItemId || risk.riskId}
                                                 hover
                                                 sx={{ cursor: 'pointer' }}
                                                 onClick={() => openRiskItemModal(risk)}

@@ -113,8 +113,15 @@ export default function SmeRiskItemModal({ open, onClose, risk, smeId }: SmeRisk
         }
 
         try {
+            // Support both riskItemId (new API) and riskId (legacy)
+            const riskId = (risk as any).riskItemId || risk.riskId;
+            if (!riskId) {
+                console.error('Risk ID is missing from risk object:', risk);
+                return;
+            }
+
             await submitReviewMutation.mutateAsync({
-                riskId: risk.riskId,
+                riskId,
                 payload
             });
             
@@ -657,8 +664,8 @@ export default function SmeRiskItemModal({ open, onClose, risk, smeId }: SmeRisk
                         )}
 
                         {/* Tab 3: Comments */}
-                        {activeTab === 2 && risk?.riskId && (
-                            <RiskCommentsPanel riskItemId={risk.riskId} currentUserId={smeId} />
+                        {activeTab === 2 && ((risk as any)?.riskItemId || risk?.riskId) && (
+                            <RiskCommentsPanel riskItemId={(risk as any)?.riskItemId || risk.riskId} currentUserId={smeId} />
                         )}
                     </Box>
                 </Box>
