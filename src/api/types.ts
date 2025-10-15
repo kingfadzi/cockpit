@@ -31,6 +31,22 @@ export type AppSummary = {
   hasChildren?: boolean | null;
   parentAppId?: string | null;
   parentAppName?: string | null;
+  // Risk Metrics (for PO dashboard)
+  riskMetrics?: {
+    totalRisks: {
+      critical: number;
+      high: number;
+      medium: number;
+      low: number;
+    };
+    inProgress: {
+      critical: number;
+      high: number;
+      medium: number;
+      low: number;
+    };
+    riskScore: number;          // MAX domain priority score (0-100 scale)
+  };
 };
 
 // Server shape coming from Spring (camelCase + appCriticalityAssessment)

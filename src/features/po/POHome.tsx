@@ -5,85 +5,107 @@ import {
   Typography,
   Button,
   Box,
-  Tooltip,
   TextField,
   Select,
   MenuItem,
   FormControl,
   InputLabel,
+  Card,
+  CardContent,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Pagination,
+  Paper,
+  Divider,
+  Chip,
+  Tooltip,
 } from '@mui/material';
-import SectionHeader from '../../components/SectionHeader';
-import Section from '../../components/Section';
-import {
-  severityIcon,
-  severityColor,
-  StatusSeverity,
-} from '../../components/shared/status';
 import CriticalityBadge from '../../components/CriticalityBadge';
 import { useApps } from '../../api/hooks';
 import { useNavigate, Link as RouterLink } from 'react-router-dom';
 import AddApplicationDialog from './AddApplicationDialog';
 
-// Type for KPI tiles
-type Tile = {
+// Type for KPI metrics
+type KpiMetric = {
   label: string;
-  severity: StatusSeverity;
+  severity: 'error' | 'warning' | 'info' | 'success';
   count: number;
-  tooltip: string;
   to: string;
-  subtext: string;
 };
 
-// KPI tile component
-function KpiTile({
-  label,
-  severity,
-  count,
-  tooltip,
-  to,
-  subtext,
-}: Tile) {
-  const navigate = useNavigate();
-  const Icon = severityIcon[severity];
-  const color = severityColor[severity];
+// Ribbon metric component
+interface RibbonMetricProps {
+  label: string;
+  value: string | number;
+  color: 'error' | 'warning' | 'info' | 'success';
+  onClick?: () => void;
+}
+
+function RibbonMetric({ label, value, color, onClick }: RibbonMetricProps) {
   return (
-    <Tooltip title={tooltip}>
-      <Section padded={false}>
-        <Box
-          sx={{
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'space-between',
-            minHeight: 120,
-            p: 2,
-            cursor: 'pointer',
-          }}
-          onClick={() => navigate(to)}
-        >
-          <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-            <Icon style={{ width: 24, height: 24, color }} />
-            <Typography variant="subtitle1" sx={{ ml: 1 }}>
-              {label}
-            </Typography>
-          </Box>
-          <Typography
-            variant="caption"
-            color="text.secondary"
-            sx={{ lineHeight: 1.2 }}
-          >
-            {subtext}
-          </Typography>
-          <Typography variant="h5" sx={{ mt: 'auto' }}>
-            {count}
-          </Typography>
-        </Box>
-      </Section>
-    </Tooltip>
+    <Box
+      onClick={onClick}
+      sx={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 1.25,
+        px: 2,
+        py: 1,
+        cursor: onClick ? 'pointer' : 'default',
+        '&:hover': onClick ? {
+          bgcolor: 'action.hover',
+        } : {},
+      }}
+    >
+      <Box
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          width: 36,
+          height: 36,
+          borderRadius: '50%',
+          bgcolor: `${color}.main`,
+          color: 'white',
+          flexShrink: 0,
+          fontWeight: 700,
+          fontSize: '0.9rem'
+        }}
+      >
+        {value}
+      </Box>
+      <Typography
+        variant="body2"
+        color="text.primary"
+        sx={{ fontWeight: 600, fontSize: '0.875rem', whiteSpace: 'nowrap' }}
+      >
+        {label}
+      </Typography>
+    </Box>
   );
 }
 
 export default function POHome() {
   const navigate = useNavigate();
+
+  // Helper function to calculate total from risk breakdown
+  const calculateRiskTotal = (breakdown?: { critical: number; high: number; medium: number; low: number }) => {
+    if (!breakdown) return 0;
+    return breakdown.critical + breakdown.high + breakdown.medium + breakdown.low;
+  };
+
+  // Helper function to get risk score background color
+  const getRiskScoreBgColor = (score: number): string => {
+    if (score >= 90) return '#d32f2f';         // Dark red background
+    if (score >= 75) return '#f44336';         // Lighter red background (transitions from orange)
+    if (score >= 60) return '#ff9800';         // Bright orange background
+    if (score >= 40) return '#ffa726';         // Amber background
+    return 'success.main';                     // Green background
+  };
 
   // Search/filter state
   const [search, setSearch] = useState('');
@@ -91,7 +113,11 @@ export default function POHome() {
   const [applicationTypeFilter, setApplicationTypeFilter] = useState('');
   const [architectureTypeFilter, setArchitectureTypeFilter] = useState('');
   const [installTypeFilter, setInstallTypeFilter] = useState('');
-  
+
+  // Pagination state
+  const [page, setPage] = useState(1);
+  const pageSize = 10;
+
   // Add application modal state
   const [addAppOpen, setAddAppOpen] = useState(false);
 
@@ -102,6 +128,7 @@ export default function POHome() {
     applicationType: applicationTypeFilter || undefined,
     architectureType: architectureTypeFilter || undefined,
     installType: installTypeFilter || undefined,
+    includeRiskMetrics: true,
   }), [search, criticalityFilter, applicationTypeFilter, architectureTypeFilter, installTypeFilter]);
 
   // Get all apps for filter options (unfiltered)
@@ -149,59 +176,115 @@ export default function POHome() {
     return params.toString();
   };
 
-  // KPI tile definitions with backend-calculated counts and URLs
+  // KPI metrics definitions with backend-calculated counts and URLs
   const filterQuery = getFilterParams();
-  const tiles: Tile[] = [
+  const kpiMetrics: KpiMetric[] = [
     {
       label: 'Compliant Evidence',
       severity: 'success',
       count: kpis?.compliant ?? 0,
-      tooltip: 'Evidence items that have been approved and are meeting requirements',
       to: `/po/kpis/compliant${filterQuery ? `?${filterQuery}` : ''}`,
-      subtext: 'Review approved items',
     },
     {
       label: 'Missing Evidence',
       severity: 'error',
       count: kpis?.missingEvidence ?? 0,
-      tooltip: 'Evidence items that need to be uploaded or submitted',
       to: `/po/kpis/missing${filterQuery ? `?${filterQuery}` : ''}`,
-      subtext: 'Upload required evidence',
     },
     {
       label: 'Pending Review',
       severity: 'warning',
       count: kpis?.pendingReview ?? 0,
-      tooltip: 'Evidence items submitted and awaiting SME review',
       to: `/po/kpis/pending${filterQuery ? `?${filterQuery}` : ''}`,
-      subtext: 'Follow up on reviews',
     },
     {
-      label: 'Risk Blocked Evidence',
+      label: 'Risk Blocked',
       severity: 'info',
       count: kpis?.riskBlocked ?? 0,
-      tooltip: 'Evidence items that are blocked due to risks and need remediation',
       to: `/po/kpis/riskBlocked${filterQuery ? `?${filterQuery}` : ''}`,
-      subtext: 'Fix and resubmit',
     },
   ];
 
-  return (
-    <Stack spacing={2}>
-      {/* Section heading + KPI cards tightly grouped */}
-      <Stack spacing={0.5}>
-        <Typography variant="h6" sx={{ m: 0 }}>
-          Status Overview
-        </Typography>
+  // Pagination logic
+  const paginatedApps = useMemo(() => {
+    const startIndex = (page - 1) * pageSize;
+    return apps.slice(startIndex, startIndex + pageSize);
+  }, [apps, page, pageSize]);
 
-        {/* Filters wrapped in Section for visual symmetry */}
-        <Section>
+  const totalPages = Math.ceil(apps.length / pageSize);
+
+  return (
+    <Stack spacing={3}>
+      {/* Single Card containing everything */}
+      <Card variant="outlined">
+        {/* Status Overview Section */}
+        <Box sx={{ p: 2 }}>
+          <Typography variant="h6" fontWeight={700} sx={{ mb: 2 }}>
+            Status Overview
+          </Typography>
+          <Paper
+            elevation={0}
+            sx={{
+              border: 1,
+              borderColor: 'divider',
+              borderRadius: 2,
+              overflow: 'hidden',
+              bgcolor: 'background.paper'
+            }}
+          >
+            <Stack
+              direction="row"
+              divider={<Divider orientation="vertical" flexItem />}
+              sx={{
+                flexWrap: 'wrap',
+                '& > *': {
+                  flex: { xs: '1 1 auto', md: 1 }
+                }
+              }}
+            >
+              {kpiMetrics.map((metric) => (
+                <RibbonMetric
+                  key={metric.label}
+                  label={metric.label}
+                  value={metric.count}
+                  color={metric.severity}
+                  onClick={() => navigate(metric.to)}
+                />
+              ))}
+            </Stack>
+          </Paper>
+        </Box>
+
+        {/* Divider */}
+        <Box sx={{ borderTop: 1, borderColor: 'divider', my: 0 }} />
+
+        {/* My Applications Section */}
+        <Box sx={{ p: 2 }}>
+          {/* Header with title and Create button */}
+          <Stack
+            direction="row"
+            justifyContent="space-between"
+            alignItems="center"
+            sx={{ mb: 2 }}
+          >
+            <Typography variant="h6" fontWeight={700}>
+              My Applications ({apps.length})
+            </Typography>
+            <Button
+              variant="contained"
+              onClick={() => setAddAppOpen(true)}
+            >
+              + Create Application
+            </Button>
+          </Stack>
+
+          {/* Filters */}
           <Stack
             direction={{ xs: 'column', sm: 'row' }}
             spacing={2}
             alignItems={{ xs: 'stretch', sm: 'center' }}
+            sx={{ mb: 2 }}
           >
-            {/* Filters */}
             <Stack
               direction={{ xs: 'column', sm: 'row' }}
               spacing={2}
@@ -276,9 +359,8 @@ export default function POHome() {
               </FormControl>
             </Stack>
 
-            {/* Clear All button */}
-            <Button 
-              variant="outlined" 
+            <Button
+              variant="outlined"
               size="small"
               sx={{ whiteSpace: 'nowrap' }}
               onClick={() => {
@@ -292,98 +374,195 @@ export default function POHome() {
               Clear All
             </Button>
           </Stack>
-        </Section>
+        </Box>
 
-        <Grid container spacing={1.5}>
-          {tiles.map((tile) => (
-            <Grid key={tile.label} item xs={12} sm={6} md={3}>
-              <KpiTile {...tile} />
-            </Grid>
-          ))}
-        </Grid>
-      </Stack>
-
-      {/* Applications heading with Add button */}
-      <Stack
-        direction="row"
-        justifyContent="space-between"
-        alignItems="center"
-        sx={{ mt: 2 }}
-      >
-        <Typography variant="h6">
-          My Applications
-        </Typography>
-        <Button
-          variant="contained"
-          onClick={() => setAddAppOpen(true)}
-        >
-          + Create Application
-        </Button>
-      </Stack>
-
-      {/* Applications grid */}
-      {isLoading ? (
-        <Typography>Loading apps…</Typography>
-      ) : (
-        <Grid container spacing={2}>
-          {apps.map((app) => (
-            <Grid key={app.appId} item xs={12} sm={6} md={4}>
-              <Section>
-                <Stack spacing={1}>
-                  <Stack direction="row" spacing={1} alignItems="center">
-                    <CriticalityBadge criticality={app.criticality || 'D'} />
-                    <Typography 
-                      variant="subtitle1"
-                      sx={{ 
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap',
-                        flex: 1
-                      }}
-                    >
-                      {app.name || app.appId} 
-                      <Typography 
-                        component="span" 
-                        variant="body2"
-                        color="text.secondary"
-                      >
-                        ({app.appId})
-                      </Typography>
-                    </Typography>
-                  </Stack>
-                  <Typography variant="body2" color="text.secondary">
-                    Application Type: {app.applicationType || '—'}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Install Type: {(app as any).install_type || '—'}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Architecture: {app.architecture_type || '—'}
-                  </Typography>
-
-                  {/* OPEN -> go straight to Profile tab */}
-                  <Button
-                      size="small"
-                      variant="contained"
-                      component={RouterLink}
-                      to={`/po/apps/${app.appId}`}   // ← lands on AppProfilePage
-                      sx={{ mt: 1 }}
-                  >
-                    Open
-                  </Button>
-
-                </Stack>
-              </Section>
-            </Grid>
-          ))}
-
-          {!apps.length && (
+        {/* Applications Content */}
+        <CardContent sx={{ pt: 0, pb: 2 }}>
+          {isLoading ? (
+            <Typography>Loading apps…</Typography>
+          ) : apps.length === 0 ? (
             <Typography color="text.secondary">
               No applications match your filters.
             </Typography>
+          ) : (
+            <>
+              <TableContainer>
+                <Table size="small">
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>Application</TableCell>
+                      <TableCell>Application Type</TableCell>
+                      <TableCell>Install Type</TableCell>
+                      <TableCell>Architecture</TableCell>
+                      <TableCell align="center">Risk Score</TableCell>
+                      <TableCell align="center">Total Risks</TableCell>
+                      <TableCell align="center">In Progress</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {paginatedApps.map((app) => (
+                      <TableRow
+                        key={app.appId}
+                        hover
+                        sx={{ cursor: 'pointer' }}
+                        onClick={() => navigate(`/po/apps/${app.appId}`)}
+                      >
+                        <TableCell>
+                          <Stack direction="row" spacing={1} alignItems="center">
+                            <CriticalityBadge criticality={app.criticality || 'D'} />
+                            <Box>
+                              <Typography variant="body2" fontWeight={600}>
+                                {app.name || app.appId}
+                              </Typography>
+                              <Typography variant="caption" color="text.secondary">
+                                ({app.appId})
+                              </Typography>
+                            </Box>
+                          </Stack>
+                        </TableCell>
+                        <TableCell>{app.applicationType || '—'}</TableCell>
+                        <TableCell>{(app as any).install_type || '—'}</TableCell>
+                        <TableCell>{app.architecture_type || '—'}</TableCell>
+                        <TableCell align="center">
+                          <Box
+                            sx={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              minWidth: 60,
+                              px: 1.5,
+                              py: 0.5,
+                              borderRadius: 1,
+                              bgcolor: getRiskScoreBgColor(app.riskMetrics?.riskScore || 0),
+                              color: 'white',
+                              fontWeight: 700,
+                              fontSize: '1rem'
+                            }}
+                          >
+                            {Math.round(app.riskMetrics?.riskScore || 0)}
+                          </Box>
+                        </TableCell>
+                        <TableCell align="center">
+                          <Stack direction="row" spacing={0.5} justifyContent="center">
+                            {(app.riskMetrics?.totalRisks?.critical || 0) > 0 && (
+                              <Tooltip title={`${app.riskMetrics?.totalRisks?.critical} Critical`}>
+                                <Chip
+                                  label={app.riskMetrics?.totalRisks?.critical}
+                                  size="small"
+                                  color="error"
+                                  sx={{ fontWeight: 600, minWidth: 32 }}
+                                />
+                              </Tooltip>
+                            )}
+                            {(app.riskMetrics?.totalRisks?.high || 0) > 0 && (
+                              <Tooltip title={`${app.riskMetrics?.totalRisks?.high} High`}>
+                                <Chip
+                                  label={app.riskMetrics?.totalRisks?.high}
+                                  size="small"
+                                  color="warning"
+                                  sx={{ fontWeight: 600, minWidth: 32 }}
+                                />
+                              </Tooltip>
+                            )}
+                            {(app.riskMetrics?.totalRisks?.medium || 0) > 0 && (
+                              <Tooltip title={`${app.riskMetrics?.totalRisks?.medium} Medium`}>
+                                <Chip
+                                  label={app.riskMetrics?.totalRisks?.medium}
+                                  size="small"
+                                  color="info"
+                                  sx={{ fontWeight: 600, minWidth: 32 }}
+                                />
+                              </Tooltip>
+                            )}
+                            {(app.riskMetrics?.totalRisks?.low || 0) > 0 && (
+                              <Tooltip title={`${app.riskMetrics?.totalRisks?.low} Low`}>
+                                <Chip
+                                  label={app.riskMetrics?.totalRisks?.low}
+                                  size="small"
+                                  color="success"
+                                  sx={{ fontWeight: 600, minWidth: 32 }}
+                                />
+                              </Tooltip>
+                            )}
+                            {calculateRiskTotal(app.riskMetrics?.totalRisks) === 0 && (
+                              <Typography variant="body2" color="text.secondary">
+                                —
+                              </Typography>
+                            )}
+                          </Stack>
+                        </TableCell>
+                        <TableCell align="center">
+                          <Stack direction="row" spacing={0.5} justifyContent="center">
+                            {(app.riskMetrics?.inProgress?.critical || 0) > 0 && (
+                              <Tooltip title={`${app.riskMetrics?.inProgress?.critical} Critical`}>
+                                <Chip
+                                  label={app.riskMetrics?.inProgress?.critical}
+                                  size="small"
+                                  color="error"
+                                  sx={{ fontWeight: 600, minWidth: 32 }}
+                                />
+                              </Tooltip>
+                            )}
+                            {(app.riskMetrics?.inProgress?.high || 0) > 0 && (
+                              <Tooltip title={`${app.riskMetrics?.inProgress?.high} High`}>
+                                <Chip
+                                  label={app.riskMetrics?.inProgress?.high}
+                                  size="small"
+                                  color="warning"
+                                  sx={{ fontWeight: 600, minWidth: 32 }}
+                                />
+                              </Tooltip>
+                            )}
+                            {(app.riskMetrics?.inProgress?.medium || 0) > 0 && (
+                              <Tooltip title={`${app.riskMetrics?.inProgress?.medium} Medium`}>
+                                <Chip
+                                  label={app.riskMetrics?.inProgress?.medium}
+                                  size="small"
+                                  color="info"
+                                  sx={{ fontWeight: 600, minWidth: 32 }}
+                                />
+                              </Tooltip>
+                            )}
+                            {(app.riskMetrics?.inProgress?.low || 0) > 0 && (
+                              <Tooltip title={`${app.riskMetrics?.inProgress?.low} Low`}>
+                                <Chip
+                                  label={app.riskMetrics?.inProgress?.low}
+                                  size="small"
+                                  color="success"
+                                  sx={{ fontWeight: 600, minWidth: 32 }}
+                                />
+                              </Tooltip>
+                            )}
+                            {calculateRiskTotal(app.riskMetrics?.inProgress) === 0 && (
+                              <Typography variant="body2" color="text.secondary">
+                                —
+                              </Typography>
+                            )}
+                          </Stack>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+
+              {/* Pagination */}
+              {totalPages > 1 && (
+                <Box sx={{ display: 'flex', justifyContent: 'center', pt: 2 }}>
+                  <Pagination
+                    count={totalPages}
+                    page={page}
+                    onChange={(_, newPage) => setPage(newPage)}
+                    size="small"
+                    showFirstButton
+                    showLastButton
+                  />
+                </Box>
+              )}
+            </>
           )}
-        </Grid>
-      )}
+        </CardContent>
+      </Card>
 
       {/* Add Application Dialog */}
       <AddApplicationDialog

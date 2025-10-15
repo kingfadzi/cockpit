@@ -575,13 +575,14 @@ export const endpoints = {
         architectureType?: string;
         installType?: string;
         kpiType?: string;
+        includeRiskMetrics?: boolean;
     }): Promise<AppsWithKpis> => {
         if (USE_MOCK) {
             const apps = await mockApi.listApps(filters);
             const kpis = await mockApi.getPortfolioKpis(filters);
             return { apps, kpis, totalCount: apps.length, filteredCount: apps.length };
         }
-        
+
         const params = new URLSearchParams();
         if (filters?.search) params.set('search', filters.search);
         if (filters?.criticality) params.set('criticality', filters.criticality);
@@ -589,6 +590,7 @@ export const endpoints = {
         if (filters?.architectureType) params.set('architectureType', filters.architectureType);
         if (filters?.installType) params.set('installType', filters.installType);
         if (filters?.kpiType) params.set('kpiType', filters.kpiType);
+        if (filters?.includeRiskMetrics) params.set('includeRiskMetrics', 'true');
         
         const queryString = params.toString() ? `?${params.toString()}` : '';
         const res = await api.get<AppsWithKpis>(`/api/apps${queryString}`);

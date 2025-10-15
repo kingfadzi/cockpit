@@ -30,11 +30,12 @@ export const useApps = (filters?: {
     architectureType?: string;
     installType?: string;
     kpiType?: string;
+    includeRiskMetrics?: boolean;
 }) =>
-    useQuery<AppsWithKpis>({ 
-        queryKey: ['apps', filters], 
-        queryFn: () => endpoints.listApps(filters), 
-        ...commonQuery 
+    useQuery<AppsWithKpis>({
+        queryKey: ['apps', filters],
+        queryFn: () => endpoints.listApps(filters),
+        ...commonQuery
     });
 
 export const useApp = (appId: string) =>
