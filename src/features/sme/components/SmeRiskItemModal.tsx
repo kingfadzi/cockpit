@@ -41,6 +41,9 @@ import {
 } from '@mui/icons-material';
 import { useSubmitSmeReview, useProfileFieldEvidence } from '../../../api/hooks';
 import RiskCommentsPanel from './RiskCommentsPanel';
+import RiskStatusTimeline from './RiskStatusTimeline';
+import { getStatusMuiColor, isActiveStatus } from '../config/riskStatusConfig';
+import type { RiskItemStatus } from '../../../api/types';
 
 interface SmeRiskItemModalProps {
     open: boolean;
@@ -108,8 +111,8 @@ export default function SmeRiskItemModal({ open, onClose, risk, smeId }: SmeRisk
         if (action === 'assign_other' && assignToSme) {
             payload.assignToSme = assignToSme;
         }
-        if (action === 'approve_with_mitigation' && mitigationPlan) {
-            payload.mitigationPlan = mitigationPlan;
+        if (action === 'approve_with_mitigation') {
+            payload.mitigationPlan = mitigationPlan.trim();
         }
 
         try {
@@ -156,27 +159,8 @@ export default function SmeRiskItemModal({ open, onClose, risk, smeId }: SmeRisk
         }
     };
 
-    const getStatusColor = (status: string) => {
-        switch (status) {
-            case 'OPEN': return 'warning';
-            case 'IN_PROGRESS': return 'info';
-            case 'RESOLVED': return 'success';
-            case 'WAIVED': return 'default';
-            case 'CLOSED': return 'success';
-            // Legacy statuses (for backward compatibility)
-            case 'PENDING_SME_REVIEW': return 'warning';
-            case 'UNDER_REVIEW': return 'info';
-            case 'SME_APPROVED': return 'success';
-            case 'SME_REJECTED': return 'error';
-            default: return 'default';
-        }
-    };
-
-    // SMEs can take action on OPEN and IN_PROGRESS risks
-    const canTakeAction = enhancedRisk?.status === 'OPEN' ||
-                          enhancedRisk?.status === 'IN_PROGRESS' ||
-                          enhancedRisk?.status === 'PENDING_SME_REVIEW' ||
-                          enhancedRisk?.status === 'UNDER_REVIEW';
+    // SMEs can take action on active risks (based on new state machine)
+    const canTakeAction = enhancedRisk?.status && isActiveStatus(enhancedRisk.status as RiskItemStatus);
 
     const getLastUpdatedText = () => {
         if (!mockJiraData?.lastUpdated) return 'Unknown';
@@ -231,6 +215,7 @@ export default function SmeRiskItemModal({ open, onClose, risk, smeId }: SmeRisk
                         <Tab label="Risk Details" />
                         <Tab label="Jira Sync" />
                         <Tab label="Comments" />
+                        <Tab label="Status History" />
                     </Tabs>
 
                     <Box sx={{ p: 3 }}>
@@ -264,7 +249,7 @@ export default function SmeRiskItemModal({ open, onClose, risk, smeId }: SmeRisk
                                             <Paper variant="outlined" sx={{ p: 2 }}>
                                                                 <Stack direction="row" spacing={1} sx={{ mb: 2 }}>
                                                     <Chip size="small" label={enhancedRisk?.severity} color={getSeverityColor(enhancedRisk?.severity)} variant="filled" />
-                                                    <Chip size="small" label={enhancedRisk?.status?.replace('_', ' ')} color={getStatusColor(enhancedRisk?.status)} variant="outlined" />
+                                                    <Chip size="small" label={enhancedRisk?.status?.replace('_', ' ')} color={getStatusMuiColor(enhancedRisk?.status as RiskItemStatus)} variant="outlined" />
                                                 </Stack>
                                                 
                                                 <Stack spacing={1.5}>
@@ -443,7 +428,7 @@ export default function SmeRiskItemModal({ open, onClose, risk, smeId }: SmeRisk
 
                                                     {action === 'approve_with_mitigation' && (
                                                         <TextField
-                                                            label="Required Mitigation Plan"
+                                                            label="Required Mitigation Plan *"
                                                             multiline
                                                             rows={2}
                                                             value={mitigationPlan}
@@ -451,7 +436,9 @@ export default function SmeRiskItemModal({ open, onClose, risk, smeId }: SmeRisk
                                                             placeholder="Describe the required mitigation steps..."
                                                             fullWidth
                                                             size="small"
+                                                            required
                                                             sx={{ mb: 2 }}
+                                                            helperText="Specify what mitigations must be implemented before approval"
                                                         />
                                                     )}
 
@@ -470,8 +457,18 @@ export default function SmeRiskItemModal({ open, onClose, risk, smeId }: SmeRisk
                                                     />
 
                                                     {action && !comments.trim() && (
-                                                        <Alert severity="info" size="small" sx={{ mt: 1 }}>
+                                                        <Alert severity="info" sx={{ mt: 1 }}>
                                                             Comments are required for all review actions.
+                                                        </Alert>
+                                                    )}
+                                                    {action === 'approve_with_mitigation' && !mitigationPlan.trim() && (
+                                                        <Alert severity="warning" sx={{ mt: 1 }}>
+                                                            Mitigation plan is required when approving with mitigation.
+                                                        </Alert>
+                                                    )}
+                                                    {action === 'assign_other' && !assignToSme && (
+                                                        <Alert severity="warning" sx={{ mt: 1 }}>
+                                                            Please select an SME to reassign this risk to.
                                                         </Alert>
                                                     )}
                                                 </Paper>
@@ -667,6 +664,11 @@ export default function SmeRiskItemModal({ open, onClose, risk, smeId }: SmeRisk
                         {activeTab === 2 && ((risk as any)?.riskItemId || risk?.riskId) && (
                             <RiskCommentsPanel riskItemId={(risk as any)?.riskItemId || risk.riskId} currentUserId={smeId} />
                         )}
+
+                        {/* Tab 4: Status History */}
+                        {activeTab === 3 && ((risk as any)?.riskItemId || risk?.riskId) && (
+                            <RiskStatusTimeline riskId={(risk as any)?.riskItemId || risk.riskId} />
+                        )}
                     </Box>
                 </Box>
             </DialogContent>
@@ -679,9 +681,15 @@ export default function SmeRiskItemModal({ open, onClose, risk, smeId }: SmeRisk
                     <Button
                         onClick={handleSubmit}
                         variant="contained"
-                        disabled={!action || !comments.trim() || submitReviewMutation.isPending}
+                        disabled={
+                            !action ||
+                            !comments.trim() ||
+                            submitReviewMutation.isPending ||
+                            (action === 'approve_with_mitigation' && !mitigationPlan.trim()) ||
+                            (action === 'assign_other' && !assignToSme)
+                        }
                         color={
-                            action === 'approve' || action === 'approve_with_mitigation' ? 'success' : 
+                            action === 'approve' || action === 'approve_with_mitigation' ? 'success' :
                             action === 'reject' ? 'error' : 'primary'
                         }
                     >

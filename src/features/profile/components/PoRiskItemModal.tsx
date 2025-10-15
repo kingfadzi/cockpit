@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
     Dialog,
     DialogTitle,
@@ -17,6 +17,8 @@ import {
     List,
     ListItem,
     ListItemText,
+    Tabs,
+    Tab,
 } from '@mui/material';
 import {
     Close as CloseIcon,
@@ -24,8 +26,11 @@ import {
     Visibility as ViewIcon,
     Description as DocumentIcon,
 } from '@mui/icons-material';
-import type { RiskStory, RiskStatus, RiskSeverity } from '../../../api/types';
+import type { RiskStory, RiskItemStatus, RiskSeverity } from '../../../api/types';
+import { ACTIVE_RISK_STATUSES } from '../../../api/types';
+import { getStatusMuiColor } from '../../sme/config/riskStatusConfig';
 import { useProfileFieldEvidence } from '../../../api/hooks';
+import RiskStatusTimeline from '../../sme/components/RiskStatusTimeline';
 
 interface PoRiskItemModalProps {
     open: boolean;
@@ -42,11 +47,12 @@ export default function PoRiskItemModal({
     appId,
     onAttachEvidence
 }: PoRiskItemModalProps) {
+    const [activeTab, setActiveTab] = useState(0);
+
+    // Fetch evidence for the profile field (hook must be called before conditional returns)
+    const { data: evidenceData } = useProfileFieldEvidence(risk?.profileFieldId);
 
     if (!risk) return null;
-
-    // Fetch evidence for the profile field
-    const { data: evidenceData } = useProfileFieldEvidence(risk?.profileFieldId);
 
     const formatDate = (dateString: string) => {
         return new Date(dateString).toLocaleDateString('en-US', {
@@ -56,23 +62,8 @@ export default function PoRiskItemModal({
         });
     };
 
-    const getRiskStatusColor = (status: RiskStatus) => {
-        switch (status) {
-            case 'open': return 'error';
-            case 'under_review': return 'warning';
-            case 'pending_evidence': return 'info';
-            case 'resolved': return 'success';
-            case 'accepted': return 'success';
-            case 'rejected': return 'default';
-            case 'PENDING_SME_REVIEW': return 'warning';
-            case 'SME_APPROVED': return 'success';
-            case 'SME_REJECTED': return 'error';
-            default: return 'default';
-        }
-    };
-
-    const formatStatusLabel = (status: RiskStatus) => {
-        return status;
+    const formatStatusLabel = (status: RiskItemStatus) => {
+        return status.replace(/_/g, ' ');
     };
 
     const getRiskSeverityColor = (severity: RiskSeverity) => {
@@ -108,7 +99,8 @@ export default function PoRiskItemModal({
         return null;
     };
 
-    const canAttachEvidence = risk.status === 'pending_evidence' || risk.status === 'open';
+    // Can attach evidence if risk is in active state
+    const canAttachEvidence = ACTIVE_RISK_STATUSES.includes(risk.status as RiskItemStatus);
 
     return (
         <Dialog open={open} onClose={onClose} maxWidth="lg" fullWidth>
@@ -119,7 +111,7 @@ export default function PoRiskItemModal({
                             Risk Item Details
                         </Typography>
                         <Typography variant="caption" color="text.secondary">
-                            Risk ID: {risk.riskId}
+                            Risk ID: {(risk as any).riskItemId || risk.riskId}
                         </Typography>
                     </Stack>
                     <IconButton onClick={onClose} size="small">
@@ -127,7 +119,16 @@ export default function PoRiskItemModal({
                     </IconButton>
                 </Stack>
             </DialogTitle>
+
+            {/* Tabs */}
+            <Tabs value={activeTab} onChange={(e, newValue) => setActiveTab(newValue)} sx={{ px: 3, pt: 1 }}>
+                <Tab label="Risk Details" />
+                <Tab label="Status History" />
+            </Tabs>
+
             <DialogContent>
+                {/* Tab 1: Risk Details */}
+                {activeTab === 0 && (
                 <Grid container spacing={2}>
                     {/* Left Column - Main Content */}
                     <Grid item xs={12} md={8}>
@@ -146,8 +147,8 @@ export default function PoRiskItemModal({
                                         />
                                         <Chip
                                             size="small"
-                                            color={getRiskStatusColor(risk.status)}
-                                            label={formatStatusLabel(risk.status)}
+                                            color={getStatusMuiColor(risk.status as RiskItemStatus)}
+                                            label={formatStatusLabel(risk.status as RiskItemStatus)}
                                         />
                                         <Chip
                                             size="small"
@@ -362,7 +363,7 @@ export default function PoRiskItemModal({
                                     <Box>
                                         <Typography variant="subtitle2" sx={{ mb: 0.5 }}>Assigned SME</Typography>
                                         <Typography variant="body2" fontWeight={600}>
-                                            {risk.assignedSme || 'Unassigned'}
+                                            {(risk as any).assignedTo || risk.assignedSme || 'Unassigned'}
                                         </Typography>
                                     </Box>
 
@@ -456,6 +457,12 @@ export default function PoRiskItemModal({
                         </Stack>
                     </Grid>
                 </Grid>
+                )}
+
+                {/* Tab 2: Status History */}
+                {activeTab === 1 && ((risk as any).riskItemId || risk.riskId) && (
+                    <RiskStatusTimeline riskId={(risk as any).riskItemId || risk.riskId} />
+                )}
             </DialogContent>
             <DialogActions>
                 <Button onClick={onClose}>

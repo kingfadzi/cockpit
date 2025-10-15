@@ -31,6 +31,22 @@ export type AppSummary = {
   hasChildren?: boolean | null;
   parentAppId?: string | null;
   parentAppName?: string | null;
+  // Risk Metrics (for PO dashboard)
+  riskMetrics?: {
+    totalRisks: {
+      critical: number;
+      high: number;
+      medium: number;
+      low: number;
+    };
+    inProgress: {
+      critical: number;
+      high: number;
+      medium: number;
+      low: number;
+    };
+    riskScore: number;          // MAX domain priority score (0-100 scale)
+  };
 };
 
 // Server shape coming from Spring (camelCase + appCriticalityAssessment)
@@ -714,12 +730,37 @@ export interface RiskItemResponse {
   updatedAt: string;
 }
 
+// Risk Item Status - State Machine (10 states: 6 active, 4 terminal)
 export type RiskItemStatus =
-  | 'OPEN'
-  | 'IN_PROGRESS'
-  | 'RESOLVED'
-  | 'WAIVED'
-  | 'CLOSED';
+  // Active States (6) - Risk requires action
+  | 'PENDING_REVIEW'          // Awaiting triage/assignment
+  | 'UNDER_SME_REVIEW'        // SME is actively reviewing
+  | 'AWAITING_REMEDIATION'    // Rejected by SME, needs remediation
+  | 'IN_REMEDIATION'          // PO is working on fixes
+  | 'PENDING_APPROVAL'        // Remediation submitted, awaiting SME approval
+  | 'ESCALATED'               // Escalated to higher authority
+  // Terminal States (4) - Risk is closed/resolved
+  | 'SME_APPROVED'            // Approved by SME
+  | 'SELF_ATTESTED'           // Self-attested by PO
+  | 'REMEDIATED'              // Remediation approved
+  | 'CLOSED';                 // Manually closed/archived
+
+// Helper arrays for status filtering and logic
+export const ACTIVE_RISK_STATUSES: readonly RiskItemStatus[] = [
+  'PENDING_REVIEW',
+  'UNDER_SME_REVIEW',
+  'AWAITING_REMEDIATION',
+  'IN_REMEDIATION',
+  'PENDING_APPROVAL',
+  'ESCALATED'
+] as const;
+
+export const TERMINAL_RISK_STATUSES: readonly RiskItemStatus[] = [
+  'SME_APPROVED',
+  'SELF_ATTESTED',
+  'REMEDIATED',
+  'CLOSED'
+] as const;
 
 export interface RiskStatusUpdateRequest {
   status: RiskItemStatus;
@@ -751,4 +792,25 @@ export interface RiskCommentRequest {
   commentText: string;
   commentedBy: string;
   isInternal?: boolean;
+}
+
+// Risk Status History Types
+export interface RiskStatusHistoryEntry {
+  historyId: string;
+  riskItemId: string;
+  fromStatus: RiskItemStatus | null;  // null for initial status
+  toStatus: RiskItemStatus;
+  changedBy: string;
+  changedByName?: string;
+  changeReason?: string;
+  actionTaken?: string;  // The action that triggered the status change (e.g., 'approve', 'reject', 'escalate')
+  comments?: string;
+  timestamp: string;
+  createdAt: string;
+}
+
+export interface RiskStatusHistoryResponse {
+  riskItemId: string;
+  history: RiskStatusHistoryEntry[];
+  totalCount: number;
 }

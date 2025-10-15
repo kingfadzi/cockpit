@@ -20,7 +20,8 @@ import {
     Close as CloseIcon,
     ReportProblem as RiskIcon,
 } from '@mui/icons-material';
-import type { Risk } from '../../../api/types';
+import type { Risk, RiskItemStatus } from '../../../api/types';
+import { getStatusMuiColor } from '../../sme/config/riskStatusConfig';
 import { useRisk } from '../../../api/hooks';
 import SmeRiskItemModal from '../../sme/components/SmeRiskItemModal';
 import PoRiskItemModal from './PoRiskItemModal';
@@ -56,16 +57,8 @@ export default function FieldRisksModal({ open, onClose, fieldLabel, risks, user
         }
     };
 
-    const getStatusColor = (status: string) => {
-        switch (status) {
-            case 'Open': return 'error';
-            case 'Mitigated': return 'warning';
-            case 'Closed': return 'success';
-            case 'PENDING_SME_REVIEW': return 'warning';
-            case 'SME_APPROVED': return 'success';
-            case 'SME_REJECTED': return 'error';
-            default: return 'default';
-        }
+    const formatStatusLabel = (status: string) => {
+        return status.replace(/_/g, ' ');
     };
 
     return (
@@ -127,8 +120,8 @@ export default function FieldRisksModal({ open, onClose, fieldLabel, risks, user
                                         <TableCell>
                                             <Chip
                                                 size="small"
-                                                label={risk.status}
-                                                color={getStatusColor(risk.status) as any}
+                                                label={formatStatusLabel(risk.status)}
+                                                color={getStatusMuiColor(risk.status as RiskItemStatus)}
                                                 variant="outlined"
                                             />
                                         </TableCell>

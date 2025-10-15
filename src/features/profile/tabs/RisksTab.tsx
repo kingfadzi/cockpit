@@ -29,6 +29,7 @@ import {
     InputAdornment,
     Divider,
     Grid,
+    ListSubheader,
 } from '@mui/material';
 import {
     Warning as WarningIcon,
@@ -44,7 +45,8 @@ import {
     Close as CloseIcon,
 } from '@mui/icons-material';
 import { useAppRisks, useCreateRisk, useAttachEvidenceToRisk } from '../../../api/hooks';
-import type { RiskStory, RiskStatus, RiskSeverity } from '../../../api/types';
+import type { RiskStory, RiskItemStatus, RiskSeverity } from '../../../api/types';
+import { getStatusMuiColor, STATUS_FILTER_OPTIONS } from '../../sme/config/riskStatusConfig';
 import SmeRiskItemModal from '../../sme/components/SmeRiskItemModal';
 import PoRiskItemModal from '../components/PoRiskItemModal';
 import { Link } from '@mui/material';
@@ -336,29 +338,8 @@ export default function RisksTab({ appId, appName, userRole = 'po', smeId, curre
         });
     };
 
-    const getRiskStatusColor = (status: RiskStatus) => {
-        switch (status) {
-            case 'OPEN': return 'error';
-            case 'IN_PROGRESS': return 'warning';
-            case 'RESOLVED': return 'success';
-            case 'WAIVED': return 'default';
-            case 'CLOSED': return 'success';
-            // Legacy statuses for backward compatibility
-            case 'open': return 'error';
-            case 'under_review': return 'warning';
-            case 'pending_evidence': return 'info';
-            case 'resolved': return 'success';
-            case 'accepted': return 'success';
-            case 'rejected': return 'default';
-            case 'PENDING_SME_REVIEW': return 'warning';
-            case 'SME_APPROVED': return 'success';
-            case 'SME_REJECTED': return 'error';
-            default: return 'default';
-        }
-    };
-
-    const formatStatusLabel = (status: RiskStatus) => {
-        return status;
+    const formatStatusLabel = (status: RiskItemStatus) => {
+        return status.replace(/_/g, ' ');
     };
 
     const getRiskSeverityColor = (severity: RiskSeverity) => {
@@ -489,19 +470,30 @@ export default function RisksTab({ appId, appName, userRole = 'po', smeId, curre
                             )}
                         </Select>
                     </FormControl>
-                    <FormControl size="small" sx={{ width: 115 }}>
+                    <FormControl size="small" sx={{ width: 145 }}>
                         <InputLabel>Status</InputLabel>
                         <Select
                             value={statusFilter}
                             label="Status"
                             onChange={(e) => handleStatusFilterChange(e.target.value)}
                         >
-                            <MenuItem value="">All</MenuItem>
-                            <MenuItem value="OPEN">Open</MenuItem>
-                            <MenuItem value="IN_PROGRESS">In Progress</MenuItem>
-                            <MenuItem value="RESOLVED">Resolved</MenuItem>
-                            <MenuItem value="WAIVED">Waived</MenuItem>
-                            <MenuItem value="CLOSED">Closed</MenuItem>
+                            <MenuItem value="">All Statuses</MenuItem>
+                            <ListSubheader sx={{ fontSize: '0.75rem', fontWeight: 600, color: 'warning.main' }}>
+                                Active
+                            </ListSubheader>
+                            {STATUS_FILTER_OPTIONS.active.map((option) => (
+                                <MenuItem key={option.value} value={option.value}>
+                                    {option.label}
+                                </MenuItem>
+                            ))}
+                            <ListSubheader sx={{ fontSize: '0.75rem', fontWeight: 600, color: 'success.main' }}>
+                                Closed
+                            </ListSubheader>
+                            {STATUS_FILTER_OPTIONS.closed.map((option) => (
+                                <MenuItem key={option.value} value={option.value}>
+                                    {option.label}
+                                </MenuItem>
+                            ))}
                         </Select>
                     </FormControl>
                     <FormControl size="small" sx={{ width: 110 }}>
@@ -657,9 +649,9 @@ export default function RisksTab({ appId, appName, userRole = 'po', smeId, curre
                                             <TableCell>
                                                 <Chip
                                                     size="small"
-                                                    color={getRiskStatusColor(risk.status)}
+                                                    color={getStatusMuiColor(risk.status as RiskItemStatus)}
                                                     variant="outlined"
-                                                    label={formatStatusLabel(risk.status)}
+                                                    label={formatStatusLabel(risk.status as RiskItemStatus)}
                                                 />
                                             </TableCell>
                                             <TableCell>
