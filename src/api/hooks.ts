@@ -19,6 +19,7 @@ import type {
     RiskItemSearchResponse,
     RiskItemSearchParams,
     CreateRiskItemPayload,
+    PortfolioRiskSummary,
 } from './types';
 
 const commonQuery = { staleTime: 60_000, refetchOnWindowFocus: false as const };
@@ -65,6 +66,13 @@ export const useAppKpis = (appId: string) =>
 
 export const useChildApps = (appId: string) =>
     useQuery<AppSummary[]>({ queryKey: ['childApps', appId], queryFn: () => endpoints.getChildApps(appId), enabled: !!appId, ...commonQuery });
+
+export const usePortfolioRiskSummary = () =>
+    useQuery<PortfolioRiskSummary>({
+        queryKey: ['portfolio', 'risk-summary'],
+        queryFn: () => endpoints.getPortfolioRiskSummary(),
+        ...commonQuery
+    });
 
 export const useEvidenceSearch = (params: EvidenceSearchParams) =>
     useQuery<EvidenceSearchResult>({

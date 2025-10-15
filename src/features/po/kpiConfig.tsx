@@ -224,6 +224,65 @@ export const kpiConfigMap: Record<string, KpiConfig> = {
         renderCell: (evidence) => evidence.domainRating || '—',
       },
       {
+        field: 'status',
+        headerName: 'Status',
+        flex: 1,
+        renderCell: (evidence) => {
+          // Map new v1 API risk status values to colors
+          const statusColors: Record<string, 'error' | 'warning' | 'info' | 'success' | 'default'> = {
+            // Risk Item Statuses (new v1 API)
+            'pending_review': 'warning',
+            'under_sme_review': 'info',
+            'awaiting_remediation': 'warning',
+            'in_remediation': 'info',
+            'pending_approval': 'warning',
+            'escalated': 'error',
+            'sme_approved': 'success',
+            'resolved': 'success',
+            'closed': 'success',
+            // Legacy statuses
+            'risk_blocked': 'error',
+            'rejected': 'error',
+            'expired': 'warning',
+            'pending': 'warning',
+            'open': 'error',
+            'approved': 'success',
+            'compliant': 'success',
+            'missing': 'default',
+          };
+
+          const statusLabels: Record<string, string> = {
+            // Risk Item Statuses (new v1 API)
+            'pending_review': 'Pending Review',
+            'under_sme_review': 'Under SME Review',
+            'awaiting_remediation': 'Awaiting Remediation',
+            'in_remediation': 'In Remediation',
+            'pending_approval': 'Pending Approval',
+            'escalated': 'Escalated',
+            'sme_approved': 'SME Approved',
+            'resolved': 'Resolved',
+            'closed': 'Closed',
+            // Legacy statuses
+            'risk_blocked': 'Risk Blocked',
+            'rejected': 'Rejected',
+            'expired': 'Expired',
+            'pending': 'Pending',
+            'open': 'Open',
+            'approved': 'Approved',
+            'compliant': 'Compliant',
+            'missing': 'Missing',
+          };
+
+          return (
+            <Chip
+              size="small"
+              label={statusLabels[evidence.status] || evidence.status}
+              color={statusColors[evidence.status] || 'default'}
+            />
+          );
+        },
+      },
+      {
         field: 'fieldLabel',
         headerName: 'Control Field',
         flex: 3,

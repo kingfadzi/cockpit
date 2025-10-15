@@ -9,7 +9,6 @@ import type {
     ProfileResponse,
     AppKpis,
     AttachDocumentResponse,
-    RiskStory,
     RiskItem,
     RiskItemSearchParams,
     RiskItemSearchResponse,
@@ -439,6 +438,10 @@ function normalizeRiskSummary(item: RiskBlockedSummary): WorkbenchEvidenceItem {
             fullItem: item
         });
     }
+
+    // Use actual riskStatus from backend, fallback to 'risk_blocked' if not provided
+    const riskStatus = item.riskStatus ?? item.risk_status ?? 'risk_blocked';
+
     return {
         evidenceId: item.riskId ?? item.risk_id ?? `risk-${fieldKey}`,
         appId: safeString(item.appId ?? item.app_id, 'UNKNOWN_APP'),
@@ -453,7 +456,7 @@ function normalizeRiskSummary(item: RiskBlockedSummary): WorkbenchEvidenceItem {
         fieldKey,
         fieldLabel: safeString(item.field_label ?? titleCase(item.controlField ?? item.fieldKey ?? item.field_key ?? fieldKey), fieldKey),
         policyRequirement: safeString(item.hypothesis, '—'),
-        status: 'risk_blocked',
+        status: riskStatus.toLowerCase(),
         approvalStatus: 'pending_review',
         freshnessStatus: 'broken',
         dueDate: undefined,
@@ -657,6 +660,12 @@ export const endpoints = {
         USE_MOCK
             ? mockApi.getChildApps(appId)
             : (await api.get<ServerApp[]>(`/api/apps/${appId}/children`)).data.map(toClient),
+
+    /** Portfolio risk summary for PO dashboard */
+    getPortfolioRiskSummary: async (): Promise<PortfolioRiskSummary> =>
+        USE_MOCK
+            ? mockApi.getPortfolioRiskSummary()
+            : (await api.get<PortfolioRiskSummary>('/api/v1/portfolio/risk-summary')).data,
 
     /** Evidence search for portfolio/workbench views */
     searchEvidence: async (params: EvidenceSearchParams = {}): Promise<EvidenceSearchResult> => {
@@ -1186,24 +1195,27 @@ export const endpoints = {
     // ==========================================
 
     /** @deprecated Use getRiskItem instead */
-    getRisk: async (riskId: string): Promise<RiskStory> =>
+    getRisk: async (riskId: string): Promise<RiskItem> =>
         USE_MOCK
             ? {
-                riskId,
+                riskItemId: riskId,
                 appId: 'CORR-12356',
                 fieldKey: 'encryption_at_rest',
                 profileFieldId: 'pf_001',
                 title: 'Encryption at Rest Not Implemented',
                 description: 'Application does not have proper encryption at rest implementation which poses security risks.',
-                status: 'pending_evidence',
+                status: 'PENDING_REVIEW',
                 severity: 'high',
-                assignedSme: 'security_sme_001',
-                createdBy: 'po_user_001',
+                priority: 'HIGH',
+                priorityScore: 80,
+                assignedTo: 'security_sme_001',
+                raisedBy: 'po_user_001',
+                creationType: 'SYSTEM_AUTO_CREATION',
+                openedAt: new Date().toISOString(),
                 createdAt: new Date().toISOString(),
                 updatedAt: new Date().toISOString(),
-                evidenceCount: 0
             }
-            : (await api.get<RiskStory>(`/api/risks/${riskId}`)).data,
+            : (await api.get<RiskItem>(`/api/risks/${riskId}`)).data,
 
     /** @deprecated Use searchRiskItems or getRiskItemsByApp instead */
     getAppRisks: async (appId: string, page?: number, size?: number, filters?: { status?: string; severity?: string; assignedSme?: string; search?: string; domain?: string }): Promise<unknown> => {
@@ -1400,51 +1412,57 @@ export const endpoints = {
     },
 
     /** @deprecated Use getRiskItemsByField instead */
-    getFieldRisks: async (appId: string, fieldKey: string): Promise<RiskStory[]> =>
+    getFieldRisks: async (appId: string, fieldKey: string): Promise<RiskItem[]> =>
         USE_MOCK
             ? [
                 {
-                    riskId: 'risk_001',
+                    riskItemId: 'risk_001',
                     appId,
                     fieldKey,
                     profileFieldId: 'pf_001',
                     title: `Risk for ${fieldKey}`,
                     description: `Security risk identified for field ${fieldKey}`,
-                    status: 'pending_evidence',
+                    status: 'PENDING_REVIEW',
                     severity: 'high',
-                    assignedSme: 'security_sme_001',
-                    createdBy: 'system',
+                    priority: 'HIGH',
+                    priorityScore: 80,
+                    assignedTo: 'security_sme_001',
+                    raisedBy: 'system',
+                    creationType: 'SYSTEM_AUTO_CREATION',
+                    openedAt: new Date().toISOString(),
                     createdAt: new Date().toISOString(),
                     updatedAt: new Date().toISOString(),
-                    evidenceCount: 0
                 }
             ]
-            : (await api.get<RiskStory[]>(`/api/apps/${appId}/fields/${fieldKey}/risks`)).data,
+            : (await api.get<RiskItem[]>(`/api/apps/${appId}/fields/${fieldKey}/risks`)).data,
 
     /** @deprecated Use searchRiskItems with profileFieldId filter instead */
-    getProfileFieldRisks: async (profileFieldId: string): Promise<RiskStory[]> =>
+    getProfileFieldRisks: async (profileFieldId: string): Promise<RiskItem[]> =>
         USE_MOCK
             ? []
-            : (await api.get<RiskStory[]>(`/api/profile-fields/${profileFieldId}/risks`)).data,
+            : (await api.get<RiskItem[]>(`/api/profile-fields/${profileFieldId}/risks`)).data,
 
     /** @deprecated Use createRiskItem instead */
-    createRisk: async (appId: string, fieldKey: string, payload: unknown): Promise<RiskStory> =>
+    createRisk: async (appId: string, fieldKey: string, payload: unknown): Promise<RiskItem> =>
         USE_MOCK
             ? {
-                riskId: 'risk_new_' + Date.now(),
+                riskItemId: 'risk_new_' + Date.now(),
                 appId,
                 fieldKey,
                 title: (payload as { title: string }).title,
                 description: (payload as { description: string }).description,
-                status: 'open',
+                status: 'PENDING_REVIEW',
                 severity: (payload as { severity: RiskSeverity }).severity || 'medium',
-                createdBy: 'current_user',
+                priority: 'HIGH',
+                priorityScore: 80,
+                raisedBy: 'current_user',
+                creationType: 'MANUAL_CREATION',
+                openedAt: new Date().toISOString(),
                 createdAt: new Date().toISOString(),
                 updatedAt: new Date().toISOString(),
-                evidenceCount: 0,
                 ...(payload as object),
             }
-            : (await api.post<RiskStory>(`/api/apps/${appId}/fields/${fieldKey}/risks`, payload)).data,
+            : (await api.post<RiskItem>(`/api/apps/${appId}/fields/${fieldKey}/risks`, payload)).data,
 
     /** @deprecated Will be replaced with new risk item evidence management endpoints */
     attachEvidenceToRisk: async (riskId: string, payload: unknown): Promise<unknown> =>

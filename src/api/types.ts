@@ -275,9 +275,6 @@ export interface RiskItem {
   dueDate?: string;
 }
 
-// Backward compatibility alias (old code still uses RiskStory)
-export type RiskStory = RiskItem;
-
 // Risk Item Search Parameters (for /api/v1/risk-items/search)
 export interface RiskItemSearchParams {
   appId?: string;                   // Filter by application ID
@@ -813,4 +810,28 @@ export interface RiskStatusHistoryResponse {
   riskItemId: string;
   history: RiskStatusHistoryEntry[];
   totalCount: number;
+}
+
+// ==========================================
+// Portfolio Risk Summary Types
+// ==========================================
+
+export interface CriticalApp {
+  appId: string;
+  appName: string;
+  criticalCount: number;
+  highCount: number;
+  riskScore: number;
+}
+
+export interface PortfolioRiskSummary {
+  actionRequired: number;
+  blockingCompliance: number;
+  missingEvidence: number;
+  pendingReview: number;
+  escalated: number;
+  recentWins: number;
+  criticalApps: CriticalApp[];
+  totalApps: number;
+  appsWithRisks: number;
 }

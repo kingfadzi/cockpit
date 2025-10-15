@@ -4,6 +4,7 @@ import { createBrowserRouter, Navigate } from 'react-router-dom';
 import { AppShell } from './AppShell';
 import POHome from '../features/po/POHome';
 import KpiDetailPage from '../features/po/KpiDetailPage';
+import PortfolioRisksPage from '../features/po/PortfolioRisksPage';
 import SMEHome from '../features/sme/SMEHome';
 import PortfolioEvidence from '../features/evidence/PortfolioEvidence';
 
@@ -24,6 +25,7 @@ export const router = createBrowserRouter([
       { index: true, element: <Navigate to="/po" replace /> },
       { path: 'po', element: <POHome /> },
       { path: 'po/evidence', element: <PortfolioEvidence /> },
+      { path: 'po/risks', element: <PortfolioRisksPage /> },
       { path: 'po/kpis/:kpiType', element: <KpiDetailPage /> },
 
       // ⬇️ simplified: one page, no nested routes
