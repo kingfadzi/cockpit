@@ -288,24 +288,6 @@ export const kpiConfigMap: Record<string, KpiConfig> = {
         flex: 3,
       },
       ...createArchitectureColumns(),
-      {
-        field: 'rejectionReason',
-        headerName: 'Rejection Reason',
-        flex: 2,
-        renderCell: (evidence) => (
-          <Tooltip title={evidence.rejectionReason}>
-            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
-              {evidence.rejectionReason || 'No reason provided'}
-            </span>
-          </Tooltip>
-        ),
-      },
-      {
-        field: 'reviewedDate',
-        headerName: 'Rejected Date',
-        flex: 1,
-        renderCell: (evidence) => evidence.reviewedDate ? new Date(evidence.reviewedDate).toLocaleDateString() : '—',
-      },
     ],
   },
 };
